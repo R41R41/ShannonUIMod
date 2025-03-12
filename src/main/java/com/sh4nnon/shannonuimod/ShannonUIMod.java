@@ -17,13 +17,9 @@ import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.client.event.ClientPlayerNetworkEvent;
 import net.minecraftforge.client.event.CustomizeGuiOverlayEvent;
 import net.minecraftforge.client.event.InputEvent;
-import net.minecraft.world.entity.player.Player;
-import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.systems.RenderSystem;
-import net.minecraft.client.gui.screens.Screen;
-import net.minecraft.client.gui.components.Button;
+import net.minecraft.resources.ResourceLocation;
 import org.lwjgl.glfw.GLFW;
-import java.util.Random;
 
 @Mod(ShannonUIMod.MOD_ID)
 public class ShannonUIMod {
@@ -35,17 +31,17 @@ public class ShannonUIMod {
 
     // Botの情報（実際のmineflayerと連携する場合は、ここを実際のデータに置き換える）
     private static class BotInfo {
-        private static final Random random = new Random();
         private static float health = 20.0f; // 最大20
         private static int food = 20; // 最大20
-        private static String botName = "MineflayerBot";
+        private static String botName = "R41R41";
 
-        // 実際のmineflayerと連携する場合は、このメソッドを実際のデータ取得に置き換える
+        // 実際のプレイヤーの情報を取得するメソッド
         public static void updateInfo() {
-            // デモ用にランダムに値を変動させる
-            if (random.nextInt(100) < 10) { // 10%の確率で変化
-                health = Math.max(0, Math.min(20, health + random.nextFloat() * 2 - 1));
-                food = Math.max(0, Math.min(20, food + random.nextInt(3) - 1));
+            Minecraft mc = Minecraft.getInstance();
+            if (mc.player != null) {
+                // プレイヤーの体力と空腹度を取得
+                health = mc.player.getHealth(); // プレイヤーの現在の体力
+                food = mc.player.getFoodData().getFoodLevel(); // プレイヤーの現在の空腹度
             }
         }
     }
@@ -64,11 +60,8 @@ public class ShannonUIMod {
 
     private void clientSetup(final FMLClientSetupEvent event) {
         System.out.println("ShannonUIMod: clientSetup");
-        // プレイヤーイベントハンドラを登録
         MinecraftForge.EVENT_BUS.register(new PlayerEventHandler());
-        // ボットステータスオーバーレイを登録
         MinecraftForge.EVENT_BUS.register(BotStatusOverlay.class);
-        // キー入力ハンドラを登録
         MinecraftForge.EVENT_BUS.register(KeyHandler.class);
         System.out.println("ShannonUIMod: Event handlers registered");
     }
@@ -80,36 +73,28 @@ public class ShannonUIMod {
     public void onServerStarting(ServerStartingEvent event) {
     }
 
-    // プレイヤーイベントを処理するクラス
     @Mod.EventBusSubscriber(modid = MOD_ID, bus = Mod.EventBusSubscriber.Bus.FORGE, value = Dist.CLIENT)
     public static class PlayerEventHandler {
         private static final String WELCOME_MESSAGE = "§c§lShannonUIMod is active!"; // 赤色で太字
         private static boolean hasShownMessage = false;
 
-        // プレイヤーがログインしたときのイベント
         @SubscribeEvent
         public void onPlayerLoggedIn(ClientPlayerNetworkEvent.LoggingIn event) {
             System.out.println("ShannonUIMod: Player logged in");
             hasShownMessage = false; // リセット
         }
 
-        // クライアントティックごとにメッセージを表示（一度だけ）
         @SubscribeEvent
         public void onClientTick(TickEvent.ClientTickEvent event) {
             if (event.phase == TickEvent.Phase.END) {
                 Minecraft mc = Minecraft.getInstance();
                 if (mc.player != null && !hasShownMessage) {
-                    // 少し待ってからメッセージを表示（ワールド読み込み完了後）
                     if (mc.player.tickCount > 20) {
-                        // タイトル表示
                         mc.player.displayClientMessage(Component.literal(WELCOME_MESSAGE), false);
-
-                        // チャットメッセージも追加
                         mc.gui.getChat().addMessage(Component.literal("ShannonUIMod: MODが正常に読み込まれました！"));
                         mc.gui.getChat().addMessage(Component.literal("ShannonUIMod: このMODはUIをカスタマイズします。"));
                         mc.gui.getChat().addMessage(Component.literal("ShannonUIMod: 画面右下にBotのステータスが表示されます。"));
                         mc.gui.getChat().addMessage(Component.literal("ShannonUIMod: Uキーを押すと詳細情報の表示/非表示を切り替えられます。"));
-
                         System.out.println("ShannonUIMod: Displayed welcome message");
                         hasShownMessage = true;
                     }
@@ -130,7 +115,6 @@ public class ShannonUIMod {
         }
     }
 
-    // キー入力を処理するクラス
     @Mod.EventBusSubscriber(modid = MOD_ID, bus = Mod.EventBusSubscriber.Bus.FORGE, value = Dist.CLIENT)
     public static class KeyHandler {
         private static boolean wasUKeyPressed = false;
@@ -161,20 +145,30 @@ public class ShannonUIMod {
         }
     }
 
-    // Botステータスとオーバーレイを表示するクラス
     public static class BotStatusOverlay {
-        public static final int PANEL_WIDTH = 100; // パネルの幅
-        public static final int PANEL_HEIGHT = 50; // パネルの高さ
-        private static final int PANEL_COLOR = 0xAA000000; // 半透明の黒色 (ARGB)
-        private static final int PANEL_BORDER_COLOR = 0xFFFFFFFF; // 白色の枠線 (ARGB)
+        private static final int LARGE_RECT_WIDTH = 200;
+        private static final int LARGE_RECT_HEIGHT = 150;
+        private static final int LARGE_RECT_COLOR = 0xCC000000;
+        private static final int LARGE_RECT_BORDER_COLOR = 0xFFFFFFFF;
 
-        private static final int HEALTH_BAR_COLOR = 0xFFFF0000; // 赤色 (ARGB)
-        private static final int FOOD_BAR_COLOR = 0xFFFFAA00; // オレンジ色 (ARGB)
+        private static final ResourceLocation ICONS = ResourceLocation.parse("minecraft:textures/gui/icons.png");
+        private static final ResourceLocation SHANNON_ICON = ResourceLocation
+                .parse("shannonuimod:textures/ui/shannon.png");
 
-        private static final int LARGE_RECT_WIDTH = 200; // 大きな長方形の幅
-        private static final int LARGE_RECT_HEIGHT = 150; // 大きな長方形の高さ
-        private static final int LARGE_RECT_COLOR = 0xCC000000; // 半透明の黒色 (ARGB)
-        private static final int LARGE_RECT_BORDER_COLOR = 0xFFFFFFFF; // 白色の枠線 (ARGB)
+        private static final ResourceLocation HEART_FULL = ResourceLocation.parse(
+                "minecraft:textures/gui/sprites/hud/heart/full.png");
+        private static final ResourceLocation HEART_HALF = ResourceLocation.parse(
+                "minecraft:textures/gui/sprites/hud/heart/half.png");
+        private static final ResourceLocation HEART_EMPTY = ResourceLocation.parse(
+                "minecraft:textures/gui/sprites/hud/heart/container.png");
+
+        // 食料アイコンも同様に
+        private static final ResourceLocation FOOD_FULL = ResourceLocation.parse(
+                "minecraft:textures/gui/sprites/hud/food_full.png");
+        private static final ResourceLocation FOOD_HALF = ResourceLocation.parse(
+                "minecraft:textures/gui/sprites/hud/food_half.png");
+        private static final ResourceLocation FOOD_EMPTY = ResourceLocation.parse(
+                "minecraft:textures/gui/sprites/hud/food_empty.png");
 
         @SubscribeEvent
         public static void onRenderGui(CustomizeGuiOverlayEvent event) {
@@ -187,59 +181,90 @@ public class ShannonUIMod {
                 int screenWidth = event.getWindow().getGuiScaledWidth();
                 int screenHeight = event.getWindow().getGuiScaledHeight();
 
-                RenderSystem.enableBlend(); // 透明度を有効化
+                RenderSystem.enableBlend();
 
-                // パネルの位置（右下から10ピクセル内側）
-                int panelX = screenWidth - PANEL_WIDTH - 10;
-                int panelY = screenHeight - PANEL_HEIGHT - 10;
+                RenderSystem.setShaderTexture(0, ICONS);
 
-                // パネルの背景を描画
-                guiGraphics.fill(panelX, panelY, panelX + PANEL_WIDTH, panelY + PANEL_HEIGHT, PANEL_COLOR);
+                int hudSize = 6;
+                int hudPadding = 10;
+                int hudGap = 2;
+                int heartX = screenWidth - hudSize * 10 - hudPadding;
+                int heartY = screenHeight - hudSize * 2 - hudPadding - hudGap;
 
-                // パネルの枠線を描画
-                guiGraphics.fill(panelX, panelY, panelX + PANEL_WIDTH, panelY + 1, PANEL_BORDER_COLOR); // 上辺
-                guiGraphics.fill(panelX, panelY, panelX + 1, panelY + PANEL_HEIGHT, PANEL_BORDER_COLOR); // 左辺
-                guiGraphics.fill(panelX, panelY + PANEL_HEIGHT - 1, panelX + PANEL_WIDTH, panelY + PANEL_HEIGHT,
-                        PANEL_BORDER_COLOR); // 下辺
-                guiGraphics.fill(panelX + PANEL_WIDTH - 1, panelY, panelX + PANEL_WIDTH, panelY + PANEL_HEIGHT,
-                        PANEL_BORDER_COLOR); // 右辺
+                int fullHearts = (int) (BotInfo.health / 2);
+                boolean hasHalfHeart = BotInfo.health % 2 != 0;
 
-                // Botの名前を描画
-                guiGraphics.drawString(mc.font, BotInfo.botName, panelX + 5, panelY + 5, 0xFFFFFFFF);
+                for (int i = 0; i < 10; i++) {
+                    int currentHeartX = heartX + i * hudSize;
+                    try {
+                        RenderSystem.setShaderTexture(0, HEART_EMPTY);
+                        guiGraphics.blit(HEART_EMPTY, currentHeartX, heartY, 0, 0, hudSize, hudSize, hudSize,
+                                hudSize);
 
-                // 体力バーの背景
-                guiGraphics.fill(panelX + 5, panelY + 20, panelX + PANEL_WIDTH - 5, panelY + 25, 0x80FFFFFF);
+                        if (i < fullHearts) {
+                            RenderSystem.setShaderTexture(0, HEART_FULL);
+                            guiGraphics.blit(HEART_FULL, currentHeartX, heartY, 0, 0, hudSize, hudSize, hudSize,
+                                    hudSize);
+                        } else if (i == fullHearts && hasHalfHeart) {
+                            RenderSystem.setShaderTexture(0, HEART_HALF);
+                            guiGraphics.blit(HEART_HALF, currentHeartX, heartY, 0, 0, hudSize, hudSize, hudSize,
+                                    hudSize);
+                        }
+                    } catch (Exception e) {
+                        System.err.println("ShannonUIMod: Error drawing heart at index " + i + ": " + e.getMessage());
+                        e.printStackTrace();
+                    }
+                }
 
-                // 体力バー
-                int healthWidth = (int) ((PANEL_WIDTH - 10) * (BotInfo.health / 20.0f));
-                guiGraphics.fill(panelX + 5, panelY + 20, panelX + 5 + healthWidth, panelY + 25, HEALTH_BAR_COLOR);
+                int foodX = screenWidth - hudSize * 10 - hudPadding;
+                int foodY = screenHeight - hudSize * 1 - hudPadding;
 
-                // 体力テキスト
-                String healthText = String.format("HP: %.1f/20", BotInfo.health);
-                guiGraphics.drawString(mc.font, healthText, panelX + 5, panelY + 30, 0xFFFFFFFF);
+                int fullFood = BotInfo.food / 2;
+                boolean hasHalfFood = BotInfo.food % 2 != 0;
 
-                // 空腹度バーの背景
-                guiGraphics.fill(panelX + 5, panelY + 40, panelX + PANEL_WIDTH - 5, panelY + 45, 0x80FFFFFF);
+                for (int i = 0; i < 10; i++) {
+                    int currentFoodX = foodX + (9 - i) * hudSize;
+                    try {
+                        RenderSystem.setShaderTexture(0, FOOD_EMPTY);
+                        guiGraphics.blit(FOOD_EMPTY, currentFoodX, foodY, 0, 0, hudSize, hudSize, hudSize,
+                                hudSize);
 
-                // 空腹度バー
-                int foodWidth = (int) ((PANEL_WIDTH - 10) * (BotInfo.food / 20.0f));
-                guiGraphics.fill(panelX + 5, panelY + 40, panelX + 5 + foodWidth, panelY + 45, FOOD_BAR_COLOR);
+                        if (i < fullFood) {
+                            RenderSystem.setShaderTexture(0, FOOD_FULL);
+                            guiGraphics.blit(FOOD_FULL, currentFoodX, foodY, 0, 0, hudSize, hudSize, hudSize,
+                                    hudSize);
+                        } else if (i == fullFood && hasHalfFood) {
+                            RenderSystem.setShaderTexture(0, FOOD_HALF);
+                            guiGraphics.blit(FOOD_HALF, currentFoodX, foodY, 0, 0, hudSize, hudSize, hudSize,
+                                    hudSize);
+                        }
+                    } catch (Exception e) {
+                        System.err.println("ShannonUIMod: Error drawing food at index " + i + ": " + e.getMessage());
+                        e.printStackTrace();
+                    }
+                }
 
-                // 空腹度テキスト
-                String foodText = String.format("Food: %d/20", BotInfo.food);
-                guiGraphics.drawString(mc.font, foodText, panelX + 5, panelY + 50, 0xFFFFFFFF);
+                try {
+                    int shannonIconSize = hudSize * 2 + hudGap;
+                    int shannonIconX = screenWidth - hudSize * 10 - hudPadding - shannonIconSize - hudGap;
+                    int shannonIconY = screenHeight - hudSize * 2 - hudPadding - hudGap;
 
-                // 大きな長方形を表示（Uキーが押された場合）
+                    RenderSystem.setShaderTexture(0, SHANNON_ICON);
+
+                    guiGraphics.blit(SHANNON_ICON, shannonIconX, shannonIconY, 0, 0, shannonIconSize, shannonIconSize,
+                            shannonIconSize, shannonIconSize);
+                } catch (Exception e) {
+                    System.err.println("ShannonUIMod: Error drawing Shannon icon: " + e.getMessage());
+                    e.printStackTrace();
+                }
+
                 if (showLargeRectangle) {
-                    // 画面中央に大きな長方形を描画
                     int rectX = (screenWidth - LARGE_RECT_WIDTH) / 2;
                     int rectY = (screenHeight - LARGE_RECT_HEIGHT) / 2;
 
-                    // 長方形の背景を描画
                     guiGraphics.fill(rectX, rectY, rectX + LARGE_RECT_WIDTH, rectY + LARGE_RECT_HEIGHT,
                             LARGE_RECT_COLOR);
 
-                    // 長方形の枠線を描画
                     guiGraphics.fill(rectX, rectY, rectX + LARGE_RECT_WIDTH, rectY + 1, LARGE_RECT_BORDER_COLOR); // 上辺
                     guiGraphics.fill(rectX, rectY, rectX + 1, rectY + LARGE_RECT_HEIGHT, LARGE_RECT_BORDER_COLOR); // 左辺
                     guiGraphics.fill(rectX, rectY + LARGE_RECT_HEIGHT - 1, rectX + LARGE_RECT_WIDTH,
@@ -247,47 +272,103 @@ public class ShannonUIMod {
                     guiGraphics.fill(rectX + LARGE_RECT_WIDTH - 1, rectY, rectX + LARGE_RECT_WIDTH,
                             rectY + LARGE_RECT_HEIGHT, LARGE_RECT_BORDER_COLOR); // 右辺
 
-                    // タイトルを描画
                     guiGraphics.drawCenteredString(mc.font, "Mineflayer Bot Status", screenWidth / 2, rectY + 10,
                             0xFFFFFFFF);
 
-                    // 詳細情報を描画
                     guiGraphics.drawString(mc.font, "Bot Name: " + BotInfo.botName, rectX + 10, rectY + 30, 0xFFFFFFFF);
+
                     guiGraphics.drawString(mc.font, "Health: " + String.format("%.1f/20", BotInfo.health), rectX + 10,
                             rectY + 50, 0xFFFFFFFF);
-                    guiGraphics.drawString(mc.font, "Food: " + BotInfo.food + "/20", rectX + 10, rectY + 70,
+
+                    int detailedHeartX = rectX + 10;
+                    int detailedHeartY = rectY + 65;
+                    int detailedHeartSize = 9;
+
+                    for (int i = 0; i < 10; i++) {
+                        int currentDetailedHeartX = detailedHeartX + i * (detailedHeartSize + 1);
+                        try {
+                            RenderSystem.setShaderTexture(0, HEART_EMPTY);
+                            guiGraphics.blit(HEART_EMPTY, currentDetailedHeartX, detailedHeartY, 0, 0, 9, 9, 9, 9);
+
+                            if (i < fullHearts) {
+                                RenderSystem.setShaderTexture(0, HEART_FULL);
+                                guiGraphics.blit(HEART_FULL, currentDetailedHeartX, detailedHeartY, 0, 0, 9, 9, 9, 9);
+                            } else if (i == fullHearts && hasHalfHeart) {
+                                RenderSystem.setShaderTexture(0, HEART_HALF);
+                                guiGraphics.blit(HEART_HALF, currentDetailedHeartX, detailedHeartY, 0, 0, 9, 9, 9, 9);
+                            }
+                        } catch (Exception e) {
+                            if (i < fullHearts) {
+                                guiGraphics.fill(currentDetailedHeartX, detailedHeartY,
+                                        currentDetailedHeartX + detailedHeartSize, detailedHeartY + detailedHeartSize,
+                                        0xFFFF0000);
+                            } else if (i == fullHearts && hasHalfHeart) {
+                                guiGraphics.fill(currentDetailedHeartX, detailedHeartY,
+                                        currentDetailedHeartX + detailedHeartSize, detailedHeartY + detailedHeartSize,
+                                        0xFFFF8080);
+                            } else {
+                                guiGraphics.fill(currentDetailedHeartX, detailedHeartY,
+                                        currentDetailedHeartX + detailedHeartSize, detailedHeartY + detailedHeartSize,
+                                        0xFF808080);
+                            }
+                            System.err.println(
+                                    "ShannonUIMod: Error drawing detailed heart at index " + i + ": " + e.getMessage());
+                            e.printStackTrace();
+                        }
+                    }
+
+                    guiGraphics.drawString(mc.font, "Food: " + BotInfo.food + "/20", rectX + 10, rectY + 85,
                             0xFFFFFFFF);
 
-                    // 体力バーの背景
-                    guiGraphics.fill(rectX + 10, rectY + 55, rectX + LARGE_RECT_WIDTH - 10, rectY + 60, 0x80FFFFFF);
+                    int detailedFoodX = rectX + 10;
+                    int detailedFoodY = rectY + 100;
+                    int detailedFoodSize = 9;
 
-                    // 体力バー
-                    int detailedHealthWidth = (int) ((LARGE_RECT_WIDTH - 20) * (BotInfo.health / 20.0f));
-                    guiGraphics.fill(rectX + 10, rectY + 55, rectX + 10 + detailedHealthWidth, rectY + 60,
-                            HEALTH_BAR_COLOR);
+                    for (int i = 0; i < 10; i++) {
+                        int currentDetailedFoodX = detailedFoodX + i * (detailedFoodSize + 1);
+                        try {
+                            RenderSystem.setShaderTexture(0, ICONS);
+                            guiGraphics.blit(ICONS, currentDetailedFoodX, detailedFoodY, 16, 27, 9, 9);
 
-                    // 空腹度バーの背景
-                    guiGraphics.fill(rectX + 10, rectY + 75, rectX + LARGE_RECT_WIDTH - 10, rectY + 80, 0x80FFFFFF);
+                            if (i < fullFood) {
+                                guiGraphics.blit(ICONS, currentDetailedFoodX, detailedFoodY, 52, 27, 9, 9);
+                            } else if (i == fullFood && hasHalfFood) {
+                                guiGraphics.blit(ICONS, currentDetailedFoodX, detailedFoodY, 61, 27, 9, 9);
+                            }
+                        } catch (Exception e) {
+                            if (i < fullFood) {
+                                guiGraphics.fill(currentDetailedFoodX, detailedFoodY,
+                                        currentDetailedFoodX + detailedFoodSize, detailedFoodY + detailedFoodSize,
+                                        0xFFA05000);
+                            } else if (i == fullFood && hasHalfFood) {
+                                guiGraphics.fill(currentDetailedFoodX, detailedFoodY,
+                                        currentDetailedFoodX + detailedFoodSize, detailedFoodY + detailedFoodSize,
+                                        0xFFC08040);
+                            } else {
+                                guiGraphics.fill(currentDetailedFoodX, detailedFoodY,
+                                        currentDetailedFoodX + detailedFoodSize, detailedFoodY + detailedFoodSize,
+                                        0xFF808080);
+                            }
+                            System.err.println(
+                                    "ShannonUIMod: Error drawing detailed food at index " + i + ": " + e.getMessage());
+                            e.printStackTrace();
+                        }
+                    }
 
-                    // 空腹度バー
-                    int detailedFoodWidth = (int) ((LARGE_RECT_WIDTH - 20) * (BotInfo.food / 20.0f));
-                    guiGraphics.fill(rectX + 10, rectY + 75, rectX + 10 + detailedFoodWidth, rectY + 80,
-                            FOOD_BAR_COLOR);
+                    guiGraphics.drawString(mc.font, "Bot Status: Active", rectX + 10, rectY + 120, 0xFFFFFFFF);
 
-                    // 追加情報
-                    guiGraphics.drawString(mc.font, "Bot Status: Active", rectX + 10, rectY + 100, 0xFFFFFFFF);
-                    guiGraphics.drawString(mc.font, "Server: " + mc.getCurrentServer().name, rectX + 10, rectY + 120,
-                            0xFFFFFFFF);
+                    if (mc.getCurrentServer() != null) {
+                        guiGraphics.drawString(mc.font, "Server: " + mc.getCurrentServer().name, rectX + 10,
+                                rectY + 135, 0xFFFFFFFF);
+                    }
 
-                    // 操作方法
                     guiGraphics.drawCenteredString(mc.font, "Uキーで閉じる", screenWidth / 2, rectY + LARGE_RECT_HEIGHT - 15,
                             0xFFFFFFFF);
                 }
 
-                RenderSystem.disableBlend(); // 透明度を無効化
+                RenderSystem.disableBlend();
 
-                // デバッグ情報をコンソールに出力
-                if (mc.player.tickCount % 300 == 0) { // 300ティックごとに出力
+                if (mc.player.tickCount % 300 == 0) {
                     System.out.println("ShannonUIMod: Rendering bot status panel");
                 }
             } catch (Exception e) {
@@ -297,7 +378,6 @@ public class ShannonUIMod {
         }
     }
 
-    // バックアップ方法：ゲームティックごとにコンソールにメッセージを出力
     @Mod.EventBusSubscriber(modid = MOD_ID, bus = Mod.EventBusSubscriber.Bus.FORGE, value = Dist.CLIENT)
     public static class TickHandler {
         private static int tickCounter = 0;
