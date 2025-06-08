@@ -1,7 +1,6 @@
 {
-    "tab.tasktree": "タスクツリー",
-    "tab.inventory": "インベントリ",
-    "tab.passiveskill": "常時スキル",
     "key.shannonuimod.toggleUI": "UI表示切替",
+    "key.shannonuimod.tabSwitchNext": "タブ切替(次)",
+    "key.shannonuimod.tabSwitchPrev": "タブ切替(前)",
     "category.shannonuimod": "シャノンUI Mod"
 }

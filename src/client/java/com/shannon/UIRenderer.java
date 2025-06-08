@@ -7,11 +7,21 @@ import net.minecraft.text.Text;
 import com.shannon.network.packet.TaskTreeState;
 import net.minecraft.text.Style;
 import net.minecraft.client.util.InputUtil;
+import net.minecraft.client.render.RenderLayer;
 import org.lwjgl.glfw.GLFW;
 import org.lwjgl.glfw.GLFWScrollCallbackI;
+import net.minecraft.util.Identifier;
+import net.minecraft.client.option.KeyBinding;
 
 public class UIRenderer {
     public static int contentHeight = 0;
+
+    private static final Identifier INVENTORY = Identifier.of("minecraft",
+            "textures/gui/sprites/hud/hotbar_offhand_right.png");
+    private static final Identifier PASSIVE_SKILL = Identifier.of("minecraft",
+            "textures/gui/sprites/hud/hotbar_attack_indicator_progress.png");
+    private static final Identifier TASK_TREE = Identifier.of("minecraft",
+            "textures/gui/sprites/icon/news.png");
 
     public static void renderTaskTreeUI(DrawContext context, MinecraftClient mc, int x, int y, int windowWidth,
             int windowHeight, int uiWidth, int uiHeight, TaskTreeState taskTreeState, int scrollOffset) {
@@ -141,60 +151,144 @@ public class UIRenderer {
         public int lastUiHeight = 0;
         public int lastPanelX = 0;
         public int lastPanelY = 0;
+        public int contentHeight = 0;
     }
 
-    public static void handleInput(MinecraftClient mc, UIState state, boolean isUIVisible, int lastUiHeight) {
-        // Tabキーでタブ切り替え（押した瞬間のみ）
-        boolean tabPressed = InputUtil.isKeyPressed(mc.getWindow().getHandle(), GLFW.GLFW_KEY_TAB);
-        if (isUIVisible && tabPressed && !state.prevTabPressed) {
+    public static void handleInput(MinecraftClient mc, UIState state, boolean isUIVisible, int lastUiHeight,
+            KeyBinding tabSwitchNextKey, KeyBinding tabSwitchPrevKey) {
+        if (isUIVisible && tabSwitchNextKey != null && tabSwitchNextKey.wasPressed()) {
             state.selectedTab = (state.selectedTab + 1) % 3;
         }
-        state.prevTabPressed = tabPressed;
+        if (isUIVisible && tabSwitchPrevKey != null && tabSwitchPrevKey.wasPressed()) {
+            state.selectedTab = (state.selectedTab - 1 + 3) % 3;
+        }
     }
 
     public static void handleScroll(double yoffset, UIState state, int lastUiHeight) {
+        System.out.println("[UIRenderer] handleScroll called: yoffset=" + yoffset);
         int scrollStep = 20;
         state.scrollOffset -= yoffset * scrollStep;
-        int maxOffset = Math.max(0, contentHeight - lastUiHeight);
+        int maxOffset = Math.max(0, state.contentHeight - lastUiHeight);
+        System.out.println("[UIRenderer] scrollOffset=" + state.scrollOffset + ", maxOffset=" + maxOffset
+                + ", contentHeight=" + state.contentHeight + ", lastUiHeight=" + lastUiHeight);
         if (state.scrollOffset < 0)
             state.scrollOffset = 0;
         if (state.scrollOffset > maxOffset)
             state.scrollOffset = maxOffset;
     }
 
-    public static void renderTabbedUI(DrawContext context, MinecraftClient mc, int x, int y, int uiWidth, int uiHeight,
-            UIState state, TaskTreeState taskTreeState, int lastUiHeight) {
+    public static void renderUI(DrawContext context, MinecraftClient mc, int x, int y, int uiWidth, int uiHeight,
+            UIState state, com.shannon.network.packet.TaskTreeState taskTreeState, int lastUiHeight) {
+        renderBaseUI(context, state);
         // タブのラベル（translatable対応）
-        Text[] tabs = {
-                Text.translatable("tab.tasktree"),
-                Text.translatable("tab.inventory"),
-                Text.translatable("tab.passiveskill")
-        };
         int tabHeight = 18;
-        int tabWidth = uiWidth / tabs.length;
-        for (int i = 0; i < tabs.length; i++) {
-            int tabX = x + i * tabWidth;
-            int color = (i == state.selectedTab) ? 0xFFAAAAAA : 0xFF444444;
-            context.fill(tabX, y, tabX + tabWidth, y + tabHeight, color);
-            int textWidth = mc.textRenderer.getWidth(tabs[i]);
-            int textX = tabX + (tabWidth - textWidth) / 2;
-            int textY = y + (tabHeight - 10) / 2;
-            context.drawTextWithShadow(mc.textRenderer, tabs[i], textX, textY, 0xFFFFFF);
-        }
+        int tabWidth = 18;
+        renderTabbedUI(context, mc, x, y, uiWidth, uiHeight, state, tabWidth, tabHeight);
+
+        int innerY = y + 4;
+        int innerX = x + 2;
         // タブごとの内容描画
-        int contentY = y + tabHeight + 2;
         int contentHeight = uiHeight - tabHeight - 2;
         switch (state.selectedTab) {
             case 0: // タスクツリー
-                renderTaskTreeUI(context, mc, x, contentY, uiWidth, contentHeight, uiWidth, contentHeight,
-                        taskTreeState, state.scrollOffset);
+                TaskTreeUIRenderer.renderTaskTreeUI(context, mc, innerX, innerY, uiWidth, contentHeight, uiWidth,
+                        contentHeight,
+                        taskTreeState, state.scrollOffset, state);
                 break;
             case 1: // インベントリ
-                // TODO: インベントリ表示（今は空）
+                InventoryUIRenderer.renderInventory(context, mc, innerX, innerY, uiWidth, contentHeight);
                 break;
             case 2: // 常時スキル
-                // TODO: 常時スキル表示（今は空）
+                ConstantSkillsUIRenderer.renderConstantSkills(context, mc, innerX, innerY, uiWidth, contentHeight);
                 break;
+        }
+    }
+
+    private static void renderBaseUI(DrawContext context, UIState state) {
+        int bgColor = 0x96000000;
+        int borderColor0 = 0xbb000000;
+        int borderColor1 = 0xff838383;
+        int borderColor2 = 0xff4d4d4d;
+        int borderColor3 = 0xff000000;
+        context.fill(state.lastPanelX + 1, state.lastPanelY + 1, state.lastPanelX + state.lastUiWidth,
+                state.lastPanelY + state.lastUiHeight, bgColor);
+
+        // 枠線0
+        context.fill(state.lastPanelX, state.lastPanelY, state.lastPanelX + 1,
+                state.lastPanelY + state.lastUiHeight, borderColor0);
+        context.fill(state.lastPanelX, state.lastPanelY, state.lastPanelX + state.lastUiWidth,
+                state.lastPanelY + 1, borderColor0);
+
+        // 枠線1
+        context.fill(state.lastPanelX - 2, state.lastPanelY - 2, state.lastPanelX -
+                1,
+                state.lastPanelY + state.lastUiHeight + 1, borderColor1);
+        context.fill(state.lastPanelX - 2, state.lastPanelY - 2, state.lastPanelX +
+                state.lastUiWidth + 1,
+                state.lastPanelY - 1, borderColor1);
+        context.fill(state.lastPanelX - 2, state.lastPanelY + state.lastUiHeight,
+                state.lastPanelX + state.lastUiWidth + 1,
+                state.lastPanelY + state.lastUiHeight + 1, borderColor1);
+        context.fill(state.lastPanelX + state.lastUiWidth, state.lastPanelY - 2,
+                state.lastPanelX + state.lastUiWidth + 1,
+                state.lastPanelY + state.lastUiHeight + 1, borderColor1);
+
+        // 枠線2
+        context.fill(state.lastPanelX - 1, state.lastPanelY - 1, state.lastPanelX,
+                state.lastPanelY + state.lastUiHeight, borderColor2);
+        context.fill(state.lastPanelX - 1, state.lastPanelY - 1, state.lastPanelX +
+                state.lastUiWidth,
+                state.lastPanelY, borderColor2);
+        context.fill(state.lastPanelX + state.lastUiWidth + 1, state.lastPanelY - 2,
+                state.lastPanelX + state.lastUiWidth + 2,
+                state.lastPanelY + state.lastUiHeight + 2, borderColor2);
+        context.fill(state.lastPanelX - 2, state.lastPanelY + state.lastUiHeight + 1,
+                state.lastPanelX + state.lastUiWidth + 2,
+                state.lastPanelY + state.lastUiHeight + 2, borderColor2);
+
+        // 枠線3
+        context.fill(state.lastPanelX - 3, state.lastPanelY - 3, state.lastPanelX -
+                2,
+                state.lastPanelY + state.lastUiHeight + 3, borderColor3);
+        context.fill(state.lastPanelX - 3, state.lastPanelY - 3, state.lastPanelX +
+                state.lastUiWidth + 3,
+                state.lastPanelY - 2, borderColor3);
+        context.fill(state.lastPanelX + state.lastUiWidth + 2, state.lastPanelY - 3,
+                state.lastPanelX + state.lastUiWidth + 3,
+                state.lastPanelY + state.lastUiHeight + 3, borderColor3);
+        context.fill(state.lastPanelX - 3, state.lastPanelY + state.lastUiHeight + 2,
+                state.lastPanelX + state.lastUiWidth + 3,
+                state.lastPanelY + state.lastUiHeight + 3, borderColor3);
+    }
+
+    public static void renderTabbedUI(DrawContext context, MinecraftClient mc, int x, int y, int uiWidth, int uiHeight,
+            UIState state, int tabWidth, int tabHeight) {
+        int bgColor1 = 0xff838383;
+        int bgColor2 = 0xff4d4d4d;
+        int bdColor1 = 0xffaaaaaa;
+        int bdColor2 = 0xff333333;
+        int borderColor3 = 0xff000000;
+        for (int i = 0; i < 3; i++) {
+            int tabX = x - tabWidth - 2;
+            int tabY = y + i * (tabHeight + 5) + 2;
+            int bgColor = (i == state.selectedTab) ? bgColor1 : bgColor2;
+            int borderColor1 = (i == state.selectedTab) ? bdColor1 : bgColor1;
+            int borderColor2 = (i == state.selectedTab) ? bgColor2 : bdColor2;
+            context.fill(tabX, tabY, tabX + tabWidth, tabY + tabHeight, bgColor);
+            context.fill(tabX - 1, tabY - 1, tabX, tabY + tabHeight + 1, borderColor1);
+            context.fill(tabX - 1, tabY - 1, tabX + tabWidth + 1, tabY, borderColor1);
+            context.fill(tabX - 1, tabY + tabHeight, tabX + tabWidth, tabY + tabHeight + 1, borderColor2);
+            context.fill(tabX - 2, tabY - 2, tabX - 1, tabY + tabHeight + 2, borderColor3);
+            context.fill(tabX - 2, tabY - 2, tabX + tabWidth, tabY - 1, borderColor3);
+            context.fill(tabX - 2, tabY + tabHeight + 1, tabX + tabWidth, tabY + tabHeight + 2, borderColor3);
+            Identifier[] icon = { TASK_TREE, INVENTORY, PASSIVE_SKILL };
+            context.drawTexture(
+                    RenderLayer::getGuiTextured,
+                    icon[i],
+                    tabX, tabY,
+                    0, 0,
+                    tabWidth, tabHeight,
+                    tabWidth, tabHeight);
         }
     }
 
@@ -210,16 +304,15 @@ public class UIRenderer {
             GLFWScrollCallbackI originalScrollCallback, long windowHandle, UIRenderer.UIState uiState, int lastUiHeight,
             PanelMouseChecker panelChecker) {
         if (isUIVisible) {
-            if (originalScrollCallback == null) {
-                return GLFW.glfwSetScrollCallback(windowHandle,
-                        (handle, xoffset, yoffset) -> {
-                            if (panelChecker.isMouseOverPanel()) {
-                                UIRenderer.handleScroll(yoffset, uiState, lastUiHeight);
-                            } else if (originalScrollCallback != null) {
-                                originalScrollCallback.invoke(handle, xoffset, yoffset);
-                            }
-                        });
-            }
+            // 毎回コールバックを上書き
+            return GLFW.glfwSetScrollCallback(windowHandle,
+                    (handle, xoffset, yoffset) -> {
+                        if (panelChecker.isMouseOverPanel()) {
+                            UIRenderer.handleScroll(yoffset, uiState, lastUiHeight);
+                        } else if (originalScrollCallback != null) {
+                            originalScrollCallback.invoke(handle, xoffset, yoffset);
+                        }
+                    });
         } else {
             if (originalScrollCallback != null) {
                 GLFW.glfwSetScrollCallback(windowHandle, originalScrollCallback);
