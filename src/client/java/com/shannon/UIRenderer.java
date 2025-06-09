@@ -13,6 +13,8 @@ import org.lwjgl.glfw.GLFWScrollCallbackI;
 import net.minecraft.util.Identifier;
 import net.minecraft.client.option.KeyBinding;
 
+// このクラスはScreenからUI部品描画・レイアウト補助として呼び出す用途に整理
+// 例: ShannonUIScreen#render から UIRenderer.renderUI(...) を呼ぶ
 public class UIRenderer {
     public static int contentHeight = 0;
 
@@ -154,13 +156,17 @@ public class UIRenderer {
         public int contentHeight = 0;
     }
 
-    public static void handleInput(MinecraftClient mc, UIState state, boolean isUIVisible, int lastUiHeight,
+    public static void handleInput(MinecraftClient mc, UIState state, int lastUiHeight,
             KeyBinding tabSwitchNextKey, KeyBinding tabSwitchPrevKey) {
-        if (isUIVisible && tabSwitchNextKey != null && tabSwitchNextKey.wasPressed()) {
+        if (tabSwitchNextKey != null && tabSwitchNextKey.wasPressed()) {
+            ShannonUIModClient.setTabScrollOffset(state.selectedTab, state.scrollOffset);
             state.selectedTab = (state.selectedTab + 1) % 3;
+            state.scrollOffset = ShannonUIModClient.getTabScrollOffset(state.selectedTab);
         }
-        if (isUIVisible && tabSwitchPrevKey != null && tabSwitchPrevKey.wasPressed()) {
+        if (tabSwitchPrevKey != null && tabSwitchPrevKey.wasPressed()) {
+            ShannonUIModClient.setTabScrollOffset(state.selectedTab, state.scrollOffset);
             state.selectedTab = (state.selectedTab - 1 + 3) % 3;
+            state.scrollOffset = ShannonUIModClient.getTabScrollOffset(state.selectedTab);
         }
     }
 
@@ -175,6 +181,7 @@ public class UIRenderer {
             state.scrollOffset = 0;
         if (state.scrollOffset > maxOffset)
             state.scrollOffset = maxOffset;
+        ShannonUIModClient.setTabScrollOffset(state.selectedTab, state.scrollOffset);
     }
 
     public static void renderUI(DrawContext context, MinecraftClient mc, int x, int y, int uiWidth, int uiHeight,
@@ -196,11 +203,27 @@ public class UIRenderer {
                         taskTreeState, state.scrollOffset, state);
                 break;
             case 1: // インベントリ
-                InventoryUIRenderer.renderInventory(context, mc, innerX, innerY, uiWidth, contentHeight);
+                InventoryUIRenderer.renderInventory(context, mc, innerX, innerY, uiWidth, contentHeight, state);
                 break;
             case 2: // 常時スキル
-                ConstantSkillsUIRenderer.renderConstantSkills(context, mc, innerX, innerY, uiWidth, contentHeight);
+                ConstantSkillsUIRenderer.renderConstantSkills(context, mc, innerX, innerY, uiWidth, contentHeight,
+                        state);
                 break;
+        }
+        // スクロールバー描画
+        if (state.contentHeight > uiHeight) {
+            int barWidth = 4;
+            int barX = x + uiWidth - barWidth - 2;
+            int barY = y + 4;
+            int barHeight = uiHeight - 8;
+            float ratio = (float) barHeight / state.contentHeight;
+            int handleHeight = Math.max((int) (barHeight * ratio), 16);
+            int maxOffset = state.contentHeight - (uiHeight - tabHeight - 2);
+            int handleY = barY + (int) ((float) state.scrollOffset / maxOffset * (barHeight - handleHeight));
+            int barColor = 0x66000000;
+            int handleColor = 0xFFAAAAAA;
+            context.fill(barX, barY, barX + barWidth, barY + barHeight, barColor);
+            context.fill(barX, handleY, barX + barWidth, handleY + handleHeight, handleColor);
         }
     }
 
@@ -268,6 +291,10 @@ public class UIRenderer {
         int bdColor1 = 0xffaaaaaa;
         int bdColor2 = 0xff333333;
         int borderColor3 = 0xff000000;
+        double mouseX = mc.mouse.getX() * mc.getWindow().getScaledWidth() / mc.getWindow().getWidth();
+        double mouseY = mc.mouse.getY() * mc.getWindow().getScaledHeight() / mc.getWindow().getHeight();
+        boolean mouseClicked = GLFW.glfwGetMouseButton(mc.getWindow().getHandle(),
+                GLFW.GLFW_MOUSE_BUTTON_1) == GLFW.GLFW_PRESS;
         for (int i = 0; i < 3; i++) {
             int tabX = x - tabWidth - 2;
             int tabY = y + i * (tabHeight + 5) + 2;
@@ -289,6 +316,11 @@ public class UIRenderer {
                     0, 0,
                     tabWidth, tabHeight,
                     tabWidth, tabHeight);
+            // クリック判定
+            if (mouseClicked && mouseX >= tabX && mouseX <= tabX + tabWidth && mouseY >= tabY
+                    && mouseY <= tabY + tabHeight) {
+                state.selectedTab = i;
+            }
         }
     }
 

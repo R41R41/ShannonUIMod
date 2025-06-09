@@ -12,21 +12,30 @@ import net.minecraft.client.util.InputUtil;
 import org.lwjgl.glfw.GLFW;
 import com.shannon.network.packet.TaskTreeStatePacket;
 import com.shannon.network.packet.TaskTreeState;
-import org.lwjgl.glfw.GLFWScrollCallbackI;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 
 public class ShannonUIModClient implements ClientModInitializer {
 
-    private static KeyBinding toggleUIKey;
+    private static KeyBinding toggleHUDUIKey;
+    private static KeyBinding toggleScreenUIKey;
     private static KeyBinding tabSwitchNextKey;
     private static KeyBinding tabSwitchPrevKey;
-    private boolean isUIVisible = false;
     private TaskTreeState taskTreeState;
-    private int scrollOffset = 0;
-    private int selectedTab = 0; // 0:タスクツリー, 1:インベントリ, 2:常時スキル
     private UIRenderer.UIState uiState = new UIRenderer.UIState();
-    private GLFWScrollCallbackI originalScrollCallback = null;
-    private boolean scrollCallbackSet = false;
+    private static ShannonUIModClient INSTANCE;
+    private int[] tabScrollOffsets = new int[3];
+
+    public enum UIMode {
+        HIDDEN,
+        HUD,
+        SCREEN
+    }
+
+    private static UIMode uiMode = UIMode.HIDDEN;
+
+    public ShannonUIModClient() {
+        INSTANCE = this;
+    }
 
     @Override
     public void onInitializeClient() {
@@ -41,10 +50,15 @@ public class ShannonUIModClient implements ClientModInitializer {
         });
 
         // キーバインドの登録
-        toggleUIKey = KeyBindingHelper.registerKeyBinding(new KeyBinding(
-                "key.shannonuimod.toggleUI",
+        toggleHUDUIKey = KeyBindingHelper.registerKeyBinding(new KeyBinding(
+                "key.shannonuimod.toggleHUDUI",
                 InputUtil.Type.KEYSYM,
                 GLFW.GLFW_KEY_U,
+                "category.shannonuimod"));
+        toggleScreenUIKey = KeyBindingHelper.registerKeyBinding(new KeyBinding(
+                "key.shannonuimod.toggleScreenUI",
+                InputUtil.Type.KEYSYM,
+                GLFW.GLFW_KEY_I,
                 "category.shannonuimod"));
         tabSwitchNextKey = KeyBindingHelper.registerKeyBinding(new KeyBinding(
                 "key.shannonuimod.tabSwitchNext",
@@ -58,40 +72,15 @@ public class ShannonUIModClient implements ClientModInitializer {
                 "category.shannonuimod"));
 
         MinecraftClient.getInstance().execute(() -> {
-            long windowHandle = MinecraftClient.getInstance().getWindow().getHandle();
-            GLFWScrollCallbackI[] originalCallback = new GLFWScrollCallbackI[1];
-            boolean[] scrollCallbackSet = { false };
-
             // キーイベントの監視
             ClientTickEvents.END_CLIENT_TICK.register(client -> {
-                if (toggleUIKey.wasPressed()) {
-                    isUIVisible = !isUIVisible;
-                    if (isUIVisible) {
-                        if (!scrollCallbackSet[0]) {
-                            originalCallback[0] = GLFW.glfwSetScrollCallback(windowHandle,
-                                    (handle, xoffset, yoffset) -> {
-                                        System.out.println("[ShannonUIModClient] GLFW scroll callback: xoffset="
-                                                + xoffset + ", yoffset=" + yoffset);
-                                        if (UIRenderer.isMouseOverPanel(client, isUIVisible, uiState.lastPanelX,
-                                                uiState.lastPanelY,
-                                                uiState.lastUiWidth, uiState.lastUiHeight)) {
-                                            System.out.println("[ShannonUIModClient] isMouseOverPanel: true");
-                                            UIRenderer.handleScroll(yoffset, uiState, uiState.lastUiHeight);
-                                        } else {
-                                            System.out.println("[ShannonUIModClient] isMouseOverPanel: false");
-                                            if (originalCallback[0] != null) {
-                                                originalCallback[0].invoke(handle, xoffset, yoffset);
-                                            }
-                                        }
-                                    });
-                            scrollCallbackSet[0] = true;
-                        }
-                    } else {
-                        if (scrollCallbackSet[0] && originalCallback[0] != null) {
-                            GLFW.glfwSetScrollCallback(windowHandle, originalCallback[0]);
-                            scrollCallbackSet[0] = false;
-                        }
-                    }
+                // Uキー: HUD型UIの表示/非表示 or Screen→HUD
+                if (toggleHUDUIKey.wasPressed()) {
+                    updateUIMode(true, client);
+                }
+                // Iキー: Screen型UIの表示/非表示 or HUD→Screen
+                if (toggleScreenUIKey.wasPressed()) {
+                    updateUIMode(false, client);
                 }
             });
         });
@@ -102,23 +91,96 @@ public class ShannonUIModClient implements ClientModInitializer {
                 return;
 
             // UI操作（タブ切り替えなど）
-            UIRenderer.handleInput(mc, uiState, isUIVisible, uiState.lastUiHeight, tabSwitchNextKey, tabSwitchPrevKey);
-
-            // Tabキーでタブ切り替え
-            if (InputUtil.isKeyPressed(mc.getWindow().getHandle(), GLFW.GLFW_KEY_TAB) && isUIVisible) {
-                selectedTab = (selectedTab + 1) % 3;
-            }
+            UIRenderer.handleInput(mc, uiState, uiState.lastUiHeight, tabSwitchNextKey, tabSwitchPrevKey);
 
             int textureSize = 6;
             int windowWidth = (13 * textureSize + 2);
             int windowHeight = textureSize * 2 + 2;
 
-            if (isUIVisible) {
+            if (uiMode == UIMode.HUD) {
                 UIRenderer.updatePanelLayout(mc, uiState, windowWidth, windowHeight, textureSize);
                 UIRenderer.renderUI(context, mc, uiState.lastPanelX, uiState.lastPanelY, uiState.lastUiWidth,
                         uiState.lastUiHeight, uiState, taskTreeState, uiState.lastUiHeight);
             }
             PlayerStatusRenderer.renderPlayerStatus(context, mc, windowWidth, windowHeight, textureSize);
         });
+    }
+
+    public static void updateUIMode(boolean isPressedUKey, MinecraftClient client) {
+        System.out.println("updateUIMode: " + uiMode + " " + isPressedUKey);
+        if (isPressedUKey) {
+            System.out.println("updateUIMode: " + uiMode + " " + isPressedUKey);
+            switch (uiMode) {
+                case HIDDEN:
+                    uiMode = UIMode.HUD;
+                    if (client.currentScreen instanceof ShannonUIScreen) {
+                        client.setScreen(null);
+                    }
+                    // HUD型UIのスクロール位置を復元
+                    if (INSTANCE != null) {
+                        INSTANCE.uiState.scrollOffset = getTabScrollOffset(INSTANCE.uiState.selectedTab);
+                    }
+                    break;
+                case HUD:
+                    uiMode = UIMode.HIDDEN;
+                    break;
+                case SCREEN:
+                    if (client.currentScreen instanceof ShannonUIScreen) {
+                        client.setScreen(null);
+                    }
+                    uiMode = UIMode.HUD;
+                    // HUD型UIのスクロール位置を復元
+                    if (INSTANCE != null) {
+                        INSTANCE.uiState.scrollOffset = getTabScrollOffset(INSTANCE.uiState.selectedTab);
+                    }
+                    break;
+            }
+        } else {
+            switch (uiMode) {
+                case HIDDEN:
+                    uiMode = UIMode.SCREEN;
+                    client.setScreen(new ShannonUIScreen());
+                    break;
+                case HUD:
+                    uiMode = UIMode.SCREEN;
+                    client.setScreen(new ShannonUIScreen());
+                    break;
+                case SCREEN:
+                    if (client.currentScreen instanceof ShannonUIScreen) {
+                        client.setScreen(null);
+                    }
+                    uiMode = UIMode.HIDDEN;
+                    break;
+            }
+        }
+    }
+
+    public static TaskTreeState getTaskTreeState() {
+        return INSTANCE != null ? INSTANCE.taskTreeState : null;
+    }
+
+    public static int getTabScrollOffset(int tab) {
+        return INSTANCE != null ? INSTANCE.tabScrollOffsets[tab] : 0;
+    }
+
+    public static void setTabScrollOffset(int tab, int offset) {
+        if (INSTANCE != null)
+            INSTANCE.tabScrollOffsets[tab] = offset;
+    }
+
+    public static KeyBinding getToggleHUDUIKey() {
+        return toggleHUDUIKey;
+    }
+
+    public static KeyBinding getToggleScreenUIKey() {
+        return toggleScreenUIKey;
+    }
+
+    public static KeyBinding getTabSwitchNextKey() {
+        return tabSwitchNextKey;
+    }
+
+    public static KeyBinding getTabSwitchPrevKey() {
+        return tabSwitchPrevKey;
     }
 }
