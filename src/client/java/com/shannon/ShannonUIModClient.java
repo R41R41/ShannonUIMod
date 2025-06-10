@@ -16,10 +16,9 @@ import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 
 public class ShannonUIModClient implements ClientModInitializer {
 
-    private static KeyBinding toggleHUDUIKey;
-    private static KeyBinding toggleScreenUIKey;
+    private static KeyBinding toggleDisplayUIKey;
+    private static KeyBinding toggleHUDAndScreenUIKey;
     private static KeyBinding tabSwitchNextKey;
-    private static KeyBinding tabSwitchPrevKey;
     private TaskTreeState taskTreeState;
     private UIRenderer.UIState uiState = new UIRenderer.UIState();
     private static ShannonUIModClient INSTANCE;
@@ -50,13 +49,13 @@ public class ShannonUIModClient implements ClientModInitializer {
         });
 
         // キーバインドの登録
-        toggleHUDUIKey = KeyBindingHelper.registerKeyBinding(new KeyBinding(
-                "key.shannonuimod.toggleHUDUI",
+        toggleDisplayUIKey = KeyBindingHelper.registerKeyBinding(new KeyBinding(
+                "key.shannonuimod.toggleDisplayUI",
                 InputUtil.Type.KEYSYM,
                 GLFW.GLFW_KEY_U,
                 "category.shannonuimod"));
-        toggleScreenUIKey = KeyBindingHelper.registerKeyBinding(new KeyBinding(
-                "key.shannonuimod.toggleScreenUI",
+        toggleHUDAndScreenUIKey = KeyBindingHelper.registerKeyBinding(new KeyBinding(
+                "key.shannonuimod.toggleHUDAndScreenUI",
                 InputUtil.Type.KEYSYM,
                 GLFW.GLFW_KEY_I,
                 "category.shannonuimod"));
@@ -65,21 +64,16 @@ public class ShannonUIModClient implements ClientModInitializer {
                 InputUtil.Type.KEYSYM,
                 GLFW.GLFW_KEY_N,
                 "category.shannonuimod"));
-        tabSwitchPrevKey = KeyBindingHelper.registerKeyBinding(new KeyBinding(
-                "key.shannonuimod.tabSwitchPrev",
-                InputUtil.Type.KEYSYM,
-                GLFW.GLFW_KEY_B,
-                "category.shannonuimod"));
 
         MinecraftClient.getInstance().execute(() -> {
             // キーイベントの監視
             ClientTickEvents.END_CLIENT_TICK.register(client -> {
                 // Uキー: HUD型UIの表示/非表示 or Screen→HUD
-                if (toggleHUDUIKey.wasPressed()) {
+                if (toggleDisplayUIKey.wasPressed()) {
                     updateUIMode(true, client);
                 }
                 // Iキー: Screen型UIの表示/非表示 or HUD→Screen
-                if (toggleScreenUIKey.wasPressed()) {
+                if (toggleHUDAndScreenUIKey.wasPressed()) {
                     updateUIMode(false, client);
                 }
             });
@@ -91,7 +85,7 @@ public class ShannonUIModClient implements ClientModInitializer {
                 return;
 
             // UI操作（タブ切り替えなど）
-            UIRenderer.handleInput(mc, uiState, uiState.lastUiHeight, tabSwitchNextKey, tabSwitchPrevKey);
+            UIRenderer.handleInput(mc, uiState, uiState.lastUiHeight, tabSwitchNextKey);
 
             int textureSize = 6;
             int windowWidth = (13 * textureSize + 2);
@@ -106,10 +100,10 @@ public class ShannonUIModClient implements ClientModInitializer {
         });
     }
 
-    public static void updateUIMode(boolean isPressedUKey, MinecraftClient client) {
-        System.out.println("updateUIMode: " + uiMode + " " + isPressedUKey);
-        if (isPressedUKey) {
-            System.out.println("updateUIMode: " + uiMode + " " + isPressedUKey);
+    public static void updateUIMode(boolean isDisplayUIKeyPressed, MinecraftClient client) {
+        System.out.println("updateUIMode: " + uiMode + " " + isDisplayUIKeyPressed);
+        if (isDisplayUIKeyPressed) {
+            System.out.println("updateUIMode: " + uiMode + " " + isDisplayUIKeyPressed);
             switch (uiMode) {
                 case HIDDEN:
                     uiMode = UIMode.HUD;
@@ -128,18 +122,12 @@ public class ShannonUIModClient implements ClientModInitializer {
                     if (client.currentScreen instanceof ShannonUIScreen) {
                         client.setScreen(null);
                     }
-                    uiMode = UIMode.HUD;
-                    // HUD型UIのスクロール位置を復元
-                    if (INSTANCE != null) {
-                        INSTANCE.uiState.scrollOffset = getTabScrollOffset(INSTANCE.uiState.selectedTab);
-                    }
+                    uiMode = UIMode.HIDDEN;
                     break;
             }
         } else {
             switch (uiMode) {
                 case HIDDEN:
-                    uiMode = UIMode.SCREEN;
-                    client.setScreen(new ShannonUIScreen());
                     break;
                 case HUD:
                     uiMode = UIMode.SCREEN;
@@ -149,7 +137,7 @@ public class ShannonUIModClient implements ClientModInitializer {
                     if (client.currentScreen instanceof ShannonUIScreen) {
                         client.setScreen(null);
                     }
-                    uiMode = UIMode.HIDDEN;
+                    uiMode = UIMode.HUD;
                     break;
             }
         }
@@ -168,19 +156,15 @@ public class ShannonUIModClient implements ClientModInitializer {
             INSTANCE.tabScrollOffsets[tab] = offset;
     }
 
-    public static KeyBinding getToggleHUDUIKey() {
-        return toggleHUDUIKey;
+    public static KeyBinding getToggleDisplayUIKey() {
+        return toggleDisplayUIKey;
     }
 
-    public static KeyBinding getToggleScreenUIKey() {
-        return toggleScreenUIKey;
+    public static KeyBinding getToggleHUDAndScreenUIKey() {
+        return toggleHUDAndScreenUIKey;
     }
 
     public static KeyBinding getTabSwitchNextKey() {
         return tabSwitchNextKey;
-    }
-
-    public static KeyBinding getTabSwitchPrevKey() {
-        return tabSwitchPrevKey;
     }
 }

@@ -6,7 +6,6 @@ import net.minecraft.text.OrderedText;
 import net.minecraft.text.Text;
 import com.shannon.network.packet.TaskTreeState;
 import net.minecraft.text.Style;
-import net.minecraft.client.util.InputUtil;
 import net.minecraft.client.render.RenderLayer;
 import org.lwjgl.glfw.GLFW;
 import org.lwjgl.glfw.GLFWScrollCallbackI;
@@ -157,15 +156,10 @@ public class UIRenderer {
     }
 
     public static void handleInput(MinecraftClient mc, UIState state, int lastUiHeight,
-            KeyBinding tabSwitchNextKey, KeyBinding tabSwitchPrevKey) {
+            KeyBinding tabSwitchNextKey) {
         if (tabSwitchNextKey != null && tabSwitchNextKey.wasPressed()) {
             ShannonUIModClient.setTabScrollOffset(state.selectedTab, state.scrollOffset);
             state.selectedTab = (state.selectedTab + 1) % 3;
-            state.scrollOffset = ShannonUIModClient.getTabScrollOffset(state.selectedTab);
-        }
-        if (tabSwitchPrevKey != null && tabSwitchPrevKey.wasPressed()) {
-            ShannonUIModClient.setTabScrollOffset(state.selectedTab, state.scrollOffset);
-            state.selectedTab = (state.selectedTab - 1 + 3) % 3;
             state.scrollOffset = ShannonUIModClient.getTabScrollOffset(state.selectedTab);
         }
     }

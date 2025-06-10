@@ -4,13 +4,10 @@ import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.text.Text;
-import org.lwjgl.glfw.GLFW;
 import net.minecraft.client.util.InputUtil;
 
 public class ShannonUIScreen extends Screen {
     private final UIRenderer.UIState uiState = new UIRenderer.UIState();
-    private ShannonUIModClient.UIMode uiMode = ShannonUIModClient.UIMode.HIDDEN;
-    private com.shannon.network.packet.TaskTreeState taskTreeState = null;
 
     public ShannonUIScreen() {
         super(Text.literal("Shannon UI"));
@@ -50,23 +47,17 @@ public class ShannonUIScreen extends Screen {
     public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
         InputUtil.Key pressedKey = InputUtil.fromKeyCode(keyCode, scanCode);
         String pressedKeyTranslation = pressedKey.getTranslationKey();
-        if (ShannonUIModClient.getToggleHUDUIKey().getBoundKeyTranslationKey().equals(pressedKeyTranslation)) {
+        if (ShannonUIModClient.getToggleDisplayUIKey().getBoundKeyTranslationKey().equals(pressedKeyTranslation)) {
             ShannonUIModClient.updateUIMode(true, MinecraftClient.getInstance());
             return true;
         }
-        if (ShannonUIModClient.getToggleScreenUIKey().getBoundKeyTranslationKey().equals(pressedKeyTranslation)) {
+        if (ShannonUIModClient.getToggleHUDAndScreenUIKey().getBoundKeyTranslationKey().equals(pressedKeyTranslation)) {
             ShannonUIModClient.updateUIMode(false, MinecraftClient.getInstance());
             return true;
         }
         if (ShannonUIModClient.getTabSwitchNextKey().getBoundKeyTranslationKey().equals(pressedKeyTranslation)) {
             ShannonUIModClient.setTabScrollOffset(uiState.selectedTab, uiState.scrollOffset);
             uiState.selectedTab = (uiState.selectedTab + 1) % 3;
-            uiState.scrollOffset = ShannonUIModClient.getTabScrollOffset(uiState.selectedTab);
-            return true;
-        }
-        if (ShannonUIModClient.getTabSwitchPrevKey().getBoundKeyTranslationKey().equals(pressedKeyTranslation)) {
-            ShannonUIModClient.setTabScrollOffset(uiState.selectedTab, uiState.scrollOffset);
-            uiState.selectedTab = (uiState.selectedTab - 1 + 3) % 3;
             uiState.scrollOffset = ShannonUIModClient.getTabScrollOffset(uiState.selectedTab);
             return true;
         }
@@ -85,23 +76,17 @@ public class ShannonUIScreen extends Screen {
         InputUtil.Key pressedKey = InputUtil.Type.MOUSE.createFromCode(button);
         String pressedKeyTranslation = pressedKey.getTranslationKey();
 
-        if (ShannonUIModClient.getToggleHUDUIKey().getBoundKeyTranslationKey().equals(pressedKeyTranslation)) {
+        if (ShannonUIModClient.getToggleDisplayUIKey().getBoundKeyTranslationKey().equals(pressedKeyTranslation)) {
             ShannonUIModClient.updateUIMode(true, MinecraftClient.getInstance());
             return true;
         }
-        if (ShannonUIModClient.getToggleScreenUIKey().getBoundKeyTranslationKey().equals(pressedKeyTranslation)) {
+        if (ShannonUIModClient.getToggleHUDAndScreenUIKey().getBoundKeyTranslationKey().equals(pressedKeyTranslation)) {
             ShannonUIModClient.updateUIMode(false, MinecraftClient.getInstance());
             return true;
         }
         if (ShannonUIModClient.getTabSwitchNextKey().getBoundKeyTranslationKey().equals(pressedKeyTranslation)) {
             ShannonUIModClient.setTabScrollOffset(uiState.selectedTab, uiState.scrollOffset);
             uiState.selectedTab = (uiState.selectedTab + 1) % 3;
-            uiState.scrollOffset = ShannonUIModClient.getTabScrollOffset(uiState.selectedTab);
-            return true;
-        }
-        if (ShannonUIModClient.getTabSwitchPrevKey().getBoundKeyTranslationKey().equals(pressedKeyTranslation)) {
-            ShannonUIModClient.setTabScrollOffset(uiState.selectedTab, uiState.scrollOffset);
-            uiState.selectedTab = (uiState.selectedTab - 1 + 3) % 3;
             uiState.scrollOffset = ShannonUIModClient.getTabScrollOffset(uiState.selectedTab);
             return true;
         }
