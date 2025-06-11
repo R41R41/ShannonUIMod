@@ -22,7 +22,7 @@ public class PlayerStatusRenderer {
         int screenWidth = mc.getWindow().getScaledWidth();
         int screenHeight = mc.getWindow().getScaledHeight();
         for (PlayerEntity player : mc.world.getPlayers()) {
-            if (!"I_am_Sh4nnon".equals(player.getName().getString())) {
+            if (!ShannonUIMod.TARGET_PLAYER_NAME.equals(player.getName().getString())) {
                 continue;
             }
             float health = player.getHealth();

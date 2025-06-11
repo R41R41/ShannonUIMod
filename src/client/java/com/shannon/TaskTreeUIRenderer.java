@@ -8,9 +8,8 @@ import com.shannon.network.packet.TaskTreeState;
 import net.minecraft.text.Style;
 
 public class TaskTreeUIRenderer {
-    public static void renderTaskTreeUI(DrawContext context, MinecraftClient mc, int x, int y, int windowWidth,
-            int windowHeight, int uiWidth, int uiHeight, TaskTreeState taskTreeState, int scrollOffset,
-            UIRenderer.UIState state) {
+    public static void renderTaskTreeUI(DrawContext context, MinecraftClient mc, int x, int y,
+            int uiWidth, int uiHeight, TaskTreeState taskTreeState, int scrollOffset, UIRenderer.UIState state) {
         context.getMatrices().push();
         try {
             if (taskTreeState == null)

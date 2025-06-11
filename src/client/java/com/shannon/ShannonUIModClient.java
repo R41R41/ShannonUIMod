@@ -13,6 +13,10 @@ import org.lwjgl.glfw.GLFW;
 import com.shannon.network.packet.TaskTreeStatePacket;
 import com.shannon.network.packet.TaskTreeState;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
+import com.shannon.network.packet.InventoryStatePacket;
+import com.shannon.network.packet.InventoryState;
+import com.shannon.network.packet.ConstantSkillsStatePacket;
+import com.shannon.network.packet.ConstantSkillsState;
 
 public class ShannonUIModClient implements ClientModInitializer {
 
@@ -20,9 +24,12 @@ public class ShannonUIModClient implements ClientModInitializer {
     private static KeyBinding toggleHUDAndScreenUIKey;
     private static KeyBinding tabSwitchNextKey;
     private TaskTreeState taskTreeState;
+    private InventoryState inventoryState;
+    private ConstantSkillsState constantSkillsState;
     private UIRenderer.UIState uiState = new UIRenderer.UIState();
     private static ShannonUIModClient INSTANCE;
     private int[] tabScrollOffsets = new int[3];
+    private int selectedTab = 0;
 
     public enum UIMode {
         HIDDEN,
@@ -45,6 +52,22 @@ public class ShannonUIModClient implements ClientModInitializer {
                 TaskTreeState state = payload.state();
                 taskTreeState = state;
                 System.out.println("Received task tree state: " + state);
+            });
+        });
+
+        ClientPlayNetworking.registerGlobalReceiver(InventoryStatePacket.PACKET_ID, (payload, context) -> {
+            context.client().execute(() -> {
+                InventoryState state = payload.state();
+                inventoryState = state;
+                System.out.println("Received inventory state: " + state);
+            });
+        });
+
+        ClientPlayNetworking.registerGlobalReceiver(ConstantSkillsStatePacket.PACKET_ID, (payload, context) -> {
+            context.client().execute(() -> {
+                ConstantSkillsState state = payload.state();
+                constantSkillsState = state;
+                System.out.println("Received constant skills state: " + state);
             });
         });
 
@@ -94,7 +117,8 @@ public class ShannonUIModClient implements ClientModInitializer {
             if (uiMode == UIMode.HUD) {
                 UIRenderer.updatePanelLayout(mc, uiState, windowWidth, windowHeight, textureSize);
                 UIRenderer.renderUI(context, mc, uiState.lastPanelX, uiState.lastPanelY, uiState.lastUiWidth,
-                        uiState.lastUiHeight, uiState, taskTreeState, uiState.lastUiHeight);
+                        uiState.lastUiHeight, uiState, taskTreeState, inventoryState, constantSkillsState,
+                        uiState.lastUiHeight);
             }
             PlayerStatusRenderer.renderPlayerStatus(context, mc, windowWidth, windowHeight, textureSize);
         });
@@ -138,6 +162,9 @@ public class ShannonUIModClient implements ClientModInitializer {
                         client.setScreen(null);
                     }
                     uiMode = UIMode.HUD;
+                    if (INSTANCE != null) {
+                        INSTANCE.uiState.scrollOffset = getTabScrollOffset(INSTANCE.uiState.selectedTab);
+                    }
                     break;
             }
         }
@@ -145,6 +172,14 @@ public class ShannonUIModClient implements ClientModInitializer {
 
     public static TaskTreeState getTaskTreeState() {
         return INSTANCE != null ? INSTANCE.taskTreeState : null;
+    }
+
+    public static InventoryState getInventoryState() {
+        return INSTANCE != null ? INSTANCE.inventoryState : null;
+    }
+
+    public static ConstantSkillsState getConstantSkillsState() {
+        return INSTANCE != null ? INSTANCE.constantSkillsState : null;
     }
 
     public static int getTabScrollOffset(int tab) {
@@ -166,5 +201,14 @@ public class ShannonUIModClient implements ClientModInitializer {
 
     public static KeyBinding getTabSwitchNextKey() {
         return tabSwitchNextKey;
+    }
+
+    public static int getSelectedTab() {
+        return INSTANCE != null ? INSTANCE.selectedTab : 0;
+    }
+
+    public static void setSelectedTab(int tab) {
+        if (INSTANCE != null)
+            INSTANCE.selectedTab = tab;
     }
 }

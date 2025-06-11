@@ -4,25 +4,24 @@ import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.text.OrderedText;
 import net.minecraft.text.Text;
-import com.shannon.network.packet.TaskTreeState;
 import net.minecraft.text.Style;
 import net.minecraft.client.render.RenderLayer;
 import org.lwjgl.glfw.GLFW;
 import org.lwjgl.glfw.GLFWScrollCallbackI;
 import net.minecraft.util.Identifier;
 import net.minecraft.client.option.KeyBinding;
+import com.shannon.network.packet.TaskTreeState;
+import com.shannon.network.packet.InventoryState;
+import com.shannon.network.packet.ConstantSkillsState;
 
 // このクラスはScreenからUI部品描画・レイアウト補助として呼び出す用途に整理
 // 例: ShannonUIScreen#render から UIRenderer.renderUI(...) を呼ぶ
 public class UIRenderer {
     public static int contentHeight = 0;
 
-    private static final Identifier INVENTORY = Identifier.of("minecraft",
-            "textures/gui/sprites/hud/hotbar_offhand_right.png");
-    private static final Identifier PASSIVE_SKILL = Identifier.of("minecraft",
-            "textures/gui/sprites/hud/hotbar_attack_indicator_progress.png");
-    private static final Identifier TASK_TREE = Identifier.of("minecraft",
-            "textures/gui/sprites/icon/news.png");
+    private static final Identifier TASK_TREE = Identifier.of("shannonuimod", "textures/tasktree.png");
+    private static final Identifier INVENTORY = Identifier.of("shannonuimod", "textures/inventory.png");
+    private static final Identifier PASSIVE_SKILL = Identifier.of("shannonuimod", "textures/passive_skill.png");
 
     public static void renderTaskTreeUI(DrawContext context, MinecraftClient mc, int x, int y, int windowWidth,
             int windowHeight, int uiWidth, int uiHeight, TaskTreeState taskTreeState, int scrollOffset) {
@@ -157,11 +156,14 @@ public class UIRenderer {
 
     public static void handleInput(MinecraftClient mc, UIState state, int lastUiHeight,
             KeyBinding tabSwitchNextKey) {
+        int selectedTab = ShannonUIModClient.getSelectedTab();
         if (tabSwitchNextKey != null && tabSwitchNextKey.wasPressed()) {
-            ShannonUIModClient.setTabScrollOffset(state.selectedTab, state.scrollOffset);
-            state.selectedTab = (state.selectedTab + 1) % 3;
-            state.scrollOffset = ShannonUIModClient.getTabScrollOffset(state.selectedTab);
+            ShannonUIModClient.setTabScrollOffset(selectedTab, state.scrollOffset);
+            selectedTab = (selectedTab + 1) % 3;
+            ShannonUIModClient.setSelectedTab(selectedTab);
+            state.scrollOffset = ShannonUIModClient.getTabScrollOffset(selectedTab);
         }
+        state.selectedTab = selectedTab;
     }
 
     public static void handleScroll(double yoffset, UIState state, int lastUiHeight) {
@@ -179,7 +181,9 @@ public class UIRenderer {
     }
 
     public static void renderUI(DrawContext context, MinecraftClient mc, int x, int y, int uiWidth, int uiHeight,
-            UIState state, com.shannon.network.packet.TaskTreeState taskTreeState, int lastUiHeight) {
+            UIState state, TaskTreeState taskTreeState,
+            InventoryState inventoryState,
+            ConstantSkillsState constantSkillsState, int lastUiHeight) {
         renderBaseUI(context, state);
         // タブのラベル（translatable対応）
         int tabHeight = 18;
@@ -189,19 +193,26 @@ public class UIRenderer {
         int innerY = y + 4;
         int innerX = x + 2;
         // タブごとの内容描画
-        int contentHeight = uiHeight - tabHeight - 2;
+        int contentHeight = uiHeight - 2;
+        double mouseX = mc.mouse.getX() * mc.getWindow().getScaledWidth() / mc.getWindow().getWidth();
+        double mouseY = mc.mouse.getY() * mc.getWindow().getScaledHeight() / mc.getWindow().getHeight();
+        int relMouseX = (int) mouseX - (x + 2 + 4);
+        int relMouseY = (int) mouseY - (y + 4 + 4) + state.scrollOffset;
+        boolean mouseClicked = GLFW.glfwGetMouseButton(mc.getWindow().getHandle(),
+                GLFW.GLFW_MOUSE_BUTTON_1) == GLFW.GLFW_PRESS;
         switch (state.selectedTab) {
-            case 0: // タスクツリー
-                TaskTreeUIRenderer.renderTaskTreeUI(context, mc, innerX, innerY, uiWidth, contentHeight, uiWidth,
+            case 0:
+                TaskTreeUIRenderer.renderTaskTreeUI(context, mc, innerX, innerY, uiWidth,
                         contentHeight,
                         taskTreeState, state.scrollOffset, state);
                 break;
-            case 1: // インベントリ
-                InventoryUIRenderer.renderInventory(context, mc, innerX, innerY, uiWidth, contentHeight, state);
-                break;
-            case 2: // 常時スキル
+            case 1:
                 ConstantSkillsUIRenderer.renderConstantSkills(context, mc, innerX, innerY, uiWidth, contentHeight,
-                        state);
+                        state, constantSkillsState, relMouseX, relMouseY, mouseClicked);
+                break;
+            case 2:
+                InventoryUIRenderer.renderInventory(context, mc, innerX, innerY, uiWidth, contentHeight, state,
+                        state.scrollOffset, inventoryState, relMouseX, relMouseY, mouseClicked);
                 break;
         }
         // スクロールバー描画
@@ -212,7 +223,7 @@ public class UIRenderer {
             int barHeight = uiHeight - 8;
             float ratio = (float) barHeight / state.contentHeight;
             int handleHeight = Math.max((int) (barHeight * ratio), 16);
-            int maxOffset = state.contentHeight - (uiHeight - tabHeight - 2);
+            int maxOffset = state.contentHeight - (uiHeight - 2);
             int handleY = barY + (int) ((float) state.scrollOffset / maxOffset * (barHeight - handleHeight));
             int barColor = 0x66000000;
             int handleColor = 0xFFAAAAAA;
@@ -302,7 +313,7 @@ public class UIRenderer {
             context.fill(tabX - 2, tabY - 2, tabX - 1, tabY + tabHeight + 2, borderColor3);
             context.fill(tabX - 2, tabY - 2, tabX + tabWidth, tabY - 1, borderColor3);
             context.fill(tabX - 2, tabY + tabHeight + 1, tabX + tabWidth, tabY + tabHeight + 2, borderColor3);
-            Identifier[] icon = { TASK_TREE, INVENTORY, PASSIVE_SKILL };
+            Identifier[] icon = { TASK_TREE, PASSIVE_SKILL, INVENTORY };
             context.drawTexture(
                     RenderLayer::getGuiTextured,
                     icon[i],
