@@ -31,8 +31,8 @@ public class ShannonUIMod implements ModInitializer {
 	public static final String MOD_ID = "shannonuimod";
 	public static final Logger LOGGER = LoggerFactory.getLogger(MOD_ID);
 	public static MinecraftServer SERVER_INSTANCE;
-	public static final String TARGET_PLAYER_NAME = "I_am_Sh4nnon";
-	// public static final String TARGET_PLAYER_NAME = "Player";
+	// public static final String TARGET_PLAYER_NAME = "I_am_Sh4nnon";
+	public static final String TARGET_PLAYER_NAME = "Player";
 
 	@Override
 	public void onInitialize() {

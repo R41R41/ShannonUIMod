@@ -115,7 +115,7 @@ public class ShannonUIModClient implements ClientModInitializer {
                 UIRenderer.updatePanelLayout(mc, uiState, windowWidth, windowHeight, textureSize);
                 UIRenderer.renderUI(context, mc, uiState.lastPanelX, uiState.lastPanelY, uiState.lastUiWidth,
                         uiState.lastUiHeight, uiState, taskTreeState, inventoryState, constantSkillsState,
-                        uiState.lastUiHeight);
+                        uiState.lastUiHeight, uiMode);
             }
             PlayerStatusRenderer.renderPlayerStatus(context, mc, windowWidth, windowHeight, textureSize);
         });

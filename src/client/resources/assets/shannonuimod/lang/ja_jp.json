@@ -1,6 +1,9 @@
 {
+    "category.shannonuimod": "シャノンUI Mod",
     "key.shannonuimod.toggleDisplayUI": "表示⇔非表示切替",
     "key.shannonuimod.toggleHUDAndScreenUI": "表示⇔操作可能切替",
     "key.shannonuimod.tabSwitchNext": "タブ切替",
-    "category.shannonuimod": "シャノンUI Mod"
+    "tab.shannonuimod.tasktree": "取組中のタスク",
+    "tab.shannonuimod.passiveskill": "常時スキル",
+    "tab.shannonuimod.inventory": "インベントリ"
 }

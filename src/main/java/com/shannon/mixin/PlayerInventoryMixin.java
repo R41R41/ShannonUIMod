@@ -34,12 +34,6 @@ public class PlayerInventoryMixin {
     }
 
     private void send() {
-        // 0.1秒だけ待機
-        try {
-            Thread.sleep(100);
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
         PlayerInventory inv = (PlayerInventory) (Object) this;
         if (inv.player != null && inv.player.getName().getString().contains(ShannonUIMod.TARGET_PLAYER_NAME)) {
             ShannonUIMod.sendInventoryStateOfSh4nnonToAll();

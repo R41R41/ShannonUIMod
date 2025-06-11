@@ -70,7 +70,7 @@ public class ConstantSkillsUIRenderer {
                     int textY = startY + line * 12;
                     int rectX1 = drawX + 12;
                     int rectY1 = textY - 2 - yOffset;
-                    int rectX2 = rectX1 + uiWidth - 8;
+                    int rectX2 = rectX1 + uiWidth - 32;
                     int rectY2 = rectY1 + 12;
                     boolean hovered = (mouseX >= rectX1 && mouseX <= rectX2 && mouseY >= rectY1 && mouseY <= rectY2);
                     if (textY >= 0 && textY + 12 <= uiHeight) {

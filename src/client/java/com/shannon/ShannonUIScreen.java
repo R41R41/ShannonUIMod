@@ -36,10 +36,8 @@ public class ShannonUIScreen extends Screen {
         com.shannon.network.packet.ConstantSkillsState constantSkillsState = ShannonUIModClient
                 .getConstantSkillsState();
         UIRenderer.renderUI(context, mc, uiState.lastPanelX, uiState.lastPanelY, uiState.lastUiWidth,
-                uiState.lastUiHeight, uiState, latestState, inventoryState, constantSkillsState, uiState.lastUiHeight);
-        // ShannonUIModClientのselectedTabやscrollOffsetと同期（必要なら）
-        // 例: ShannonUIModClient.setSelectedTab(uiState.selectedTab);
-        // 例: ShannonUIModClient.setScrollOffset(uiState.scrollOffset);
+                uiState.lastUiHeight, uiState, latestState, inventoryState, constantSkillsState, uiState.lastUiHeight,
+                com.shannon.ShannonUIModClient.UIMode.SCREEN);
     }
 
     @Override

@@ -13,6 +13,7 @@ import net.minecraft.client.option.KeyBinding;
 import com.shannon.network.packet.TaskTreeState;
 import com.shannon.network.packet.InventoryState;
 import com.shannon.network.packet.ConstantSkillsState;
+import com.shannon.ShannonUIModClient.UIMode;
 
 // このクラスはScreenからUI部品描画・レイアウト補助として呼び出す用途に整理
 // 例: ShannonUIScreen#render から UIRenderer.renderUI(...) を呼ぶ
@@ -152,6 +153,10 @@ public class UIRenderer {
         public int lastPanelX = 0;
         public int lastPanelY = 0;
         public int contentHeight = 0;
+        // スクロールバーのドラッグ状態
+        public boolean isDraggingScrollbar = false;
+        public int dragStartMouseY = 0;
+        public int dragStartScrollOffset = 0;
     }
 
     public static void handleInput(MinecraftClient mc, UIState state, int lastUiHeight,
@@ -180,22 +185,27 @@ public class UIRenderer {
     public static void renderUI(DrawContext context, MinecraftClient mc, int x, int y, int uiWidth, int uiHeight,
             UIState state, TaskTreeState taskTreeState,
             InventoryState inventoryState,
-            ConstantSkillsState constantSkillsState, int lastUiHeight) {
+            ConstantSkillsState constantSkillsState, int lastUiHeight, UIMode uiMode) {
         renderBaseUI(context, state);
         // タブのラベル（translatable対応）
         int tabHeight = 18;
         int tabWidth = 18;
-        renderTabbedUI(context, mc, x, y, uiWidth, uiHeight, state, tabWidth, tabHeight);
+        double mouseX = uiMode != UIMode.HUD
+                ? mc.mouse.getX() * mc.getWindow().getScaledWidth() / mc.getWindow().getWidth()
+                : 0;
+        double mouseY = uiMode != UIMode.HUD
+                ? mc.mouse.getY() * mc.getWindow().getScaledHeight() / mc.getWindow().getHeight()
+                : 0;
+        renderTabbedUI(context, mc, x, y, uiWidth, uiHeight, state, tabWidth, tabHeight, mouseX, mouseY);
 
         int innerY = y + 4;
         int innerX = x + 2;
         // タブごとの内容描画
-        double mouseX = mc.mouse.getX() * mc.getWindow().getScaledWidth() / mc.getWindow().getWidth();
-        double mouseY = mc.mouse.getY() * mc.getWindow().getScaledHeight() / mc.getWindow().getHeight();
         int relMouseX = (int) mouseX - (x + 2 + 4);
         int relMouseY = (int) mouseY - (y + 4 + 4) + state.scrollOffset;
         boolean mouseClicked = GLFW.glfwGetMouseButton(mc.getWindow().getHandle(),
                 GLFW.GLFW_MOUSE_BUTTON_1) == GLFW.GLFW_PRESS;
+        boolean mouseReleased = !mouseClicked;
         switch (state.selectedTab) {
             case 0:
                 TaskTreeUIRenderer.renderTaskTreeUI(context, mc, innerX, innerY, uiWidth,
@@ -225,6 +235,38 @@ public class UIRenderer {
             int handleColor = 0xFFAAAAAA;
             context.fill(barX, barY, barX + barWidth, barY + barHeight, barColor);
             context.fill(barX, handleY, barX + barWidth, handleY + handleHeight, handleColor);
+
+            // ドラッグ判定
+            int mouseXi = (int) mouseX;
+            int mouseYi = (int) mouseY;
+            boolean overScrollbar = mouseXi >= barX && mouseXi <= barX + barWidth && mouseYi >= handleY
+                    && mouseYi <= handleY + handleHeight;
+
+            if (mouseClicked && overScrollbar && !state.isDraggingScrollbar) {
+                state.isDraggingScrollbar = true;
+                state.dragStartMouseY = mouseYi;
+                state.dragStartScrollOffset = state.scrollOffset;
+            }
+            if (state.isDraggingScrollbar) {
+                if (mouseClicked) {
+                    int deltaY = mouseYi - state.dragStartMouseY;
+                    int scrollRange = barHeight - handleHeight;
+                    if (scrollRange > 0) {
+                        float percent = (float) deltaY / (float) scrollRange;
+                        int newOffset = state.dragStartScrollOffset + (int) (percent * maxOffset);
+                        if (newOffset < 0)
+                            newOffset = 0;
+                        if (newOffset > maxOffset)
+                            newOffset = maxOffset;
+                        state.scrollOffset = newOffset;
+                        ShannonUIModClient.setTabScrollOffset(state.selectedTab, state.scrollOffset);
+                    }
+                } else {
+                    state.isDraggingScrollbar = false;
+                }
+            }
+        } else {
+            state.isDraggingScrollbar = false;
         }
     }
 
@@ -286,16 +328,18 @@ public class UIRenderer {
     }
 
     public static void renderTabbedUI(DrawContext context, MinecraftClient mc, int x, int y, int uiWidth, int uiHeight,
-            UIState state, int tabWidth, int tabHeight) {
+            UIState state, int tabWidth, int tabHeight, double mouseX, double mouseY) {
         int bgColor1 = 0xff838383;
         int bgColor2 = 0xff4d4d4d;
         int bdColor1 = 0xffaaaaaa;
         int bdColor2 = 0xff333333;
         int borderColor3 = 0xff000000;
-        double mouseX = mc.mouse.getX() * mc.getWindow().getScaledWidth() / mc.getWindow().getWidth();
-        double mouseY = mc.mouse.getY() * mc.getWindow().getScaledHeight() / mc.getWindow().getHeight();
         boolean mouseClicked = GLFW.glfwGetMouseButton(mc.getWindow().getHandle(),
                 GLFW.GLFW_MOUSE_BUTTON_1) == GLFW.GLFW_PRESS;
+        Identifier[] icon = { TASK_TREE, PASSIVE_SKILL, INVENTORY };
+        String[] tabDescriptionKeys = { "tab.shannonuimod.tasktree", "tab.shannonuimod.passiveskill",
+                "tab.shannonuimod.inventory" };
+        int hoveredTab = -1;
         for (int i = 0; i < 3; i++) {
             int tabX = x - tabWidth - 2;
             int tabY = y + i * (tabHeight + 5) + 2;
@@ -309,7 +353,6 @@ public class UIRenderer {
             context.fill(tabX - 2, tabY - 2, tabX - 1, tabY + tabHeight + 2, borderColor3);
             context.fill(tabX - 2, tabY - 2, tabX + tabWidth, tabY - 1, borderColor3);
             context.fill(tabX - 2, tabY + tabHeight + 1, tabX + tabWidth, tabY + tabHeight + 2, borderColor3);
-            Identifier[] icon = { TASK_TREE, PASSIVE_SKILL, INVENTORY };
             context.drawTexture(
                     RenderLayer::getGuiTextured,
                     icon[i],
@@ -322,13 +365,27 @@ public class UIRenderer {
                     && mouseY <= tabY + tabHeight) {
                 state.selectedTab = i;
             }
+            // ホバー判定
+            if (mouseX >= tabX && mouseX <= tabX + tabWidth && mouseY >= tabY && mouseY <= tabY + tabHeight) {
+                hoveredTab = i;
+            }
+        }
+        // ホバー時に説明を表示
+        if (hoveredTab != -1) {
+            int tabX = x - tabWidth - 2;
+            int tabY = y + hoveredTab * (tabHeight + 5) + 2;
+            String desc = Text.translatable(tabDescriptionKeys[hoveredTab]).getString();
+            int textWidth = mc.textRenderer.getWidth(desc);
+            int tooltipX = tabX - textWidth - 4;
+            int tooltipY = tabY + tabHeight / 2 - 8;
+            int tooltipHeight = 19;
+            context.fill(tooltipX - 4, tooltipY - 3, tooltipX + textWidth + 3, tooltipY + tooltipHeight, 0xF0000000);
+            context.drawTextWithShadow(mc.textRenderer, desc, tooltipX, tooltipY + 4, 0xFFFFFF);
         }
     }
 
     public static boolean isMouseOverPanel(MinecraftClient mc, boolean isUIVisible, int lastPanelX, int lastPanelY,
-            int lastUiWidth, int lastUiHeight) {
-        double mouseX = mc.mouse.getX() * mc.getWindow().getScaledWidth() / mc.getWindow().getWidth();
-        double mouseY = mc.mouse.getY() * mc.getWindow().getScaledHeight() / mc.getWindow().getHeight();
+            int lastUiWidth, int lastUiHeight, double mouseX, double mouseY) {
         return isUIVisible && mouseX >= lastPanelX && mouseX <= lastPanelX + lastUiWidth && mouseY >= lastPanelY
                 && mouseY <= lastPanelY + lastUiHeight;
     }
