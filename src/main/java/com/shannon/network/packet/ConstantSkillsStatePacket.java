@@ -17,7 +17,7 @@ public record ConstantSkillsStatePacket(ConstantSkillsState state) implements Cu
                     for (ConstantSkillsState.ConstantSkill skill : value.state.skills) {
                         buf.writeString(skill.skillName);
                         buf.writeString(skill.description);
-                        buf.writeString(skill.status);
+                        buf.writeBoolean(skill.status);
                     }
                 } else {
                     buf.writeInt(-1);
@@ -32,7 +32,7 @@ public record ConstantSkillsStatePacket(ConstantSkillsState state) implements Cu
                         ConstantSkillsState.ConstantSkill skill = new ConstantSkillsState.ConstantSkill();
                         skill.skillName = buf.readString();
                         skill.description = buf.readString();
-                        skill.status = buf.readString();
+                        skill.status = buf.readBoolean();
                         state.skills.add(skill);
                     }
                 }

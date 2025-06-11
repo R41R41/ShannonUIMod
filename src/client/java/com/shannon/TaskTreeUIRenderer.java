@@ -12,8 +12,10 @@ public class TaskTreeUIRenderer {
             int uiWidth, int uiHeight, TaskTreeState taskTreeState, int scrollOffset, UIRenderer.UIState state) {
         context.getMatrices().push();
         try {
-            if (taskTreeState == null)
+            if (taskTreeState == null) {
+                state.contentHeight = uiHeight;
                 return;
+            }
             int line = 0;
             float scale = 1.0f;
             int drawX = 4;

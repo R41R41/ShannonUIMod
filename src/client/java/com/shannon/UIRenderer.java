@@ -167,12 +167,9 @@ public class UIRenderer {
     }
 
     public static void handleScroll(double yoffset, UIState state, int lastUiHeight) {
-        System.out.println("[UIRenderer] handleScroll called: yoffset=" + yoffset);
         int scrollStep = 20;
         state.scrollOffset -= yoffset * scrollStep;
         int maxOffset = Math.max(0, state.contentHeight - lastUiHeight);
-        System.out.println("[UIRenderer] scrollOffset=" + state.scrollOffset + ", maxOffset=" + maxOffset
-                + ", contentHeight=" + state.contentHeight + ", lastUiHeight=" + lastUiHeight);
         if (state.scrollOffset < 0)
             state.scrollOffset = 0;
         if (state.scrollOffset > maxOffset)
@@ -193,7 +190,6 @@ public class UIRenderer {
         int innerY = y + 4;
         int innerX = x + 2;
         // タブごとの内容描画
-        int contentHeight = uiHeight - 2;
         double mouseX = mc.mouse.getX() * mc.getWindow().getScaledWidth() / mc.getWindow().getWidth();
         double mouseY = mc.mouse.getY() * mc.getWindow().getScaledHeight() / mc.getWindow().getHeight();
         int relMouseX = (int) mouseX - (x + 2 + 4);
@@ -203,15 +199,15 @@ public class UIRenderer {
         switch (state.selectedTab) {
             case 0:
                 TaskTreeUIRenderer.renderTaskTreeUI(context, mc, innerX, innerY, uiWidth,
-                        contentHeight,
+                        uiHeight - 2,
                         taskTreeState, state.scrollOffset, state);
                 break;
             case 1:
-                ConstantSkillsUIRenderer.renderConstantSkills(context, mc, innerX, innerY, uiWidth, contentHeight,
+                ConstantSkillsUIRenderer.renderConstantSkills(context, mc, innerX, innerY, uiWidth, uiHeight - 2,
                         state, constantSkillsState, relMouseX, relMouseY, mouseClicked);
                 break;
             case 2:
-                InventoryUIRenderer.renderInventory(context, mc, innerX, innerY, uiWidth, contentHeight, state,
+                InventoryUIRenderer.renderInventory(context, mc, innerX, innerY, uiWidth, uiHeight - 2, state,
                         state.scrollOffset, inventoryState, relMouseX, relMouseY, mouseClicked);
                 break;
         }

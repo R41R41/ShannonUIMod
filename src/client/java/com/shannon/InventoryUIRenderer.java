@@ -17,8 +17,10 @@ public class InventoryUIRenderer {
             int mouseY, boolean mouseClicked) {
         context.getMatrices().push();
         try {
-            if (inventoryState == null)
+            if (inventoryState == null) {
+                state.contentHeight = uiHeight;
                 return;
+            }
             int line = 0;
             float scale = 1.0f;
             int drawX = 4;
@@ -29,7 +31,6 @@ public class InventoryUIRenderer {
 
             context.getMatrices().translate(x, y, 0);
             context.getMatrices().scale(scale, scale, 1.0f);
-            // System.out.println("mouseX: " + mouseX + ", mouseY: " + mouseY);
 
             // 装備情報の表示
             String[] equipLabels = { "mainhand", "offhand", "head", "chest", "legs", "feet" };
@@ -41,7 +42,6 @@ public class InventoryUIRenderer {
                     inventoryState.legs,
                     inventoryState.feet
             };
-            // System.out.println("scrollOffset: " + scrollOffset);
             for (int i = 0; i < equipLabels.length; i++) {
                 String label = equipLabels[i];
                 InventoryState.Item item = equipItems[i];

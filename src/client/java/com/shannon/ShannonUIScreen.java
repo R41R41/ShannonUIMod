@@ -51,7 +51,6 @@ public class ShannonUIScreen extends Screen {
     public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
         InputUtil.Key pressedKey = InputUtil.fromKeyCode(keyCode, scanCode);
         String pressedKeyTranslation = pressedKey.getTranslationKey();
-        System.out.println("pressedKeyTranslation: " + pressedKeyTranslation);
         if (ShannonUIModClient.getToggleDisplayUIKey().getBoundKeyTranslationKey().equals(pressedKeyTranslation)) {
             ShannonUIModClient.updateUIMode(true, MinecraftClient.getInstance());
             return true;

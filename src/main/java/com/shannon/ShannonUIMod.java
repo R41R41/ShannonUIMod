@@ -23,6 +23,7 @@ import com.shannon.network.packet.InventoryItemClickPacket;
 import com.shannon.util.InventoryStateUtil;
 import com.shannon.network.packet.ConstantSkillsState;
 import com.shannon.network.packet.ConstantSkillsStatePacket;
+import com.shannon.network.packet.ConstantSkillClickPacket;
 import com.fasterxml.jackson.core.type.TypeReference;
 import java.util.List;
 
@@ -30,8 +31,8 @@ public class ShannonUIMod implements ModInitializer {
 	public static final String MOD_ID = "shannonuimod";
 	public static final Logger LOGGER = LoggerFactory.getLogger(MOD_ID);
 	public static MinecraftServer SERVER_INSTANCE;
-	// public static final String TARGET_PLAYER_NAME = "I_am_Sh4nnon";
-	public static final String TARGET_PLAYER_NAME = "Player";
+	public static final String TARGET_PLAYER_NAME = "I_am_Sh4nnon";
+	// public static final String TARGET_PLAYER_NAME = "Player";
 
 	@Override
 	public void onInitialize() {
@@ -46,6 +47,8 @@ public class ShannonUIMod implements ModInitializer {
 				InventoryItemClickPacket.PACKET_CODEC);
 		PayloadTypeRegistry.playS2C().register(ConstantSkillsStatePacket.PACKET_ID,
 				ConstantSkillsStatePacket.PACKET_CODEC);
+		PayloadTypeRegistry.playC2S().register(ConstantSkillClickPacket.PACKET_ID,
+				ConstantSkillClickPacket.PACKET_CODEC);
 
 		// C2Sパケット受信ハンドラの登録
 		ServerPlayNetworking.registerGlobalReceiver(
@@ -53,9 +56,6 @@ public class ShannonUIMod implements ModInitializer {
 				(payload, context) -> {
 					String msg = payload.message();
 					ServerPlayerEntity player = context.player();
-					// サーバー側で受信した文字列をログに出す例
-					LOGGER.info("クライアントから受信: " + msg + " (from " + player.getName() + ")");
-					// ここでサーバー側の処理を追加可能
 					MyModServer.sendMessageToClient(player, msg);
 				});
 
@@ -63,9 +63,6 @@ public class ShannonUIMod implements ModInitializer {
 				InventoryItemClickPacket.PACKET_ID,
 				(payload, context) -> {
 					String itemName = payload.itemName();
-					ServerPlayerEntity player = context.player();
-					LOGGER.info("インベントリクリック: " + itemName + " (from " + player.getName() + ")");
-					// ここでサーバー側の処理を追加
 					context.server().execute(() -> {
 						try {
 							java.net.URI uri = java.net.URI.create("http://localhost:8082/throw_item");
@@ -82,6 +79,31 @@ public class ShannonUIMod implements ModInitializer {
 							conn.disconnect();
 						} catch (Exception e) {
 							LOGGER.error("POST /throw_item 送信失敗", e);
+						}
+					});
+				});
+
+		ServerPlayNetworking.registerGlobalReceiver(
+				ConstantSkillClickPacket.PACKET_ID,
+				(payload, context) -> {
+					String skillName = payload.skillName();
+					boolean status = payload.status();
+					context.server().execute(() -> {
+						try {
+							java.net.URI uri = java.net.URI.create("http://localhost:8082/constant_skill_switch");
+							java.net.HttpURLConnection conn = (java.net.HttpURLConnection) uri.toURL().openConnection();
+							conn.setRequestMethod("POST");
+							conn.setDoOutput(true);
+							conn.setRequestProperty("Content-Type", "application/json; charset=UTF-8");
+							String json = "{\"skillName\":\"" + skillName + "\",\"status\":\"" + status + "\"}";
+							try (java.io.OutputStream os = conn.getOutputStream()) {
+								os.write(json.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+							}
+							int responseCode = conn.getResponseCode();
+							LOGGER.info("POST /constant_skill_click response: " + responseCode);
+							conn.disconnect();
+						} catch (Exception e) {
+							LOGGER.error("POST /constant_skill_click 送信失敗", e);
 						}
 					});
 				});

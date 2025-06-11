@@ -8,6 +8,6 @@ public class ConstantSkillsState {
     public static class ConstantSkill {
         public String skillName;
         public String description;
-        public String status;
+        public boolean status;
     }
 }

@@ -51,7 +51,6 @@ public class ShannonUIModClient implements ClientModInitializer {
             context.client().execute(() -> {
                 TaskTreeState state = payload.state();
                 taskTreeState = state;
-                System.out.println("Received task tree state: " + state);
             });
         });
 
@@ -59,7 +58,6 @@ public class ShannonUIModClient implements ClientModInitializer {
             context.client().execute(() -> {
                 InventoryState state = payload.state();
                 inventoryState = state;
-                System.out.println("Received inventory state: " + state);
             });
         });
 
@@ -67,7 +65,6 @@ public class ShannonUIModClient implements ClientModInitializer {
             context.client().execute(() -> {
                 ConstantSkillsState state = payload.state();
                 constantSkillsState = state;
-                System.out.println("Received constant skills state: " + state);
             });
         });
 
@@ -125,9 +122,7 @@ public class ShannonUIModClient implements ClientModInitializer {
     }
 
     public static void updateUIMode(boolean isDisplayUIKeyPressed, MinecraftClient client) {
-        System.out.println("updateUIMode: " + uiMode + " " + isDisplayUIKeyPressed);
         if (isDisplayUIKeyPressed) {
-            System.out.println("updateUIMode: " + uiMode + " " + isDisplayUIKeyPressed);
             switch (uiMode) {
                 case HIDDEN:
                     uiMode = UIMode.HUD;
