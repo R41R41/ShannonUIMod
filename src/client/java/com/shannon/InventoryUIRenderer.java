@@ -104,7 +104,7 @@ public class InventoryUIRenderer {
                     line++;
                 }
             }
-            state.contentHeight = (line + 1) * 10 + 8;
+            state.contentHeight = (line + 1) * 12 + 8;
         } finally {
             wasMousePressed = mouseClicked;
             context.getMatrices().pop();

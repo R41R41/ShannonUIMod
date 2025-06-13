@@ -3,7 +3,9 @@
     "package": "com.shannon.mixin",
     "compatibilityLevel": "JAVA_21",
     "mixins": [
-        "PlayerInventoryMixin"
+        "PlayerInventoryMixin",
+        "ServerPlayerEntityMixin",
+        "PlayerStatusMixin"
     ],
     "client": [],
     "injectors": {

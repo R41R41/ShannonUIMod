@@ -17,6 +17,8 @@ import com.shannon.network.packet.InventoryStatePacket;
 import com.shannon.network.packet.InventoryState;
 import com.shannon.network.packet.ConstantSkillsStatePacket;
 import com.shannon.network.packet.ConstantSkillsState;
+import com.shannon.network.packet.PlayerStatusStatePacket;
+import com.shannon.network.packet.PlayerStatusState;
 
 public class ShannonUIModClient implements ClientModInitializer {
 
@@ -26,6 +28,7 @@ public class ShannonUIModClient implements ClientModInitializer {
     private TaskTreeState taskTreeState;
     private InventoryState inventoryState;
     private ConstantSkillsState constantSkillsState;
+    private PlayerStatusState playerStatusState;
     private UIRenderer.UIState uiState = new UIRenderer.UIState();
     private static ShannonUIModClient INSTANCE;
     private int[] tabScrollOffsets = new int[3];
@@ -65,6 +68,13 @@ public class ShannonUIModClient implements ClientModInitializer {
             context.client().execute(() -> {
                 ConstantSkillsState state = payload.state();
                 constantSkillsState = state;
+            });
+        });
+
+        ClientPlayNetworking.registerGlobalReceiver(PlayerStatusStatePacket.PACKET_ID, (payload, context) -> {
+            context.client().execute(() -> {
+                PlayerStatusState state = payload.state();
+                playerStatusState = state;
             });
         });
 
@@ -117,7 +127,8 @@ public class ShannonUIModClient implements ClientModInitializer {
                         uiState.lastUiHeight, uiState, taskTreeState, inventoryState, constantSkillsState,
                         uiState.lastUiHeight, uiMode);
             }
-            PlayerStatusRenderer.renderPlayerStatus(context, mc, windowWidth, windowHeight, textureSize);
+            PlayerStatusRenderer.renderPlayerStatus(context, mc, windowWidth, windowHeight, textureSize,
+                    playerStatusState);
         });
     }
 
@@ -205,5 +216,13 @@ public class ShannonUIModClient implements ClientModInitializer {
     public static void setSelectedTab(int tab) {
         if (INSTANCE != null)
             INSTANCE.selectedTab = tab;
+    }
+
+    public static ShannonUIModClient getInstance() {
+        return INSTANCE;
+    }
+
+    public static PlayerStatusState getPlayerStatusState() {
+        return INSTANCE != null ? INSTANCE.playerStatusState : null;
     }
 }

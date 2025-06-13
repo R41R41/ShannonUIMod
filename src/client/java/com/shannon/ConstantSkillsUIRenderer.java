@@ -29,7 +29,7 @@ public class ConstantSkillsUIRenderer {
             int drawX = 4;
             int drawY = 4;
             int yOffset = -state.scrollOffset;
-            int maxTextWidth = uiWidth - 8;
+            int maxTextWidth = uiWidth - 24;
             int startY = drawY + yOffset;
 
             context.getMatrices().translate(x, y, 0);
@@ -103,7 +103,7 @@ public class ConstantSkillsUIRenderer {
                     line++;
                 }
             }
-            state.contentHeight = (line + 1) * 10 + 8;
+            state.contentHeight = (line + 1) * 12 + 8;
 
             // 3行分の黒背景とテキストスキップ
             if (hoveredLine != -1) {

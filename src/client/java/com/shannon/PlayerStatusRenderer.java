@@ -6,6 +6,8 @@ import net.minecraft.client.render.RenderLayer;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.util.Identifier;
 
+import com.shannon.network.packet.PlayerStatusState;
+
 public class PlayerStatusRenderer {
     private static final Identifier HEART_CONTAINER = Identifier.of("minecraft",
             "textures/gui/sprites/hud/heart/container.png");
@@ -18,15 +20,18 @@ public class PlayerStatusRenderer {
             "textures/gui/sprites/hud/food_empty.png");
 
     public static void renderPlayerStatus(DrawContext context, MinecraftClient mc, int windowWidth, int windowHeight,
-            int textureSize) {
-        int screenWidth = mc.getWindow().getScaledWidth();
-        int screenHeight = mc.getWindow().getScaledHeight();
-        for (PlayerEntity player : mc.world.getPlayers()) {
-            if (!ShannonUIMod.TARGET_PLAYER_NAME.equals(player.getName().getString())) {
-                continue;
+            int textureSize, PlayerStatusState state) {
+        context.getMatrices().push();
+        try {
+            if (state == null) {
+                return;
             }
-            float health = player.getHealth();
-            float maxHealth = player.getMaxHealth();
+            int screenWidth = mc.getWindow().getScaledWidth();
+            int screenHeight = mc.getWindow().getScaledHeight();
+            float health = state.health;
+            float maxHealth = state.maxHealth;
+            int hunger = state.hunger;
+
             int hearts = (int) Math.ceil(maxHealth / 2.0);
             int fullHearts = (int) (health / 2);
             boolean hasHalfHeart = (health % 2) == 1;
@@ -62,7 +67,6 @@ public class PlayerStatusRenderer {
                         textureSize, textureSize,
                         textureSize, textureSize);
             }
-            int hunger = player.getHungerManager().getFoodLevel();
             int hungerIcons = 10;
             int fullHunger = hunger / 2;
             boolean hasHalfHunger = (hunger % 2) == 1;
@@ -90,7 +94,8 @@ public class PlayerStatusRenderer {
                         textureSize, textureSize,
                         textureSize, textureSize);
             }
-            break;
+        } finally {
+            context.getMatrices().pop();
         }
     }
 }

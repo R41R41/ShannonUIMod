@@ -26,13 +26,19 @@ import com.shannon.network.packet.ConstantSkillsStatePacket;
 import com.shannon.network.packet.ConstantSkillClickPacket;
 import com.fasterxml.jackson.core.type.TypeReference;
 import java.util.List;
+import net.minecraft.entity.player.PlayerEntity;
+import com.shannon.network.packet.PlayerStatusStatePacket;
+import com.shannon.network.packet.PlayerStatusState;
 
 public class ShannonUIMod implements ModInitializer {
 	public static final String MOD_ID = "shannonuimod";
 	public static final Logger LOGGER = LoggerFactory.getLogger(MOD_ID);
+	public static TaskTreeState taskTreeState = new TaskTreeState();
+	public static ConstantSkillsState constantSkillsState = new ConstantSkillsState();
+	public static InventoryState inventoryState = new InventoryState();
 	public static MinecraftServer SERVER_INSTANCE;
-	// public static final String TARGET_PLAYER_NAME = "I_am_Sh4nnon";
-	public static final String TARGET_PLAYER_NAME = "Player";
+	public static final String TARGET_PLAYER_NAME = "I_am_Sh4nnon";
+	// public static final String TARGET_PLAYER_NAME = "Player";
 
 	@Override
 	public void onInitialize() {
@@ -49,6 +55,7 @@ public class ShannonUIMod implements ModInitializer {
 				ConstantSkillsStatePacket.PACKET_CODEC);
 		PayloadTypeRegistry.playC2S().register(ConstantSkillClickPacket.PACKET_ID,
 				ConstantSkillClickPacket.PACKET_CODEC);
+		PayloadTypeRegistry.playS2C().register(PlayerStatusStatePacket.PACKET_ID, PlayerStatusStatePacket.PACKET_CODEC);
 
 		// C2Sパケット受信ハンドラの登録
 		ServerPlayNetworking.registerGlobalReceiver(
@@ -125,18 +132,11 @@ public class ShannonUIMod implements ModInitializer {
 							String json = new String(is.readAllBytes(), StandardCharsets.UTF_8);
 							LOGGER.info("受信したJSON: " + json);
 							ObjectMapper mapper = new ObjectMapper();
-							TaskTreeState state = mapper.readValue(json, TaskTreeState.class);
-							LOGGER.info("受信したTaskTreeState: " + state);
+							taskTreeState = mapper.readValue(json, TaskTreeState.class);
+							LOGGER.info("受信したTaskTreeState: " + taskTreeState);
 
 							// 2. 受信したTaskTreeStateを全プレイヤーに送信
-							if (SERVER_INSTANCE != null) {
-								for (ServerPlayerEntity player : SERVER_INSTANCE.getPlayerManager().getPlayerList()) {
-									if (ServerPlayNetworking.canSend(player, TaskTreeStatePacket.PACKET_ID)) {
-										ServerPlayNetworking.send(player, new TaskTreeStatePacket(state));
-										LOGGER.info("TaskTreeStateをプレイヤーに送信: " + player.getName());
-									}
-								}
-							}
+							sendTaskTreeStateToAllPlayers();
 
 							String response = "OK";
 							exchange.sendResponseHeaders(200, response.length());
@@ -165,15 +165,14 @@ public class ShannonUIMod implements ModInitializer {
 							List<ConstantSkillsState.ConstantSkill> skills = mapper.readValue(json,
 									new TypeReference<List<ConstantSkillsState.ConstantSkill>>() {
 									});
-							ConstantSkillsState state = new ConstantSkillsState();
-							state.skills = skills;
-							LOGGER.info("受信したConstantSkillsState: " + state);
-							for (ServerPlayerEntity player : SERVER_INSTANCE.getPlayerManager().getPlayerList()) {
-								if (ServerPlayNetworking.canSend(player, ConstantSkillsStatePacket.PACKET_ID)) {
-									ServerPlayNetworking.send(player, new ConstantSkillsStatePacket(state));
-									LOGGER.info("ConstantSkillsStateをプレイヤーに送信: " + player.getName());
-								}
-							}
+							constantSkillsState.skills = skills;
+							LOGGER.info("受信したConstantSkillsState: " + constantSkillsState);
+							sendConstantSkillsStateToAllPlayers();
+							String response = "OK";
+							exchange.sendResponseHeaders(200, response.length());
+							OutputStream os = exchange.getResponseBody();
+							os.write(response.getBytes(StandardCharsets.UTF_8));
+							os.close();
 						} else {
 							exchange.sendResponseHeaders(405, -1); // Method Not Allowed
 						}
@@ -202,6 +201,30 @@ public class ShannonUIMod implements ModInitializer {
 		MyModServer.registerEvents();
 	}
 
+	public static void sendTaskTreeStateToAllPlayers() {
+		if (taskTreeState == null || taskTreeState.goal == null)
+			return;
+		if (SERVER_INSTANCE != null) {
+			for (ServerPlayerEntity player : SERVER_INSTANCE.getPlayerManager().getPlayerList()) {
+				if (ServerPlayNetworking.canSend(player, TaskTreeStatePacket.PACKET_ID)) {
+					ServerPlayNetworking.send(player, new TaskTreeStatePacket(taskTreeState));
+				}
+			}
+		}
+	}
+
+	public static void sendConstantSkillsStateToAllPlayers() {
+		if (constantSkillsState == null || constantSkillsState.skills == null)
+			return;
+		if (SERVER_INSTANCE != null) {
+			for (ServerPlayerEntity player : SERVER_INSTANCE.getPlayerManager().getPlayerList()) {
+				if (ServerPlayNetworking.canSend(player, ConstantSkillsStatePacket.PACKET_ID)) {
+					ServerPlayNetworking.send(player, new ConstantSkillsStatePacket(constantSkillsState));
+				}
+			}
+		}
+	}
+
 	// 指定した名前のプレイヤーのインベントリを全クライアントに送信する
 	public static void sendInventoryStateOfSh4nnonToAll() {
 		if (SERVER_INSTANCE == null)
@@ -217,11 +240,46 @@ public class ShannonUIMod implements ModInitializer {
 			LOGGER.info(TARGET_PLAYER_NAME + "という名前のプレイヤーが見つかりませんでした");
 			return;
 		}
-		InventoryState state = InventoryStateUtil.createInventoryState(shannon);
+		inventoryState = InventoryStateUtil.createInventoryState(shannon);
+		if (inventoryState == null)
+			return;
 		for (ServerPlayerEntity player : SERVER_INSTANCE.getPlayerManager().getPlayerList()) {
 			if (ServerPlayNetworking.canSend(player, InventoryStatePacket.PACKET_ID)) {
-				ServerPlayNetworking.send(player, new InventoryStatePacket(state));
-				LOGGER.info(TARGET_PLAYER_NAME + "のインベントリをプレイヤーに送信: " + player.getName());
+				ServerPlayNetworking.send(player, new InventoryStatePacket(inventoryState));
+			}
+		}
+	}
+
+	public static void sendPlayerStatusToAll() {
+		ServerPlayerEntity targetPlayer = null;
+		for (ServerPlayerEntity player : SERVER_INSTANCE.getPlayerManager().getPlayerList()) {
+			if (player.getName().getString().contains(TARGET_PLAYER_NAME)) {
+				targetPlayer = player;
+				break;
+			}
+		}
+		if (targetPlayer == null) {
+			LOGGER.info(TARGET_PLAYER_NAME + "という名前のプレイヤーが見つかりませんでした");
+			return;
+		}
+
+		if (targetPlayer.getWorld().isClient) {
+			return;
+		}
+
+		float health = targetPlayer.getHealth();
+		float maxHealth = targetPlayer.getMaxHealth();
+		int hunger = targetPlayer.getHungerManager().getFoodLevel();
+
+		if (SERVER_INSTANCE != null) {
+			for (ServerPlayerEntity player : SERVER_INSTANCE.getPlayerManager().getPlayerList()) {
+				if (ServerPlayNetworking.canSend(player, PlayerStatusStatePacket.PACKET_ID)) {
+					PlayerStatusState state = new PlayerStatusState();
+					state.health = health;
+					state.maxHealth = maxHealth;
+					state.hunger = hunger;
+					ServerPlayNetworking.send(player, new PlayerStatusStatePacket(state));
+				}
 			}
 		}
 	}
