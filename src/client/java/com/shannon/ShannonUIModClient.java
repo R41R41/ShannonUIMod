@@ -1,5 +1,8 @@
 package com.shannon;
 
+import com.shannon.network.packet.DetailedLogsState;
+import com.shannon.network.packet.DetailedLogsStatePacket;
+
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback;
@@ -32,6 +35,8 @@ public class ShannonUIModClient implements ClientModInitializer {
     private ConstantSkillsState constantSkillsState;
     private PlayerStatusState playerStatusState;
     private ChatState chatState;
+    private DetailedLogsState detailedLogsState;
+    private com.shannon.network.packet.LogToggleState logToggleState = new com.shannon.network.packet.LogToggleState();
     private UIRenderer.UIState uiState = new UIRenderer.UIState();
     private static ShannonUIModClient INSTANCE;
     private int[] tabScrollOffsets = new int[4];
@@ -85,6 +90,14 @@ public class ShannonUIModClient implements ClientModInitializer {
             context.client().execute(() -> {
                 ChatState state = payload.state();
                 chatState = state;
+            });
+        });
+
+        ClientPlayNetworking.registerGlobalReceiver(DetailedLogsStatePacket.PACKET_ID, (payload, context) -> {
+            context.client().execute(() -> {
+                DetailedLogsState state = payload.state();
+                detailedLogsState = state;
+                System.out.println("DetailedLogsState received: " + state);
             });
         });
 
@@ -238,5 +251,13 @@ public class ShannonUIModClient implements ClientModInitializer {
 
     public static ChatState getChatState() {
         return INSTANCE != null ? INSTANCE.chatState : null;
+    }
+
+    public static DetailedLogsState getDetailedLogsState() {
+        return INSTANCE != null ? INSTANCE.detailedLogsState : null;
+    }
+
+    public static com.shannon.network.packet.LogToggleState getLogToggleState() {
+        return INSTANCE != null ? INSTANCE.logToggleState : null;
     }
 }

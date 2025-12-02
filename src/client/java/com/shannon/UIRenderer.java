@@ -159,6 +159,9 @@ public class UIRenderer {
         public boolean isDraggingScrollbar = false;
         public int dragStartMouseY = 0;
         public int dragStartScrollOffset = 0;
+        // ログのクリック判定用
+        public int logsSeparatorLine = -1;
+        public java.util.Map<Integer, Integer> logClickableLines = null;
     }
 
     public static void handleInput(MinecraftClient mc, UIState state, int lastUiHeight,
@@ -210,9 +213,28 @@ public class UIRenderer {
                 GLFW.GLFW_MOUSE_BUTTON_1) == GLFW.GLFW_PRESS;
         switch (state.selectedTab) {
             case 0:
+                com.shannon.network.packet.DetailedLogsState logsState = ShannonUIModClient.getDetailedLogsState();
+                com.shannon.network.packet.LogToggleState logToggleState = ShannonUIModClient.getLogToggleState();
                 TaskTreeUIRenderer.renderTaskTreeUI(context, mc, innerX, innerY, uiWidth,
                         uiHeight - 2,
-                        taskTreeState, state.scrollOffset, state);
+                        taskTreeState, state.scrollOffset, state, logsState, logToggleState);
+
+                // ログのクリック判定
+                if (state.selectedTab == 0 && mouseClicked) {
+                    int clickLine = (relMouseY / 10);
+
+                    // セパレータークリック（全展開/折りたたみ）
+                    if (clickLine == state.logsSeparatorLine && logToggleState != null) {
+                        logToggleState.toggleAllLogs();
+                    }
+
+                    // 個別ログのクリック
+                    if (state.logClickableLines != null && state.logClickableLines.containsKey(clickLine)
+                            && logToggleState != null) {
+                        int logIndex = state.logClickableLines.get(clickLine);
+                        logToggleState.toggleLog(logIndex);
+                    }
+                }
                 break;
             case 1:
                 ConstantSkillsUIRenderer.renderConstantSkills(context, mc, innerX, innerY, uiWidth, uiHeight - 2,
