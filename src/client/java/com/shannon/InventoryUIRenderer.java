@@ -81,7 +81,9 @@ public class InventoryUIRenderer {
             }
 
             // アイテムリスト表示
-            for (InventoryState.Item item : inventoryState.items) {
+            java.util.List<InventoryState.Item> sortedItems = new java.util.ArrayList<>(inventoryState.items);
+            java.util.Collections.sort(sortedItems, (a, b) -> a.displayName.compareToIgnoreCase(b.displayName));
+            for (InventoryState.Item item : sortedItems) {
                 String lineText = item.displayName + ": " + item.count;
                 for (OrderedText wrapped : wrapText(mc, lineText, maxTextWidth)) {
                     int textY = startY + line * 12;
@@ -105,6 +107,12 @@ public class InventoryUIRenderer {
                 }
             }
             state.contentHeight = (line + 1) * 12 + 8;
+
+            // 表示するものが何もない、または少ない場合はスクロールを一番上に
+            if (state.contentHeight <= uiHeight) {
+                state.scrollOffset = 0;
+                ShannonUIModClient.setTabScrollOffset(state.selectedTab, 0);
+            }
         } finally {
             wasMousePressed = mouseClicked;
             context.getMatrices().pop();

@@ -26,9 +26,12 @@ import com.shannon.network.packet.ConstantSkillsStatePacket;
 import com.shannon.network.packet.ConstantSkillClickPacket;
 import com.fasterxml.jackson.core.type.TypeReference;
 import java.util.List;
-import net.minecraft.entity.player.PlayerEntity;
 import com.shannon.network.packet.PlayerStatusStatePacket;
 import com.shannon.network.packet.PlayerStatusState;
+import com.shannon.network.packet.ChatStatePacket;
+import com.shannon.network.packet.ChatState;
+import com.shannon.network.packet.ChatMessageSendPacket;
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 
 public class ShannonUIMod implements ModInitializer {
 	public static final String MOD_ID = "shannonuimod";
@@ -36,8 +39,9 @@ public class ShannonUIMod implements ModInitializer {
 	public static TaskTreeState taskTreeState = new TaskTreeState();
 	public static ConstantSkillsState constantSkillsState = new ConstantSkillsState();
 	public static InventoryState inventoryState = new InventoryState();
+	public static ChatState chatState = new ChatState();
 	public static MinecraftServer SERVER_INSTANCE;
-	public static final String TARGET_PLAYER_NAME = "I_am_Sh4nnon";
+	public static final String TARGET_PLAYER_NAME = "I_am_Shannon";
 	// public static final String TARGET_PLAYER_NAME = "Player";
 
 	@Override
@@ -56,6 +60,9 @@ public class ShannonUIMod implements ModInitializer {
 		PayloadTypeRegistry.playC2S().register(ConstantSkillClickPacket.PACKET_ID,
 				ConstantSkillClickPacket.PACKET_CODEC);
 		PayloadTypeRegistry.playS2C().register(PlayerStatusStatePacket.PACKET_ID, PlayerStatusStatePacket.PACKET_CODEC);
+		PayloadTypeRegistry.playS2C().register(ChatStatePacket.PACKET_ID, ChatStatePacket.PACKET_CODEC);
+		PayloadTypeRegistry.playC2S().register(ChatStatePacket.PACKET_ID, ChatStatePacket.PACKET_CODEC);
+		PayloadTypeRegistry.playC2S().register(ChatMessageSendPacket.PACKET_ID, ChatMessageSendPacket.PACKET_CODEC);
 
 		// C2Sパケット受信ハンドラの登録
 		ServerPlayNetworking.registerGlobalReceiver(
@@ -115,11 +122,57 @@ public class ShannonUIMod implements ModInitializer {
 					});
 				});
 
+		ServerPlayNetworking.registerGlobalReceiver(
+				ChatMessageSendPacket.PACKET_ID,
+				(payload, context) -> {
+					String message = payload.message();
+					ServerPlayerEntity player = context.player();
+					String senderName = player.getName().getString();
+
+					context.server().execute(() -> {
+						// チャット履歴に追加
+						ChatState.ChatMessage chatMessage = new ChatState.ChatMessage();
+						chatMessage.sender = senderName;
+						chatMessage.message = message;
+						chatMessage.timestamp = System.currentTimeMillis();
+						chatState.messages.add(chatMessage);
+
+						// 全プレイヤーに更新を送信
+						sendChatStateToAllPlayers();
+
+						// 外部システムにも送信
+						try {
+							java.net.URI uri = java.net.URI.create("http://localhost:8082/chat_message");
+							java.net.HttpURLConnection conn = (java.net.HttpURLConnection) uri.toURL().openConnection();
+							conn.setRequestMethod("POST");
+							conn.setDoOutput(true);
+							conn.setRequestProperty("Content-Type", "application/json; charset=UTF-8");
+							String json = "{\"sender\":\"" + senderName.replace("\"", "\\\"")
+									+ "\",\"message\":\"" + message.replace("\"", "\\\"") + "\"}";
+							try (java.io.OutputStream os = conn.getOutputStream()) {
+								os.write(json.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+							}
+							int responseCode = conn.getResponseCode();
+							LOGGER.info("POST /chat_message response: " + responseCode);
+							conn.disconnect();
+						} catch (Exception e) {
+							LOGGER.error("POST /chat_message 送信失敗", e);
+						}
+					});
+				});
+
 		// サーバーインスタンスをセット
 		ServerLifecycleEvents.SERVER_STARTED.register(server -> {
 			SERVER_INSTANCE = server;
 			LOGGER.info("SERVER_INSTANCEセット完了");
 		});
+
+		// ポーリングは一旦無効化（イベント駆動のタイミングを調査中）
+		// ServerTickEvents.END_SERVER_TICK.register(server -> {
+		// if (server.getTicks() % 5 == 0) {
+		// sendInventoryStateOfSh4nnonToAll();
+		// }
+		// });
 
 		// 1. 別スレッドでHTTPサーバー起動
 		new Thread(() -> {
@@ -168,6 +221,36 @@ public class ShannonUIMod implements ModInitializer {
 							constantSkillsState.skills = skills;
 							LOGGER.info("受信したConstantSkillsState: " + constantSkillsState);
 							sendConstantSkillsStateToAllPlayers();
+							String response = "OK";
+							exchange.sendResponseHeaders(200, response.length());
+							OutputStream os = exchange.getResponseBody();
+							os.write(response.getBytes(StandardCharsets.UTF_8));
+							os.close();
+						} else {
+							exchange.sendResponseHeaders(405, -1); // Method Not Allowed
+						}
+					} catch (Exception e) {
+						LOGGER.error("HTTPリクエスト処理失敗", e);
+						try {
+							exchange.sendResponseHeaders(500, 0);
+							exchange.getResponseBody().close();
+						} catch (Exception ignored) {
+						}
+					}
+				});
+				server.createContext("/chat", exchange -> {
+					try {
+						if ("POST".equals(exchange.getRequestMethod())) {
+							InputStream is = exchange.getRequestBody();
+							String json = new String(is.readAllBytes(), StandardCharsets.UTF_8);
+							LOGGER.info("受信したJSON: " + json);
+							ObjectMapper mapper = new ObjectMapper();
+							List<ChatState.ChatMessage> messages = mapper.readValue(json,
+									new TypeReference<List<ChatState.ChatMessage>>() {
+									});
+							chatState.messages = messages;
+							LOGGER.info("受信したChatState: " + chatState);
+							sendChatStateToAllPlayers();
 							String response = "OK";
 							exchange.sendResponseHeaders(200, response.length());
 							OutputStream os = exchange.getResponseBody();
@@ -240,12 +323,19 @@ public class ShannonUIMod implements ModInitializer {
 			LOGGER.info(TARGET_PLAYER_NAME + "という名前のプレイヤーが見つかりませんでした");
 			return;
 		}
-		inventoryState = InventoryStateUtil.createInventoryState(shannon);
+		sendInventoryStateToAll(shannon);
+	}
+
+	// プレイヤーインスタンスを直接受け取るバージョン
+	public static void sendInventoryStateToAll(ServerPlayerEntity player) {
+		if (player == null || SERVER_INSTANCE == null)
+			return;
+		inventoryState = InventoryStateUtil.createInventoryState(player);
 		if (inventoryState == null)
 			return;
-		for (ServerPlayerEntity player : SERVER_INSTANCE.getPlayerManager().getPlayerList()) {
-			if (ServerPlayNetworking.canSend(player, InventoryStatePacket.PACKET_ID)) {
-				ServerPlayNetworking.send(player, new InventoryStatePacket(inventoryState));
+		for (ServerPlayerEntity p : SERVER_INSTANCE.getPlayerManager().getPlayerList()) {
+			if (ServerPlayNetworking.canSend(p, InventoryStatePacket.PACKET_ID)) {
+				ServerPlayNetworking.send(p, new InventoryStatePacket(inventoryState));
 			}
 		}
 	}
@@ -279,6 +369,18 @@ public class ShannonUIMod implements ModInitializer {
 					state.maxHealth = maxHealth;
 					state.hunger = hunger;
 					ServerPlayNetworking.send(player, new PlayerStatusStatePacket(state));
+				}
+			}
+		}
+	}
+
+	public static void sendChatStateToAllPlayers() {
+		if (chatState == null)
+			return;
+		if (SERVER_INSTANCE != null) {
+			for (ServerPlayerEntity player : SERVER_INSTANCE.getPlayerManager().getPlayerList()) {
+				if (ServerPlayNetworking.canSend(player, ChatStatePacket.PACKET_ID)) {
+					ServerPlayNetworking.send(player, new ChatStatePacket(chatState));
 				}
 			}
 		}

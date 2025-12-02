@@ -19,6 +19,8 @@ import com.shannon.network.packet.ConstantSkillsStatePacket;
 import com.shannon.network.packet.ConstantSkillsState;
 import com.shannon.network.packet.PlayerStatusStatePacket;
 import com.shannon.network.packet.PlayerStatusState;
+import com.shannon.network.packet.ChatStatePacket;
+import com.shannon.network.packet.ChatState;
 
 public class ShannonUIModClient implements ClientModInitializer {
 
@@ -29,9 +31,10 @@ public class ShannonUIModClient implements ClientModInitializer {
     private InventoryState inventoryState;
     private ConstantSkillsState constantSkillsState;
     private PlayerStatusState playerStatusState;
+    private ChatState chatState;
     private UIRenderer.UIState uiState = new UIRenderer.UIState();
     private static ShannonUIModClient INSTANCE;
-    private int[] tabScrollOffsets = new int[3];
+    private int[] tabScrollOffsets = new int[4];
     private int selectedTab = 0;
 
     public enum UIMode {
@@ -75,6 +78,13 @@ public class ShannonUIModClient implements ClientModInitializer {
             context.client().execute(() -> {
                 PlayerStatusState state = payload.state();
                 playerStatusState = state;
+            });
+        });
+
+        ClientPlayNetworking.registerGlobalReceiver(ChatStatePacket.PACKET_ID, (payload, context) -> {
+            context.client().execute(() -> {
+                ChatState state = payload.state();
+                chatState = state;
             });
         });
 
@@ -125,7 +135,7 @@ public class ShannonUIModClient implements ClientModInitializer {
                 UIRenderer.updatePanelLayout(mc, uiState, windowWidth, windowHeight, textureSize);
                 UIRenderer.renderUI(context, mc, uiState.lastPanelX, uiState.lastPanelY, uiState.lastUiWidth,
                         uiState.lastUiHeight, uiState, taskTreeState, inventoryState, constantSkillsState,
-                        uiState.lastUiHeight, uiMode);
+                        chatState, uiState.lastUiHeight, uiMode);
             }
             PlayerStatusRenderer.renderPlayerStatus(context, mc, windowWidth, windowHeight, textureSize,
                     playerStatusState);
@@ -224,5 +234,9 @@ public class ShannonUIModClient implements ClientModInitializer {
 
     public static PlayerStatusState getPlayerStatusState() {
         return INSTANCE != null ? INSTANCE.playerStatusState : null;
+    }
+
+    public static ChatState getChatState() {
+        return INSTANCE != null ? INSTANCE.chatState : null;
     }
 }

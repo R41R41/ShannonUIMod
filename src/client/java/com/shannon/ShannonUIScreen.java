@@ -35,8 +35,10 @@ public class ShannonUIScreen extends Screen {
         com.shannon.network.packet.InventoryState inventoryState = ShannonUIModClient.getInventoryState();
         com.shannon.network.packet.ConstantSkillsState constantSkillsState = ShannonUIModClient
                 .getConstantSkillsState();
+        com.shannon.network.packet.ChatState chatState = ShannonUIModClient.getChatState();
         UIRenderer.renderUI(context, mc, uiState.lastPanelX, uiState.lastPanelY, uiState.lastUiWidth,
-                uiState.lastUiHeight, uiState, latestState, inventoryState, constantSkillsState, uiState.lastUiHeight,
+                uiState.lastUiHeight, uiState, latestState, inventoryState, constantSkillsState, chatState,
+                uiState.lastUiHeight,
                 com.shannon.ShannonUIModClient.UIMode.SCREEN);
     }
 
@@ -46,9 +48,20 @@ public class ShannonUIScreen extends Screen {
     }
 
     @Override
+    public boolean charTyped(char chr, int modifiers) {
+        if (uiState.selectedTab == 3) {
+            ChatUIRenderer.handleCharTyped(chr, modifiers);
+            return true;
+        }
+        return super.charTyped(chr, modifiers);
+    }
+
+    @Override
     public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
         InputUtil.Key pressedKey = InputUtil.fromKeyCode(keyCode, scanCode);
         String pressedKeyTranslation = pressedKey.getTranslationKey();
+
+        // 特殊キーの処理（全タブ共通）
         if (ShannonUIModClient.getToggleDisplayUIKey().getBoundKeyTranslationKey().equals(pressedKeyTranslation)) {
             ShannonUIModClient.updateUIMode(true, MinecraftClient.getInstance());
             return true;
@@ -60,7 +73,7 @@ public class ShannonUIScreen extends Screen {
         if (ShannonUIModClient.getTabSwitchNextKey().getBoundKeyTranslationKey().equals(pressedKeyTranslation)) {
             int selectedTab = ShannonUIModClient.getSelectedTab();
             ShannonUIModClient.setTabScrollOffset(selectedTab, uiState.scrollOffset);
-            selectedTab = (selectedTab + 1) % 3;
+            selectedTab = (selectedTab + 1) % 4;
             ShannonUIModClient.setSelectedTab(selectedTab);
             uiState.selectedTab = selectedTab;
             uiState.scrollOffset = ShannonUIModClient.getTabScrollOffset(selectedTab);
@@ -71,6 +84,13 @@ public class ShannonUIScreen extends Screen {
             ShannonUIModClient.updateUIMode(false, MinecraftClient.getInstance());
             return true;
         }
+
+        // チャットタブでのキー入力処理（特殊キー処理後）
+        if (uiState.selectedTab == 3) {
+            ChatUIRenderer.handleKeyPress(keyCode, scanCode, modifiers);
+            return true;
+        }
+
         return super.keyPressed(keyCode, scanCode, modifiers);
     }
 
@@ -97,7 +117,7 @@ public class ShannonUIScreen extends Screen {
         if (ShannonUIModClient.getTabSwitchNextKey().getBoundKeyTranslationKey().equals(pressedKeyTranslation)) {
             int selectedTab = ShannonUIModClient.getSelectedTab();
             ShannonUIModClient.setTabScrollOffset(selectedTab, uiState.scrollOffset);
-            selectedTab = (selectedTab + 1) % 3;
+            selectedTab = (selectedTab + 1) % 4;
             ShannonUIModClient.setSelectedTab(selectedTab);
             uiState.selectedTab = selectedTab;
             uiState.scrollOffset = ShannonUIModClient.getTabScrollOffset(selectedTab);

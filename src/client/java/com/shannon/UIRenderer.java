@@ -13,6 +13,7 @@ import net.minecraft.client.option.KeyBinding;
 import com.shannon.network.packet.TaskTreeState;
 import com.shannon.network.packet.InventoryState;
 import com.shannon.network.packet.ConstantSkillsState;
+import com.shannon.network.packet.ChatState;
 import com.shannon.ShannonUIModClient.UIMode;
 
 // このクラスはScreenからUI部品描画・レイアウト補助として呼び出す用途に整理
@@ -23,6 +24,7 @@ public class UIRenderer {
     private static final Identifier TASK_TREE = Identifier.of("shannonuimod", "textures/tasktree.png");
     private static final Identifier INVENTORY = Identifier.of("shannonuimod", "textures/inventory.png");
     private static final Identifier PASSIVE_SKILL = Identifier.of("shannonuimod", "textures/passive_skill.png");
+    private static final Identifier CHAT = Identifier.of("shannonuimod", "textures/chat.png");
 
     public static void renderTaskTreeUI(DrawContext context, MinecraftClient mc, int x, int y, int windowWidth,
             int windowHeight, int uiWidth, int uiHeight, TaskTreeState taskTreeState, int scrollOffset) {
@@ -164,7 +166,7 @@ public class UIRenderer {
         int selectedTab = ShannonUIModClient.getSelectedTab();
         if (tabSwitchNextKey != null && tabSwitchNextKey.wasPressed()) {
             ShannonUIModClient.setTabScrollOffset(selectedTab, state.scrollOffset);
-            selectedTab = (selectedTab + 1) % 3;
+            selectedTab = (selectedTab + 1) % 4;
             ShannonUIModClient.setSelectedTab(selectedTab);
             state.scrollOffset = ShannonUIModClient.getTabScrollOffset(selectedTab);
         }
@@ -185,7 +187,8 @@ public class UIRenderer {
     public static void renderUI(DrawContext context, MinecraftClient mc, int x, int y, int uiWidth, int uiHeight,
             UIState state, TaskTreeState taskTreeState,
             InventoryState inventoryState,
-            ConstantSkillsState constantSkillsState, int lastUiHeight, UIMode uiMode) {
+            ConstantSkillsState constantSkillsState,
+            ChatState chatState, int lastUiHeight, UIMode uiMode) {
         renderBaseUI(context, state);
         // タブのラベル（translatable対応）
         int tabHeight = 18;
@@ -205,7 +208,6 @@ public class UIRenderer {
         int relMouseY = (int) mouseY - (y + 4 + 4) + state.scrollOffset;
         boolean mouseClicked = GLFW.glfwGetMouseButton(mc.getWindow().getHandle(),
                 GLFW.GLFW_MOUSE_BUTTON_1) == GLFW.GLFW_PRESS;
-        boolean mouseReleased = !mouseClicked;
         switch (state.selectedTab) {
             case 0:
                 TaskTreeUIRenderer.renderTaskTreeUI(context, mc, innerX, innerY, uiWidth,
@@ -219,6 +221,10 @@ public class UIRenderer {
             case 2:
                 InventoryUIRenderer.renderInventory(context, mc, innerX, innerY, uiWidth, uiHeight - 2, state,
                         state.scrollOffset, inventoryState, relMouseX, relMouseY, mouseClicked);
+                break;
+            case 3:
+                ChatUIRenderer.renderChat(context, mc, innerX, innerY, uiWidth, uiHeight - 2, state,
+                        state.scrollOffset, chatState, relMouseX, relMouseY, mouseClicked);
                 break;
         }
         // スクロールバー描画
@@ -336,11 +342,11 @@ public class UIRenderer {
         int borderColor3 = 0xff000000;
         boolean mouseClicked = GLFW.glfwGetMouseButton(mc.getWindow().getHandle(),
                 GLFW.GLFW_MOUSE_BUTTON_1) == GLFW.GLFW_PRESS;
-        Identifier[] icon = { TASK_TREE, PASSIVE_SKILL, INVENTORY };
+        Identifier[] icon = { TASK_TREE, PASSIVE_SKILL, INVENTORY, CHAT };
         String[] tabDescriptionKeys = { "tab.shannonuimod.tasktree", "tab.shannonuimod.passiveskill",
-                "tab.shannonuimod.inventory" };
+                "tab.shannonuimod.inventory", "tab.shannonuimod.chat" };
         int hoveredTab = -1;
-        for (int i = 0; i < 3; i++) {
+        for (int i = 0; i < 4; i++) {
             int tabX = x - tabWidth - 2;
             int tabY = y + i * (tabHeight + 5) + 2;
             int bgColor = (i == state.selectedTab) ? bgColor1 : bgColor2;

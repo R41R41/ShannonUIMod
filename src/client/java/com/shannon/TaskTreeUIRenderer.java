@@ -120,6 +120,12 @@ public class TaskTreeUIRenderer {
             }
 
             state.contentHeight = (line + 1) * 10 + 8; // 16px余白
+
+            // 表示するものが何もない、または少ない場合はスクロールを一番上に
+            if (state.contentHeight <= uiHeight) {
+                state.scrollOffset = 0;
+                ShannonUIModClient.setTabScrollOffset(state.selectedTab, 0);
+            }
         } finally {
             context.getMatrices().pop();
         }

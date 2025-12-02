@@ -105,6 +105,12 @@ public class ConstantSkillsUIRenderer {
             }
             state.contentHeight = (line + 1) * 12 + 8;
 
+            // 表示するものが何もない、または少ない場合はスクロールを一番上に
+            if (state.contentHeight <= uiHeight) {
+                state.scrollOffset = 0;
+                ShannonUIModClient.setTabScrollOffset(state.selectedTab, 0);
+            }
+
             // 3行分の黒背景とテキストスキップ
             if (hoveredLine != -1) {
                 int skipStart = hoveredLine + 1;

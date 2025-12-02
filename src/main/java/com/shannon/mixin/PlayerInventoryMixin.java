@@ -13,30 +13,40 @@ import net.minecraft.item.ItemStack;
 
 @Mixin(PlayerInventory.class)
 public class PlayerInventoryMixin {
-    @Inject(method = "markDirty", at = @At("HEAD"))
-    private void onMarkDirty(CallbackInfo ci) {
-        send();
-    }
 
-    @Inject(method = "removeStack", at = @At("HEAD"))
-    private void onRemoveStack(CallbackInfoReturnable<ItemStack> cir) {
-        send();
-    }
-
-    @Inject(method = "setStack", at = @At("HEAD"))
-    private void onSetStack(CallbackInfo ci) {
-        send();
-    }
-
-    @Inject(method = "setSelectedSlot", at = @At("HEAD"))
-    private void onSetSelectedSlot(int slot, CallbackInfo ci) {
-        send();
-    }
-
-    private void send() {
+    // insertStack - アイテムをインベントリに挿入（拾った時など）
+    @Inject(method = "insertStack(Lnet/minecraft/item/ItemStack;)Z", at = @At("RETURN"))
+    private void onInsertStackReturn(ItemStack stack, CallbackInfoReturnable<Boolean> cir) {
         PlayerInventory inv = (PlayerInventory) (Object) this;
         if (inv.player != null && inv.player.getName().getString().contains(ShannonUIMod.TARGET_PLAYER_NAME)) {
-            ShannonUIMod.sendInventoryStateOfSh4nnonToAll();
+            if (inv.player.getServer() != null && !inv.player.getWorld().isClient) {
+                net.minecraft.server.network.ServerPlayerEntity serverPlayer = (net.minecraft.server.network.ServerPlayerEntity) inv.player;
+                ShannonUIMod.sendInventoryStateToAll(serverPlayer);
+            }
+        }
+    }
+
+    // setStack - スロットにアイテムをセット（コマンドでクリアした時など）
+    @Inject(method = "setStack", at = @At("RETURN"))
+    private void onSetStackReturn(int slot, ItemStack stack, CallbackInfo ci) {
+        PlayerInventory inv = (PlayerInventory) (Object) this;
+        if (inv.player != null && inv.player.getName().getString().contains(ShannonUIMod.TARGET_PLAYER_NAME)) {
+            if (inv.player.getServer() != null && !inv.player.getWorld().isClient) {
+                net.minecraft.server.network.ServerPlayerEntity serverPlayer = (net.minecraft.server.network.ServerPlayerEntity) inv.player;
+                ShannonUIMod.sendInventoryStateToAll(serverPlayer);
+            }
+        }
+    }
+
+    // removeStack - アイテムを削除（投げた時など）
+    @Inject(method = "removeStack(II)Lnet/minecraft/item/ItemStack;", at = @At("RETURN"))
+    private void onRemoveStackReturn(int slot, int amount, CallbackInfoReturnable<ItemStack> cir) {
+        PlayerInventory inv = (PlayerInventory) (Object) this;
+        if (inv.player != null && inv.player.getName().getString().contains(ShannonUIMod.TARGET_PLAYER_NAME)) {
+            if (inv.player.getServer() != null && !inv.player.getWorld().isClient) {
+                net.minecraft.server.network.ServerPlayerEntity serverPlayer = (net.minecraft.server.network.ServerPlayerEntity) inv.player;
+                ShannonUIMod.sendInventoryStateToAll(serverPlayer);
+            }
         }
     }
 }

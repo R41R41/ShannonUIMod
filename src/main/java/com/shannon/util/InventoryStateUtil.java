@@ -84,10 +84,10 @@ public class InventoryStateUtil {
         if (state.feet != null)
             equipped.add(armorStacks[0]);
 
-        // 3. items生成時に重複を除外
+        // 3. items生成
         state.items = new ArrayList<>();
         for (ItemStack stack : player.getInventory().main) {
-            if (!stack.isEmpty() && equipped.stream().noneMatch(eq -> ItemStack.areEqual(eq, stack))) {
+            if (!stack.isEmpty()) {
                 InventoryState.Item item = new InventoryState.Item();
                 item.name = Registries.ITEM.getId(stack.getItem()).toString();
                 item.count = String.valueOf(stack.getCount());
