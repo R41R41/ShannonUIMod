@@ -7,6 +7,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 import com.shannon.ShannonUIMod;
+import com.shannon.config.ModConfig;
 
 import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.damage.DamageSource;
@@ -19,7 +20,7 @@ public class PlayerStatusMixin {
     private void onDamage(ServerWorld world, DamageSource source, float amount, CallbackInfoReturnable<Boolean> cir) {
         LivingEntity entity = (LivingEntity) (Object) this;
         if (entity instanceof PlayerEntity player && player.getGameProfile() != null) {
-            if (player.getName().getString().contains(ShannonUIMod.TARGET_PLAYER_NAME)) {
+            if (player.getName().getString().contains(ModConfig.TARGET_PLAYER_NAME)) {
                 ShannonUIMod.sendPlayerStatusToAll();
             }
         }
@@ -29,7 +30,7 @@ public class PlayerStatusMixin {
     private void onSetHealth(float health, CallbackInfo ci) {
         LivingEntity entity = (LivingEntity) (Object) this;
         if (entity instanceof PlayerEntity player && player.getGameProfile() != null) {
-            if (player.getName().getString().contains(ShannonUIMod.TARGET_PLAYER_NAME)) {
+            if (player.getName().getString().contains(ModConfig.TARGET_PLAYER_NAME)) {
                 ShannonUIMod.sendPlayerStatusToAll();
             }
         }
@@ -39,7 +40,7 @@ public class PlayerStatusMixin {
     private void onTick(CallbackInfo ci) {
         LivingEntity entity = (LivingEntity) (Object) this;
         if (entity instanceof PlayerEntity player && player.getGameProfile() != null) {
-            if (player.getName().getString().contains(ShannonUIMod.TARGET_PLAYER_NAME)) {
+            if (player.getName().getString().contains(ModConfig.TARGET_PLAYER_NAME)) {
                 int currentHunger = player.getHungerManager().getFoodLevel();
                 if (currentHunger < 20) { // 空腹度が最大でない場合
                     ShannonUIMod.sendPlayerStatusToAll();

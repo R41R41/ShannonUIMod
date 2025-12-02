@@ -12,9 +12,9 @@ import net.minecraft.server.network.ServerPlayerEntity;
 class ServerPlayerEntityMixin {
     @Inject(method = "onSpawn", at = @At("TAIL"))
     private void onSpawn(CallbackInfo ci) {
+        // プレイヤー参加時に全ての状態を送信
         ShannonUIMod.sendInventoryStateOfSh4nnonToAll();
-        ShannonUIMod.sendTaskTreeStateToAllPlayers();
-        ShannonUIMod.sendConstantSkillsStateToAllPlayers();
         ShannonUIMod.sendPlayerStatusToAll();
+        // TaskTreeとSkillsはStateManagerが自動でブロードキャスト済み
     }
 }

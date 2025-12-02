@@ -7,6 +7,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 import com.shannon.ShannonUIMod;
+import com.shannon.config.ModConfig;
 
 import net.minecraft.entity.player.PlayerInventory;
 import net.minecraft.item.ItemStack;
@@ -18,7 +19,7 @@ public class PlayerInventoryMixin {
     @Inject(method = "insertStack(Lnet/minecraft/item/ItemStack;)Z", at = @At("RETURN"))
     private void onInsertStackReturn(ItemStack stack, CallbackInfoReturnable<Boolean> cir) {
         PlayerInventory inv = (PlayerInventory) (Object) this;
-        if (inv.player != null && inv.player.getName().getString().contains(ShannonUIMod.TARGET_PLAYER_NAME)) {
+        if (inv.player != null && inv.player.getName().getString().contains(ModConfig.TARGET_PLAYER_NAME)) {
             if (inv.player.getServer() != null && !inv.player.getWorld().isClient) {
                 net.minecraft.server.network.ServerPlayerEntity serverPlayer = (net.minecraft.server.network.ServerPlayerEntity) inv.player;
                 ShannonUIMod.sendInventoryStateToAll(serverPlayer);
@@ -30,7 +31,7 @@ public class PlayerInventoryMixin {
     @Inject(method = "setStack", at = @At("RETURN"))
     private void onSetStackReturn(int slot, ItemStack stack, CallbackInfo ci) {
         PlayerInventory inv = (PlayerInventory) (Object) this;
-        if (inv.player != null && inv.player.getName().getString().contains(ShannonUIMod.TARGET_PLAYER_NAME)) {
+        if (inv.player != null && inv.player.getName().getString().contains(ModConfig.TARGET_PLAYER_NAME)) {
             if (inv.player.getServer() != null && !inv.player.getWorld().isClient) {
                 net.minecraft.server.network.ServerPlayerEntity serverPlayer = (net.minecraft.server.network.ServerPlayerEntity) inv.player;
                 ShannonUIMod.sendInventoryStateToAll(serverPlayer);
@@ -42,7 +43,7 @@ public class PlayerInventoryMixin {
     @Inject(method = "removeStack(II)Lnet/minecraft/item/ItemStack;", at = @At("RETURN"))
     private void onRemoveStackReturn(int slot, int amount, CallbackInfoReturnable<ItemStack> cir) {
         PlayerInventory inv = (PlayerInventory) (Object) this;
-        if (inv.player != null && inv.player.getName().getString().contains(ShannonUIMod.TARGET_PLAYER_NAME)) {
+        if (inv.player != null && inv.player.getName().getString().contains(ModConfig.TARGET_PLAYER_NAME)) {
             if (inv.player.getServer() != null && !inv.player.getWorld().isClient) {
                 net.minecraft.server.network.ServerPlayerEntity serverPlayer = (net.minecraft.server.network.ServerPlayerEntity) inv.player;
                 ShannonUIMod.sendInventoryStateToAll(serverPlayer);
