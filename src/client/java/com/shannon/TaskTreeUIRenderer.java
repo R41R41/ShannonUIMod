@@ -19,7 +19,6 @@ public class TaskTreeUIRenderer {
                 return;
             }
             int line = 0;
-            float scale = 1.0f;
             int drawX = 4;
             int drawY = 4;
             int yOffset = -scrollOffset;
@@ -27,103 +26,13 @@ public class TaskTreeUIRenderer {
             int startY = drawY + yOffset;
 
             context.getMatrices().translate(x, y, 0);
-            context.getMatrices().scale(scale, scale, 1.0f);
 
-            String status = taskTreeState.status == null ? "" : taskTreeState.status.toLowerCase();
-            int statusColor = 0xAAAAAA;
-            switch (status) {
-                case "pending":
-                    statusColor = 0xAAAAAA;
-                    break;
-                case "in_progress":
-                    statusColor = 0xFFFF00;
-                    break;
-                case "completed":
-                    statusColor = 0x00FF00;
-                    break;
-                case "error":
-                    statusColor = 0xFF0000;
-                    break;
-            }
+            // 行間定数
+            final int LOG_LINE_HEIGHT = 7; // Activity Logs用
+            final int TASK_LINE_HEIGHT = 8; // TaskTree用
 
-            // ゴール（太字）
-            for (OrderedText lineText : wrapText(mc, taskTreeState.goal, maxTextWidth)) {
-                int textY = startY + 10 * line;
-                if (textY >= 0 && textY + 10 <= uiHeight) {
-                    context.drawTextWithShadow(mc.textRenderer, lineText, drawX, textY, statusColor);
-                }
-                line++;
-            }
-            // ストラテジー
-            for (OrderedText lineText : wrapText(mc, taskTreeState.strategy, maxTextWidth)) {
-                int textY = startY + 10 * line;
-                if (textY >= 0 && textY + 10 <= uiHeight) {
-                    context.drawTextWithShadow(mc.textRenderer, lineText, drawX, textY, statusColor);
-                }
-                line++;
-            }
-            // エラー
-            if (taskTreeState.error != null && !taskTreeState.error.isEmpty()) {
-                for (OrderedText lineText : wrapText(mc, "Error: " + taskTreeState.error, maxTextWidth)) {
-                    int textY = startY + 10 * line;
-                    if (textY >= 0 && textY + 10 <= uiHeight) {
-                        context.drawTextWithShadow(mc.textRenderer, lineText, drawX, textY, 0xFF8888);
-                    }
-                    line++;
-                }
-            }
-            line++;
-            // サブタスク
-            if (taskTreeState.subTasks != null && !taskTreeState.subTasks.isEmpty()) {
-                for (TaskTreeState.SubTask sub : taskTreeState.subTasks) {
-                    int subColor = 0xAAAAAA;
-                    String subStatus = sub.subTaskStatus == null ? "" : sub.subTaskStatus.toLowerCase();
-                    switch (subStatus) {
-                        case "pending":
-                            subColor = 0xAAAAAA;
-                            break;
-                        case "in_progress":
-                            subColor = 0xFFFF00;
-                            break;
-                        case "completed":
-                            subColor = 0x00FF00;
-                            break;
-                        case "error":
-                            subColor = 0xFF0000;
-                            break;
-                    }
-                    Text boldSubText = Text.literal("  > " + sub.subTaskGoal).copy()
-                            .setStyle(Style.EMPTY.withBold(true));
-                    for (OrderedText lineText : wrapText(mc, boldSubText.getString(), maxTextWidth)) {
-                        int textY = startY + 10 * line;
-                        if (textY >= 0 && textY + 10 <= uiHeight) {
-                            context.drawTextWithShadow(mc.textRenderer, lineText, drawX, textY, subColor);
-                        }
-                        line++;
-                    }
-                    for (OrderedText lineText : wrapText(mc, "    " + sub.subTaskStrategy, maxTextWidth)) {
-                        int textY = startY + 10 * line;
-                        if (textY >= 0 && textY + 10 <= uiHeight) {
-                            context.drawTextWithShadow(mc.textRenderer, lineText, drawX, textY, subColor);
-                        }
-                        line++;
-                    }
-                    if (sub.subTaskResult != null && !sub.subTaskResult.isEmpty()) {
-                        for (OrderedText lineText : wrapText(mc, "  => " + sub.subTaskResult, maxTextWidth)) {
-                            int textY = startY + 10 * line;
-                            if (textY >= 0 && textY + 10 <= uiHeight) {
-                                context.drawTextWithShadow(mc.textRenderer, lineText, drawX, textY, 0x8888FF);
-                            }
-                            line++;
-                        }
-                    }
-                    line++;
-                }
-            }
-
-            // === ログセクションを追加 ===
+            // === Activity Logs セクションを先に表示 ===
             if (logsState != null && logsState.logs != null && !logsState.logs.isEmpty() && logToggleState != null) {
-                line++; // 空行
 
                 // セパレーターにトグルボタンを追加
                 boolean logsExpanded = logToggleState.logsExpanded;
@@ -133,7 +42,7 @@ public class TaskTreeUIRenderer {
 
                 int separatorStartLine = line;
                 for (OrderedText lineText : wrapText(mc, separator, maxTextWidth)) {
-                    int textY = startY + 10 * line;
+                    int textY = startY + LOG_LINE_HEIGHT * line;
                     if (textY >= 0 && textY + 10 <= uiHeight) {
                         // クリック可能な見た目
                         context.drawTextWithShadow(mc.textRenderer, lineText, drawX, textY, 0x55AAFF);
@@ -169,7 +78,7 @@ public class TaskTreeUIRenderer {
 
                         int headerStartLine = line;
                         for (OrderedText lineText : wrapText(mc, logHeader, maxTextWidth)) {
-                            int textY = startY + 10 * line;
+                            int textY = startY + LOG_LINE_HEIGHT * line;
                             if (textY >= 0 && textY + 10 <= uiHeight) {
                                 context.drawTextWithShadow(mc.textRenderer, lineText, drawX, textY, logColor);
                             }
@@ -187,7 +96,7 @@ public class TaskTreeUIRenderer {
                             // コンテンツ（全文表示、インデント）
                             String indentedContent = "  " + log.content;
                             for (OrderedText lineText : wrapText(mc, indentedContent, maxTextWidth)) {
-                                int textY = startY + 10 * line;
+                                int textY = startY + LOG_LINE_HEIGHT * line;
                                 if (textY >= 0 && textY + 10 <= uiHeight) {
                                     context.drawTextWithShadow(mc.textRenderer, lineText, drawX, textY, 0xCCCCCC);
                                 }
@@ -199,7 +108,7 @@ public class TaskTreeUIRenderer {
                                 if (log.metadata.duration != null && log.metadata.duration > 0) {
                                     String durationStr = "    ⏱ " + log.metadata.duration + "ms";
                                     for (OrderedText lineText : wrapText(mc, durationStr, maxTextWidth)) {
-                                        int textY = startY + 10 * line;
+                                        int textY = startY + LOG_LINE_HEIGHT * line;
                                         if (textY >= 0 && textY + 10 <= uiHeight) {
                                             context.drawTextWithShadow(mc.textRenderer, lineText, drawX, textY,
                                                     0x888888);
@@ -211,7 +120,7 @@ public class TaskTreeUIRenderer {
                                 if (log.metadata.error != null && !log.metadata.error.isEmpty()) {
                                     String errorStr = "    ❌ " + log.metadata.error;
                                     for (OrderedText lineText : wrapText(mc, errorStr, maxTextWidth)) {
-                                        int textY = startY + 10 * line;
+                                        int textY = startY + LOG_LINE_HEIGHT * line;
                                         if (textY >= 0 && textY + 10 <= uiHeight) {
                                             context.drawTextWithShadow(mc.textRenderer, lineText, drawX, textY,
                                                     0xFF8888);
@@ -226,7 +135,7 @@ public class TaskTreeUIRenderer {
                                     : log.content;
                             String indentedContent = "  " + shortContent;
                             for (OrderedText lineText : wrapText(mc, indentedContent, maxTextWidth)) {
-                                int textY = startY + 10 * line;
+                                int textY = startY + LOG_LINE_HEIGHT * line;
                                 if (textY >= 0 && textY + 10 <= uiHeight) {
                                     context.drawTextWithShadow(mc.textRenderer, lineText, drawX, textY, 0xAAAAAA);
                                 }
@@ -240,7 +149,124 @@ public class TaskTreeUIRenderer {
                 }
             }
 
-            state.contentHeight = (line + 1) * 10 + 8; // 16px余白
+            // === TaskTree セクション（ActivityLogsの後に表示） ===
+            line += 2; // 空行
+
+            // TaskTree: scale 0.85でコンパクト表示
+            context.getMatrices().push();
+            context.getMatrices().scale(0.85f, 0.85f, 1.0f);
+
+            // スケール適用後の座標計算
+            int scaledDrawX = (int) (drawX / 0.85f);
+            int scaledMaxTextWidth = (int) (maxTextWidth / 0.85f);
+
+            String status = taskTreeState.status == null ? "" : taskTreeState.status.toLowerCase();
+            int statusColor = 0xAAAAAA;
+            switch (status) {
+                case "pending":
+                    statusColor = 0xAAAAAA;
+                    break;
+                case "in_progress":
+                    statusColor = 0xFFFF00;
+                    break;
+                case "completed":
+                    statusColor = 0x00FF00;
+                    break;
+                case "error":
+                    statusColor = 0xFF0000;
+                    break;
+            }
+
+            // セパレーター
+            String taskSeparator = "▼ Current Task";
+            for (OrderedText lineText : wrapText(mc, taskSeparator, scaledMaxTextWidth)) {
+                int textY = (int) ((startY + TASK_LINE_HEIGHT * line) / 0.85f);
+                if (textY >= 0 && textY + 10 <= (int) (uiHeight / 0.85f)) {
+                    context.drawTextWithShadow(mc.textRenderer, lineText, scaledDrawX, textY, 0x55AAFF);
+                }
+                line++;
+            }
+            line++; // 空行
+
+            // ゴール
+            for (OrderedText lineText : wrapText(mc, taskTreeState.goal, scaledMaxTextWidth)) {
+                int textY = (int) ((startY + TASK_LINE_HEIGHT * line) / 0.85f);
+                if (textY >= 0 && textY + 10 <= (int) (uiHeight / 0.85f)) {
+                    context.drawTextWithShadow(mc.textRenderer, lineText, scaledDrawX, textY, statusColor);
+                }
+                line++;
+            }
+
+            // ストラテジー
+            if (taskTreeState.strategy != null && !taskTreeState.strategy.isEmpty()) {
+                for (OrderedText lineText : wrapText(mc, taskTreeState.strategy, scaledMaxTextWidth)) {
+                    int textY = (int) ((startY + TASK_LINE_HEIGHT * line) / 0.85f);
+                    if (textY >= 0 && textY + 10 <= (int) (uiHeight / 0.85f)) {
+                        context.drawTextWithShadow(mc.textRenderer, lineText, scaledDrawX, textY, statusColor);
+                    }
+                    line++;
+                }
+            }
+
+            // エラー
+            if (taskTreeState.error != null && !taskTreeState.error.isEmpty()) {
+                for (OrderedText lineText : wrapText(mc, "Error: " + taskTreeState.error, scaledMaxTextWidth)) {
+                    int textY = (int) ((startY + TASK_LINE_HEIGHT * line) / 0.85f);
+                    if (textY >= 0 && textY + 10 <= (int) (uiHeight / 0.85f)) {
+                        context.drawTextWithShadow(mc.textRenderer, lineText, scaledDrawX, textY, 0xFF8888);
+                    }
+                    line++;
+                }
+            }
+
+            // サブタスク
+            if (taskTreeState.subTasks != null && !taskTreeState.subTasks.isEmpty()) {
+                line++; // 空行
+                for (TaskTreeState.SubTask sub : taskTreeState.subTasks) {
+                    int subColor = 0xAAAAAA;
+                    String subStatus = sub.subTaskStatus == null ? "" : sub.subTaskStatus.toLowerCase();
+                    switch (subStatus) {
+                        case "pending":
+                            subColor = 0xAAAAAA;
+                            break;
+                        case "in_progress":
+                            subColor = 0xFFFF00;
+                            break;
+                        case "completed":
+                            subColor = 0x00FF00;
+                            break;
+                        case "error":
+                            subColor = 0xFF0000;
+                            break;
+                    }
+
+                    // サブタスクゴール（簡潔化）
+                    Text boldSubText = Text.literal("  > " + sub.subTaskGoal).copy()
+                            .setStyle(Style.EMPTY.withBold(true));
+                    for (OrderedText lineText : wrapText(mc, boldSubText.getString(), scaledMaxTextWidth)) {
+                        int textY = (int) ((startY + TASK_LINE_HEIGHT * line) / 0.85f);
+                        if (textY >= 0 && textY + 10 <= (int) (uiHeight / 0.85f)) {
+                            context.drawTextWithShadow(mc.textRenderer, lineText, scaledDrawX, textY, subColor);
+                        }
+                        line++;
+                    }
+
+                    // サブタスク結果（簡潔化）
+                    if (sub.subTaskResult != null && !sub.subTaskResult.isEmpty()) {
+                        for (OrderedText lineText : wrapText(mc, "    => " + sub.subTaskResult, scaledMaxTextWidth)) {
+                            int textY = (int) ((startY + TASK_LINE_HEIGHT * line) / 0.85f);
+                            if (textY >= 0 && textY + 10 <= (int) (uiHeight / 0.85f)) {
+                                context.drawTextWithShadow(mc.textRenderer, lineText, scaledDrawX, textY, 0x8888FF);
+                            }
+                            line++;
+                        }
+                    }
+                }
+            }
+
+            context.getMatrices().pop();
+
+            state.contentHeight = (line + 1) * TASK_LINE_HEIGHT + 8; // 余白
 
             // 表示するものが何もない、または少ない場合はスクロールを一番上に
             if (state.contentHeight <= uiHeight) {
