@@ -41,6 +41,7 @@ public class TaskTreeUIRenderer {
                         toggleIcon, logsExpanded ? "collapse" : "expand");
 
                 int separatorStartLine = line;
+                int separatorStartY = startY + LOG_LINE_HEIGHT * line;
                 for (OrderedText lineText : wrapText(mc, separator, maxTextWidth)) {
                     int textY = startY + LOG_LINE_HEIGHT * line;
                     if (textY >= 0 && textY + 10 <= uiHeight) {
@@ -50,8 +51,9 @@ public class TaskTreeUIRenderer {
                     line++;
                 }
 
-                // セパレーターの行番号を記録（クリック判定用）
+                // セパレーターのY座標を記録（クリック判定用）
                 state.logsSeparatorLine = separatorStartLine;
+                state.logsSeparatorLineY = separatorStartY;
 
                 // ログが展開されている場合のみ表示
                 if (logsExpanded) {
@@ -77,19 +79,31 @@ public class TaskTreeUIRenderer {
                                 logToggleIcon, timestamp, icon, log.source);
 
                         int headerStartLine = line;
+                        int headerStartY = startY + LOG_LINE_HEIGHT * line;
+                        int headerLineCount = 0;
                         for (OrderedText lineText : wrapText(mc, logHeader, maxTextWidth)) {
                             int textY = startY + LOG_LINE_HEIGHT * line;
                             if (textY >= 0 && textY + 10 <= uiHeight) {
                                 context.drawTextWithShadow(mc.textRenderer, lineText, drawX, textY, logColor);
                             }
                             line++;
+                            headerLineCount++;
                         }
+                        int headerEndY = headerStartY + LOG_LINE_HEIGHT * headerLineCount;
 
-                        // クリック可能な行の範囲を記録
+                        // クリック可能な行のY座標範囲を記録
                         if (state.logClickableLines == null) {
                             state.logClickableLines = new java.util.HashMap<>();
                         }
+                        if (state.logClickableLineYStart == null) {
+                            state.logClickableLineYStart = new java.util.HashMap<>();
+                        }
+                        if (state.logClickableLineYEnd == null) {
+                            state.logClickableLineYEnd = new java.util.HashMap<>();
+                        }
                         state.logClickableLines.put(headerStartLine, i);
+                        state.logClickableLineYStart.put(i, headerStartY);
+                        state.logClickableLineYEnd.put(i, headerEndY);
 
                         // 展開されている場合のみ詳細を表示
                         if (logExpanded) {

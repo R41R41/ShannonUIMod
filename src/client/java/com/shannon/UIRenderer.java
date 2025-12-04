@@ -161,7 +161,12 @@ public class UIRenderer {
         public int dragStartScrollOffset = 0;
         // ログのクリック判定用
         public int logsSeparatorLine = -1;
+        public int logsSeparatorLineY = -1; // Y座標（ピクセル単位）
         public java.util.Map<Integer, Integer> logClickableLines = null;
+        public java.util.Map<Integer, Integer> logClickableLineYStart = null; // 各ログのY座標開始位置
+        public java.util.Map<Integer, Integer> logClickableLineYEnd = null; // 各ログのY座標終了位置
+        // マウスクリック状態の記録（1回だけ検出するため）
+        public boolean prevMousePressed = false;
     }
 
     public static void handleInput(MinecraftClient mc, UIState state, int lastUiHeight,
@@ -209,8 +214,13 @@ public class UIRenderer {
         // タブごとの内容描画
         int relMouseX = (int) mouseX - (x + 2 + 4);
         int relMouseY = (int) mouseY - (y + 4 + 4) + state.scrollOffset;
-        boolean mouseClicked = GLFW.glfwGetMouseButton(mc.getWindow().getHandle(),
+        boolean mousePressed = GLFW.glfwGetMouseButton(mc.getWindow().getHandle(),
                 GLFW.GLFW_MOUSE_BUTTON_1) == GLFW.GLFW_PRESS;
+
+        // マウスが押された瞬間だけ検出（前フレームが押されていなくて、今フレーム押されている）
+        boolean mouseJustClicked = mousePressed && !state.prevMousePressed;
+        state.prevMousePressed = mousePressed;
+
         switch (state.selectedTab) {
             case 0:
                 com.shannon.network.packet.DetailedLogsState logsState = ShannonUIModClient.getDetailedLogsState();
@@ -219,34 +229,44 @@ public class UIRenderer {
                         uiHeight - 2,
                         taskTreeState, state.scrollOffset, state, logsState, logToggleState);
 
-                // ログのクリック判定
-                if (state.selectedTab == 0 && mouseClicked) {
-                    int clickLine = (relMouseY / 10);
-
-                    // セパレータークリック（全展開/折りたたみ）
-                    if (clickLine == state.logsSeparatorLine && logToggleState != null) {
-                        logToggleState.toggleAllLogs();
+                // ログのクリック判定（押された瞬間だけ）
+                if (state.selectedTab == 0 && mouseJustClicked) {
+                    // セパレータークリック（Y座標で判定）
+                    if (state.logsSeparatorLineY != -1 && logToggleState != null) {
+                        int clickY = relMouseY;
+                        // セパレーターの行の高さ範囲内（7px）
+                        if (clickY >= state.logsSeparatorLineY && clickY < state.logsSeparatorLineY + 7) {
+                            logToggleState.toggleAllLogs();
+                        }
                     }
 
-                    // 個別ログのクリック
-                    if (state.logClickableLines != null && state.logClickableLines.containsKey(clickLine)
+                    // 個別ログのクリック（Y座標で判定）
+                    if (state.logClickableLineYStart != null && state.logClickableLineYEnd != null
                             && logToggleState != null) {
-                        int logIndex = state.logClickableLines.get(clickLine);
-                        logToggleState.toggleLog(logIndex);
+                        int clickY = relMouseY;
+                        for (java.util.Map.Entry<Integer, Integer> entry : state.logClickableLineYStart.entrySet()) {
+                            int logIndex = entry.getKey();
+                            int startY = entry.getValue();
+                            int endY = state.logClickableLineYEnd.get(logIndex);
+                            if (clickY >= startY && clickY < endY) {
+                                logToggleState.toggleLog(logIndex);
+                                break;
+                            }
+                        }
                     }
                 }
                 break;
             case 1:
                 ConstantSkillsUIRenderer.renderConstantSkills(context, mc, innerX, innerY, uiWidth, uiHeight - 2,
-                        state, constantSkillsState, relMouseX, relMouseY, mouseClicked);
+                        state, constantSkillsState, relMouseX, relMouseY, mouseJustClicked);
                 break;
             case 2:
                 InventoryUIRenderer.renderInventory(context, mc, innerX, innerY, uiWidth, uiHeight - 2, state,
-                        state.scrollOffset, inventoryState, relMouseX, relMouseY, mouseClicked);
+                        state.scrollOffset, inventoryState, relMouseX, relMouseY, mouseJustClicked);
                 break;
             case 3:
                 ChatUIRenderer.renderChat(context, mc, innerX, innerY, uiWidth, uiHeight - 2, state,
-                        state.scrollOffset, chatState, relMouseX, relMouseY, mouseClicked);
+                        state.scrollOffset, chatState, relMouseX, relMouseY, mouseJustClicked);
                 break;
         }
         // スクロールバー描画
@@ -270,13 +290,13 @@ public class UIRenderer {
             boolean overScrollbar = mouseXi >= barX && mouseXi <= barX + barWidth && mouseYi >= handleY
                     && mouseYi <= handleY + handleHeight;
 
-            if (mouseClicked && overScrollbar && !state.isDraggingScrollbar) {
+            if (mousePressed && overScrollbar && !state.isDraggingScrollbar) {
                 state.isDraggingScrollbar = true;
                 state.dragStartMouseY = mouseYi;
                 state.dragStartScrollOffset = state.scrollOffset;
             }
             if (state.isDraggingScrollbar) {
-                if (mouseClicked) {
+                if (mousePressed) {
                     int deltaY = mouseYi - state.dragStartMouseY;
                     int scrollRange = barHeight - handleHeight;
                     if (scrollRange > 0) {
