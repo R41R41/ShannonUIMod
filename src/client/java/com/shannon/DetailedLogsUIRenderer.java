@@ -42,18 +42,31 @@ public class DetailedLogsUIRenderer {
 
             // ログを古い順に表示（最新のログは一番下）
             for (LogEntry log : logsState.logs) {
-                // フェーズに応じた色とアイコン
+                // Planning結果は専用表示
+                if ("planning".equals(log.phase) && "success".equals(log.level)
+                        && log.metadata != null && log.metadata.goal != null) {
+                    line = renderPlanningResult(context, mc, log, startY, drawX, line, maxTextWidth, uiHeight);
+                    line++; // 空行
+                    continue;
+                }
+
+                // Planning開始（ローディング）は専用表示
+                if ("planning".equals(log.phase) && "info".equals(log.level)
+                        && log.metadata != null && "loading".equals(log.metadata.status)) {
+                    line = renderPlanningLoading(context, mc, log, startY, drawX, line, maxTextWidth, uiHeight);
+                    line++; // 空行
+                    continue;
+                }
+
+                // 通常のログ表示
                 int color = getLogColor(log.level);
                 String icon = getLogIcon(log.phase);
-
-                // タイムスタンプをフォーマット
                 String timestamp = formatTimestamp(log.timestamp);
 
-                // ログのヘッダー: [timestamp] icon phase - source
+                // ヘッダー: [timestamp] icon phase - source
                 String header = String.format("[%s] %s %s - %s",
                         timestamp, icon, capitalizeFirst(log.phase), log.source);
 
-                // ヘッダーを描画
                 for (OrderedText lineText : wrapText(mc, header, maxTextWidth)) {
                     int textY = startY + 10 * line;
                     if (textY >= 0 && textY + 10 <= uiHeight) {
@@ -216,5 +229,163 @@ public class DetailedLogsUIRenderer {
     public static java.util.List<OrderedText> wrapText(MinecraftClient mc, String text, int maxWidth) {
         Text txt = Text.literal(text);
         return mc.textRenderer.wrapLines(txt, maxWidth);
+    }
+
+    /**
+     * Planning結果を専用表示（Cursor Agent風）
+     */
+    private static int renderPlanningResult(DrawContext context, MinecraftClient mc, LogEntry log,
+            int startY, int drawX, int line, int maxTextWidth, int uiHeight) {
+        String timestamp = formatTimestamp(log.timestamp);
+
+        // ヘッダー: [timestamp] 🧠 Planning - planning_node
+        String header = String.format("[%s] 🧠 Planning - %s", timestamp, log.source);
+        for (OrderedText lineText : wrapText(mc, header, maxTextWidth)) {
+            int textY = startY + 10 * line;
+            if (textY >= 0 && textY + 10 <= uiHeight) {
+                context.drawTextWithShadow(mc.textRenderer, lineText, drawX, textY, 0x5599FF);
+            }
+            line++;
+        }
+
+        // ✅ Plan created: goal
+        String content = "  ✅ " + log.content;
+        for (OrderedText lineText : wrapText(mc, content, maxTextWidth)) {
+            int textY = startY + 10 * line;
+            if (textY >= 0 && textY + 10 <= uiHeight) {
+                context.drawTextWithShadow(mc.textRenderer, lineText, drawX, textY, 0x55FF55);
+            }
+            line++;
+        }
+
+        // 空行
+        line++;
+
+        // 📋 Strategy:
+        if (log.metadata.strategy != null && !log.metadata.strategy.isEmpty()) {
+            String strategyText = "  📋 Strategy: " + log.metadata.strategy;
+            for (OrderedText lineText : wrapText(mc, strategyText, maxTextWidth)) {
+                int textY = startY + 10 * line;
+                if (textY >= 0 && textY + 10 <= uiHeight) {
+                    context.drawTextWithShadow(mc.textRenderer, lineText, drawX, textY, 0xFFFF55);
+                }
+                line++;
+            }
+            line++; // 空行
+        }
+
+        // ⚡ Actions:
+        if (log.metadata.actionCount != null && log.metadata.actionCount > 0) {
+            String actionsHeader = String.format("  ⚡ Actions (%d):", log.metadata.actionCount);
+            for (OrderedText lineText : wrapText(mc, actionsHeader, maxTextWidth)) {
+                int textY = startY + 10 * line;
+                if (textY >= 0 && textY + 10 <= uiHeight) {
+                    context.drawTextWithShadow(mc.textRenderer, lineText, drawX, textY, 0xFFAA55);
+                }
+                line++;
+            }
+
+            // actionSequence を表示
+            if (log.metadata.actionSequence != null) {
+                // metadataからactionSequenceを取得（JSON配列として格納されている）
+                // 簡略化のため、actionCount のみ表示
+                String actionsSummary = String.format("   %d actions planned", log.metadata.actionCount);
+                for (OrderedText lineText : wrapText(mc, actionsSummary, maxTextWidth)) {
+                    int textY = startY + 10 * line;
+                    if (textY >= 0 && textY + 10 <= uiHeight) {
+                        context.drawTextWithShadow(mc.textRenderer, lineText, drawX, textY, 0xCCCCCC);
+                    }
+                    line++;
+                }
+            }
+            line++; // 空行
+        }
+
+        // 📌 SubTasks:
+        if (log.metadata.subTaskCount != null && log.metadata.subTaskCount > 0) {
+            String subTasksHeader = String.format("  📌 SubTasks (%d):", log.metadata.subTaskCount);
+            for (OrderedText lineText : wrapText(mc, subTasksHeader, maxTextWidth)) {
+                int textY = startY + 10 * line;
+                if (textY >= 0 && textY + 10 <= uiHeight) {
+                    context.drawTextWithShadow(mc.textRenderer, lineText, drawX, textY, 0x55AAFF);
+                }
+                line++;
+            }
+
+            // subTasks を表示
+            if (log.metadata.subTasks != null) {
+                // 簡略化のため、subTaskCount のみ表示
+                String subTasksSummary = String.format("   %d subtasks defined", log.metadata.subTaskCount);
+                for (OrderedText lineText : wrapText(mc, subTasksSummary, maxTextWidth)) {
+                    int textY = startY + 10 * line;
+                    if (textY >= 0 && textY + 10 <= uiHeight) {
+                        context.drawTextWithShadow(mc.textRenderer, lineText, drawX, textY, 0xCCCCCC);
+                    }
+                    line++;
+                }
+            }
+        }
+
+        return line;
+    }
+
+    /**
+     * Planning開始（ローディング）を専用表示
+     */
+    private static int renderPlanningLoading(DrawContext context, MinecraftClient mc, LogEntry log,
+            int startY, int drawX, int line, int maxTextWidth, int uiHeight) {
+        String timestamp = formatTimestamp(log.timestamp);
+
+        // ヘッダー: [timestamp] 🧠 Planning - planning_node
+        String header = String.format("[%s] 🧠 Planning - %s", timestamp, log.source);
+        for (OrderedText lineText : wrapText(mc, header, maxTextWidth)) {
+            int textY = startY + 10 * line;
+            if (textY >= 0 && textY + 10 <= uiHeight) {
+                context.drawTextWithShadow(mc.textRenderer, lineText, drawX, textY, 0x5599FF);
+            }
+            line++;
+        }
+
+        // 🤔 Thinking... ⟳
+        String loadingIcon = getLoadingIcon();
+        String content = "  🤔 Thinking... " + loadingIcon;
+        for (OrderedText lineText : wrapText(mc, content, maxTextWidth)) {
+            int textY = startY + 10 * line;
+            if (textY >= 0 && textY + 10 <= uiHeight) {
+                context.drawTextWithShadow(mc.textRenderer, lineText, drawX, textY, 0xFFFF55);
+            }
+            line++;
+        }
+
+        return line;
+    }
+
+    /**
+     * ローディングアイコンを取得（アニメーション）
+     */
+    private static String getLoadingIcon() {
+        long time = System.currentTimeMillis() / 200; // 200msごとに切り替え
+        String[] icons = { "⟳", "◐", "◓", "◑", "◒" };
+        return icons[(int) (time % icons.length)];
+    }
+
+    /**
+     * SubTask状態に応じたアイコンを取得
+     */
+    private static String getSubTaskIcon(String status) {
+        if (status == null)
+            return "▶";
+        switch (status) {
+            case "pending":
+                return "▶";
+            case "in_progress":
+                return getLoadingIcon();
+            case "completed":
+                return "✓";
+            case "error":
+                return "✗";
+            default:
+                return "▶";
+        }
     }
 }
