@@ -233,31 +233,67 @@ public class TaskTreeUIRenderer {
                 }
             }
 
-            // サブタスク
-            if (taskTreeState.subTasks != null && !taskTreeState.subTasks.isEmpty()) {
+            // 階層的サブタスク（新形式）
+            if (taskTreeState.hierarchicalSubTasks != null && !taskTreeState.hierarchicalSubTasks.isEmpty()) {
                 line++; // 空行
+
+                // タスクセクションヘッダー
+                String tasksHeader = "▼ Tasks";
+                for (OrderedText lineText : wrapText(mc, tasksHeader, scaledMaxTextWidth)) {
+                    int textY = (int) ((startY + TASK_LINE_HEIGHT * line) / 0.85f);
+                    if (textY >= 0 && textY + 10 <= (int) (uiHeight / 0.85f)) {
+                        context.drawTextWithShadow(mc.textRenderer, lineText, scaledDrawX, textY, 0x55AAFF);
+                    }
+                    line++;
+                }
+                line++; // 空行
+
+                for (TaskTreeState.HierarchicalSubTask sub : taskTreeState.hierarchicalSubTasks) {
+                    line = renderHierarchicalSubTask(context, mc, sub, line, scaledDrawX, startY,
+                            TASK_LINE_HEIGHT, uiHeight, scaledMaxTextWidth, 0);
+                }
+            }
+            // 旧形式のサブタスク（後方互換性）
+            else if (taskTreeState.subTasks != null && !taskTreeState.subTasks.isEmpty()) {
+                line++; // 空行
+
+                // タスクセクションヘッダー
+                String tasksHeader = "▼ Tasks";
+                for (OrderedText lineText : wrapText(mc, tasksHeader, scaledMaxTextWidth)) {
+                    int textY = (int) ((startY + TASK_LINE_HEIGHT * line) / 0.85f);
+                    if (textY >= 0 && textY + 10 <= (int) (uiHeight / 0.85f)) {
+                        context.drawTextWithShadow(mc.textRenderer, lineText, scaledDrawX, textY, 0x55AAFF);
+                    }
+                    line++;
+                }
+                line++; // 空行
+
                 for (TaskTreeState.SubTask sub : taskTreeState.subTasks) {
                     int subColor = 0xAAAAAA;
+                    String icon = "□";
                     String subStatus = sub.subTaskStatus == null ? "" : sub.subTaskStatus.toLowerCase();
                     switch (subStatus) {
                         case "pending":
                             subColor = 0xAAAAAA;
+                            icon = "□";
                             break;
                         case "in_progress":
                             subColor = 0xFFFF00;
+                            icon = "↻";
                             break;
                         case "completed":
                             subColor = 0x00FF00;
+                            icon = "✓";
                             break;
                         case "error":
-                            subColor = 0xFF0000;
+                            subColor = 0xFF5555;
+                            icon = "✗";
                             break;
                     }
 
-                    // サブタスクゴール（簡潔化）
-                    Text boldSubText = Text.literal("  > " + sub.subTaskGoal).copy()
-                            .setStyle(Style.EMPTY.withBold(true));
-                    for (OrderedText lineText : wrapText(mc, boldSubText.getString(), scaledMaxTextWidth)) {
+                    // サブタスクゴール（アイコン付き）
+                    String subTaskLine = "  " + icon + " " + sub.subTaskGoal;
+                    for (OrderedText lineText : wrapText(mc, subTaskLine, scaledMaxTextWidth)) {
                         int textY = (int) ((startY + TASK_LINE_HEIGHT * line) / 0.85f);
                         if (textY >= 0 && textY + 10 <= (int) (uiHeight / 0.85f)) {
                             context.drawTextWithShadow(mc.textRenderer, lineText, scaledDrawX, textY, subColor);
@@ -290,6 +326,67 @@ public class TaskTreeUIRenderer {
         } finally {
             context.getMatrices().pop();
         }
+    }
+
+    /**
+     * 階層的サブタスクを再帰的にレンダリング
+     */
+    private static int renderHierarchicalSubTask(DrawContext context, MinecraftClient mc,
+            TaskTreeState.HierarchicalSubTask sub, int line, int drawX, int startY,
+            int lineHeight, int uiHeight, int maxTextWidth, int depth) {
+
+        // インデント
+        String indent = "  ".repeat(depth + 1);
+
+        // ステータスアイコンとカラー
+        String icon = sub.getStatusIcon();
+        int color = sub.getStatusColor();
+
+        // サブタスク行
+        String subTaskLine = indent + icon + " " + sub.goal;
+        for (OrderedText lineText : wrapText(mc, subTaskLine, maxTextWidth)) {
+            int textY = (int) ((startY + lineHeight * line) / 0.85f);
+            if (textY >= 0 && textY + 10 <= (int) (uiHeight / 0.85f)) {
+                context.drawTextWithShadow(mc.textRenderer, lineText, drawX, textY, color);
+            }
+            line++;
+        }
+
+        // 失敗理由（エラーの場合）
+        if (sub.failureReason != null && !sub.failureReason.isEmpty()) {
+            String failureIndent = indent + "  ";
+            String failureLine = failureIndent + "✗ " + sub.failureReason;
+            for (OrderedText lineText : wrapText(mc, failureLine, maxTextWidth)) {
+                int textY = (int) ((startY + lineHeight * line) / 0.85f);
+                if (textY >= 0 && textY + 10 <= (int) (uiHeight / 0.85f)) {
+                    context.drawTextWithShadow(mc.textRenderer, lineText, drawX, textY, 0xFF5555);
+                }
+                line++;
+            }
+        }
+
+        // 結果（完了の場合）
+        if (sub.result != null && !sub.result.isEmpty()) {
+            String resultIndent = indent + "  ";
+            String resultLine = resultIndent + "=> " + sub.result;
+            for (OrderedText lineText : wrapText(mc, resultLine, maxTextWidth)) {
+                int textY = (int) ((startY + lineHeight * line) / 0.85f);
+                if (textY >= 0 && textY + 10 <= (int) (uiHeight / 0.85f)) {
+                    context.drawTextWithShadow(mc.textRenderer, lineText, drawX, textY, 0x88FF88);
+                }
+                line++;
+            }
+        }
+
+        // 子タスクを再帰的にレンダリング
+        if (sub.children != null && !sub.children.isEmpty()) {
+            for (TaskTreeState.HierarchicalSubTask child : sub.children) {
+                line = renderHierarchicalSubTask(context, mc, child, line, drawX, startY,
+                        lineHeight, uiHeight, maxTextWidth, depth + 1);
+            }
+        }
+
+        return line;
     }
 
     public static java.util.List<OrderedText> wrapText(MinecraftClient mc, String text, int maxWidth) {
