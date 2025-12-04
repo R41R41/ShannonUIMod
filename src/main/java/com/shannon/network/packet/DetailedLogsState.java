@@ -21,14 +21,14 @@ public class DetailedLogsState {
             public String result;
             public Integer duration;
             public String error;
-            
+
             // Planning用フィールド
             public String goal;
             public String strategy;
             public String status;
             public Boolean emergencyResolved;
-            public Object actionSequence;  // JSON array
-            public Object subTasks;  // JSON array
+            public Object actionSequence; // JSON array
+            public Object subTasks; // JSON array
             public Integer actionCount;
             public Integer subTaskCount;
         }

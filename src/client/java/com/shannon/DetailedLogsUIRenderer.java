@@ -58,6 +58,22 @@ public class DetailedLogsUIRenderer {
                     continue;
                 }
 
+                // Execution開始（ローディング）は専用表示
+                if ("execution".equals(log.phase) && "info".equals(log.level)
+                        && log.metadata != null && "loading".equals(log.metadata.status)) {
+                    line = renderExecutionLoading(context, mc, log, startY, drawX, line, maxTextWidth, uiHeight);
+                    line++; // 空行
+                    continue;
+                }
+
+                // Execution成功は専用表示
+                if ("execution".equals(log.phase) && "success".equals(log.level)
+                        && log.content != null && log.content.contains("actions completed")) {
+                    line = renderExecutionSuccess(context, mc, log, startY, drawX, line, maxTextWidth, uiHeight);
+                    line++; // 空行
+                    continue;
+                }
+
                 // 通常のログ表示
                 int color = getLogColor(log.level);
                 String icon = getLogIcon(log.phase);
@@ -287,15 +303,46 @@ public class DetailedLogsUIRenderer {
 
             // actionSequence を表示
             if (log.metadata.actionSequence != null) {
-                // metadataからactionSequenceを取得（JSON配列として格納されている）
-                // 簡略化のため、actionCount のみ表示
-                String actionsSummary = String.format("   %d actions planned", log.metadata.actionCount);
-                for (OrderedText lineText : wrapText(mc, actionsSummary, maxTextWidth)) {
-                    int textY = startY + 10 * line;
-                    if (textY >= 0 && textY + 10 <= uiHeight) {
-                        context.drawTextWithShadow(mc.textRenderer, lineText, drawX, textY, 0xCCCCCC);
+                try {
+                    String actionsJson = log.metadata.actionSequence.toString();
+                    // 簡易JSONパース（List<Map>形式を想定）
+                    if (log.metadata.actionSequence instanceof java.util.List) {
+                        @SuppressWarnings("unchecked")
+                        java.util.List<Object> actions = (java.util.List<Object>) log.metadata.actionSequence;
+                        int actionIndex = 1;
+                        for (Object actionObj : actions) {
+                            if (actionObj instanceof java.util.Map) {
+                                @SuppressWarnings("unchecked")
+                                java.util.Map<String, Object> action = (java.util.Map<String, Object>) actionObj;
+                                String toolName = action.get("toolName") != null ? action.get("toolName").toString()
+                                        : "unknown";
+                                String expectedResult = action.get("expectedResult") != null
+                                        ? action.get("expectedResult").toString()
+                                        : "";
+
+                                String actionLine = String.format("   %d. %s → %s", actionIndex, toolName,
+                                        expectedResult);
+                                for (OrderedText lineText : wrapText(mc, actionLine, maxTextWidth)) {
+                                    int textY = startY + 10 * line;
+                                    if (textY >= 0 && textY + 10 <= uiHeight) {
+                                        context.drawTextWithShadow(mc.textRenderer, lineText, drawX, textY, 0xCCCCCC);
+                                    }
+                                    line++;
+                                }
+                                actionIndex++;
+                            }
+                        }
                     }
-                    line++;
+                } catch (Exception e) {
+                    // フォールバック: 数のみ表示
+                    String actionsSummary = String.format("   %d actions planned", log.metadata.actionCount);
+                    for (OrderedText lineText : wrapText(mc, actionsSummary, maxTextWidth)) {
+                        int textY = startY + 10 * line;
+                        if (textY >= 0 && textY + 10 <= uiHeight) {
+                            context.drawTextWithShadow(mc.textRenderer, lineText, drawX, textY, 0xCCCCCC);
+                        }
+                        line++;
+                    }
                 }
             }
             line++; // 空行
@@ -314,14 +361,49 @@ public class DetailedLogsUIRenderer {
 
             // subTasks を表示
             if (log.metadata.subTasks != null) {
-                // 簡略化のため、subTaskCount のみ表示
-                String subTasksSummary = String.format("   %d subtasks defined", log.metadata.subTaskCount);
-                for (OrderedText lineText : wrapText(mc, subTasksSummary, maxTextWidth)) {
-                    int textY = startY + 10 * line;
-                    if (textY >= 0 && textY + 10 <= uiHeight) {
-                        context.drawTextWithShadow(mc.textRenderer, lineText, drawX, textY, 0xCCCCCC);
+                try {
+                    if (log.metadata.subTasks instanceof java.util.List) {
+                        @SuppressWarnings("unchecked")
+                        java.util.List<Object> subTasks = (java.util.List<Object>) log.metadata.subTasks;
+                        int taskIndex = 1;
+                        for (Object taskObj : subTasks) {
+                            if (taskObj instanceof java.util.Map) {
+                                @SuppressWarnings("unchecked")
+                                java.util.Map<String, Object> task = (java.util.Map<String, Object>) taskObj;
+                                String status = task.get("subTaskStatus") != null ? task.get("subTaskStatus").toString()
+                                        : "pending";
+                                String goal = task.get("subTaskGoal") != null ? task.get("subTaskGoal").toString()
+                                        : "unknown";
+
+                                String icon = getSubTaskIcon(status);
+                                String taskLine = String.format("   %s [%s] %s", icon, status, goal);
+
+                                // 状態に応じた色
+                                int taskColor = status.equals("completed") ? 0x55FF55
+                                        : status.equals("error") ? 0xFF5555
+                                                : status.equals("in_progress") ? 0xFFFF55 : 0xCCCCCC;
+
+                                for (OrderedText lineText : wrapText(mc, taskLine, maxTextWidth)) {
+                                    int textY = startY + 10 * line;
+                                    if (textY >= 0 && textY + 10 <= uiHeight) {
+                                        context.drawTextWithShadow(mc.textRenderer, lineText, drawX, textY, taskColor);
+                                    }
+                                    line++;
+                                }
+                                taskIndex++;
+                            }
+                        }
                     }
-                    line++;
+                } catch (Exception e) {
+                    // フォールバック: 数のみ表示
+                    String subTasksSummary = String.format("   %d subtasks defined", log.metadata.subTaskCount);
+                    for (OrderedText lineText : wrapText(mc, subTasksSummary, maxTextWidth)) {
+                        int textY = startY + 10 * line;
+                        if (textY >= 0 && textY + 10 <= uiHeight) {
+                            context.drawTextWithShadow(mc.textRenderer, lineText, drawX, textY, 0xCCCCCC);
+                        }
+                        line++;
+                    }
                 }
             }
         }
@@ -387,5 +469,67 @@ public class DetailedLogsUIRenderer {
             default:
                 return "▶";
         }
+    }
+
+    /**
+     * Execution開始（ローディング）を専用表示
+     */
+    private static int renderExecutionLoading(DrawContext context, MinecraftClient mc, LogEntry log,
+            int startY, int drawX, int line, int maxTextWidth, int uiHeight) {
+        String timestamp = formatTimestamp(log.timestamp);
+
+        // ヘッダー: [timestamp] ⚙️ Execution - custom_tool_node
+        String header = String.format("[%s] ⚙️ Execution - %s", timestamp, log.source);
+        for (OrderedText lineText : wrapText(mc, header, maxTextWidth)) {
+            int textY = startY + 10 * line;
+            if (textY >= 0 && textY + 10 <= uiHeight) {
+                context.drawTextWithShadow(mc.textRenderer, lineText, drawX, textY, 0xFFAA55);
+            }
+            line++;
+        }
+
+        // 🔄 Executing... ⟳
+        String loadingIcon = getLoadingIcon();
+        int actionCount = log.metadata.actionCount != null ? log.metadata.actionCount : 0;
+        String content = String.format("  🔄 Executing %d actions... %s", actionCount, loadingIcon);
+        for (OrderedText lineText : wrapText(mc, content, maxTextWidth)) {
+            int textY = startY + 10 * line;
+            if (textY >= 0 && textY + 10 <= uiHeight) {
+                context.drawTextWithShadow(mc.textRenderer, lineText, drawX, textY, 0xFFFF55);
+            }
+            line++;
+        }
+
+        return line;
+    }
+
+    /**
+     * Execution成功を専用表示
+     */
+    private static int renderExecutionSuccess(DrawContext context, MinecraftClient mc, LogEntry log,
+            int startY, int drawX, int line, int maxTextWidth, int uiHeight) {
+        String timestamp = formatTimestamp(log.timestamp);
+
+        // ヘッダー: [timestamp] ⚙️ Execution - custom_tool_node
+        String header = String.format("[%s] ⚙️ Execution - %s", timestamp, log.source);
+        for (OrderedText lineText : wrapText(mc, header, maxTextWidth)) {
+            int textY = startY + 10 * line;
+            if (textY >= 0 && textY + 10 <= uiHeight) {
+                context.drawTextWithShadow(mc.textRenderer, lineText, drawX, textY, 0xFFAA55);
+            }
+            line++;
+        }
+
+        // ✅ All actions completed
+        String content = "  " + log.content;
+        for (OrderedText lineText : wrapText(mc, content, maxTextWidth)) {
+            int textY = startY + 10 * line;
+            if (textY >= 0 && textY + 10 <= uiHeight) {
+                context.drawTextWithShadow(mc.textRenderer, lineText, drawX, textY, 0x55FF55);
+            }
+            line++;
+        }
+
+        return line;
     }
 }
