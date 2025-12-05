@@ -25,6 +25,7 @@ public class StateManager {
     private ConstantSkillsState skillsState = new ConstantSkillsState();
     private InventoryState inventoryState = new InventoryState();
     private ChatState chatState = new ChatState();
+    private ReactionSettingsState reactionSettingsState = new ReactionSettingsState();
 
     // サーバーインスタンス
     private MinecraftServer server;
@@ -37,7 +38,8 @@ public class StateManager {
         LOGS,
         SKILLS,
         INVENTORY,
-        CHAT
+        CHAT,
+        REACTION_SETTINGS
     }
 
     private StateManager() {
@@ -69,8 +71,38 @@ public class StateManager {
     }
 
     public void updateLogsState(DetailedLogsState newState) {
-        this.logsState = newState;
-        LOGGER.info("DetailedLogsState updated: " + newState);
+        // 新しいログを既存のログリストにマージ（上書きではなく追加）
+        if (newState != null && newState.logs != null && !newState.logs.isEmpty()) {
+            if (this.logsState == null) {
+                this.logsState = new DetailedLogsState();
+            }
+            if (this.logsState.logs == null) {
+                this.logsState.logs = new ArrayList<>();
+            }
+
+            // 新しいログを追加
+            this.logsState.logs.addAll(newState.logs);
+
+            // 最大100件に制限（古いログを削除）
+            final int MAX_LOGS = 100;
+            while (this.logsState.logs.size() > MAX_LOGS) {
+                this.logsState.logs.remove(0);
+            }
+
+            LOGGER.info("DetailedLogsState merged: added {} logs, total {} logs",
+                    newState.logs.size(), this.logsState.logs.size());
+        }
+
+        notifyListeners(StateType.LOGS);
+        broadcastLogsState();
+    }
+
+    /**
+     * ログをクリア
+     */
+    public void clearLogsState() {
+        this.logsState = new DetailedLogsState();
+        LOGGER.info("DetailedLogsState cleared");
         notifyListeners(StateType.LOGS);
         broadcastLogsState();
     }
@@ -175,6 +207,32 @@ public class StateManager {
         for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
             if (ServerPlayNetworking.canSend(player, ChatStatePacket.PACKET_ID)) {
                 ServerPlayNetworking.send(player, new ChatStatePacket(chatState));
+            }
+        }
+    }
+
+    // ===== ReactionSettings =====
+
+    public void updateReactionSettingsState(ReactionSettingsState newState) {
+        this.reactionSettingsState = newState;
+        LOGGER.info("ReactionSettingsState updated: {} reactions",
+                newState.reactions != null ? newState.reactions.size() : 0);
+        notifyListeners(StateType.REACTION_SETTINGS);
+        broadcastReactionSettingsState();
+    }
+
+    public ReactionSettingsState getReactionSettingsState() {
+        return reactionSettingsState;
+    }
+
+    private void broadcastReactionSettingsState() {
+        if (reactionSettingsState == null || server == null) {
+            return;
+        }
+
+        for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
+            if (ServerPlayNetworking.canSend(player, ReactionSettingsStatePacket.PACKET_ID)) {
+                ServerPlayNetworking.send(player, new ReactionSettingsStatePacket(reactionSettingsState));
             }
         }
     }

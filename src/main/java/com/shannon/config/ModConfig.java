@@ -39,6 +39,12 @@ public class ModConfig {
     /** チャットメッセージエンドポイント */
     public static final String ENDPOINT_CHAT_MESSAGE = "/chat_message";
 
+    /** 反応設定更新エンドポイント */
+    public static final String ENDPOINT_REACTION_SETTING_UPDATE = "/reaction_setting_update";
+
+    /** 反応設定リセットエンドポイント */
+    public static final String ENDPOINT_REACTION_SETTINGS_RESET = "/reaction_settings_reset";
+
     // ===== ターゲットプレイヤー設定 =====
 
     /** ボット操作の対象プレイヤー名 */

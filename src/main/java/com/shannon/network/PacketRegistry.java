@@ -34,8 +34,10 @@ public class PacketRegistry {
         PayloadTypeRegistry.playS2C().register(PlayerStatusStatePacket.PACKET_ID, PlayerStatusStatePacket.PACKET_CODEC);
         PayloadTypeRegistry.playS2C().register(ChatStatePacket.PACKET_ID, ChatStatePacket.PACKET_CODEC);
         PayloadTypeRegistry.playS2C().register(DetailedLogsStatePacket.PACKET_ID, DetailedLogsStatePacket.PACKET_CODEC);
+        PayloadTypeRegistry.playS2C().register(ReactionSettingsStatePacket.PACKET_ID,
+                ReactionSettingsStatePacket.PACKET_CODEC);
 
-        LOGGER.debug("  ✓ S2C packets registered (7 types)");
+        LOGGER.debug("  ✓ S2C packets registered (8 types)");
     }
 
     /**
@@ -48,8 +50,12 @@ public class PacketRegistry {
         PayloadTypeRegistry.playC2S().register(ConstantSkillClickPacket.PACKET_ID,
                 ConstantSkillClickPacket.PACKET_CODEC);
         PayloadTypeRegistry.playC2S().register(ChatMessageSendPacket.PACKET_ID, ChatMessageSendPacket.PACKET_CODEC);
+        PayloadTypeRegistry.playC2S().register(ReactionSettingUpdatePacket.PACKET_ID,
+                ReactionSettingUpdatePacket.PACKET_CODEC);
+        PayloadTypeRegistry.playC2S().register(ReactionSettingsResetPacket.PACKET_ID,
+                ReactionSettingsResetPacket.PACKET_CODEC);
 
-        LOGGER.debug("  ✓ C2S packets registered (4 types)");
+        LOGGER.debug("  ✓ C2S packets registered (6 types)");
     }
 
     private PacketRegistry() {

@@ -31,16 +31,16 @@ public class TaskTreeState {
         // ステータスアイコンを取得
         public String getStatusIcon() {
             if (status == null)
-                return "□";
+                return "[ ]";
             switch (status.toLowerCase()) {
                 case "completed":
-                    return "✓";
+                    return "[+]";
                 case "in_progress":
-                    return "↻";
+                    return "[>]";
                 case "error":
-                    return "✗";
+                    return "[x]";
                 default:
-                    return "□";
+                    return "[ ]";
             }
         }
 

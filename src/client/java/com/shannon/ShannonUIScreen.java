@@ -73,7 +73,7 @@ public class ShannonUIScreen extends Screen {
         if (ShannonUIModClient.getTabSwitchNextKey().getBoundKeyTranslationKey().equals(pressedKeyTranslation)) {
             int selectedTab = ShannonUIModClient.getSelectedTab();
             ShannonUIModClient.setTabScrollOffset(selectedTab, uiState.scrollOffset);
-            selectedTab = (selectedTab + 1) % 4;
+            selectedTab = (selectedTab + 1) % 6;
             ShannonUIModClient.setSelectedTab(selectedTab);
             uiState.selectedTab = selectedTab;
             uiState.scrollOffset = ShannonUIModClient.getTabScrollOffset(selectedTab);
@@ -117,7 +117,7 @@ public class ShannonUIScreen extends Screen {
         if (ShannonUIModClient.getTabSwitchNextKey().getBoundKeyTranslationKey().equals(pressedKeyTranslation)) {
             int selectedTab = ShannonUIModClient.getSelectedTab();
             ShannonUIModClient.setTabScrollOffset(selectedTab, uiState.scrollOffset);
-            selectedTab = (selectedTab + 1) % 4;
+            selectedTab = (selectedTab + 1) % 6;
             ShannonUIModClient.setSelectedTab(selectedTab);
             uiState.selectedTab = selectedTab;
             uiState.scrollOffset = ShannonUIModClient.getTabScrollOffset(selectedTab);

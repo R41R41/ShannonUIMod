@@ -58,6 +58,7 @@ public class HttpServerManager {
         server.createContext("/inventory_click", new InventoryClickEndpoint());
         server.createContext("/constant_skill_click", new ConstantSkillClickEndpoint());
         server.createContext("/chat_message", new ChatMessageEndpoint());
+        server.createContext("/reaction_settings", new ReactionSettingsEndpoint());
 
         LOGGER.info("全エンドポイントの登録が完了しました");
     }

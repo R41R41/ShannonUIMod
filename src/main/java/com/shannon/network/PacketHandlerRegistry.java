@@ -33,6 +33,8 @@ public class PacketHandlerRegistry {
         registerInventoryClickHandler();
         registerSkillClickHandler();
         registerChatMessageHandler();
+        registerReactionSettingUpdateHandler();
+        registerReactionSettingsResetHandler();
 
         LOGGER.info("✅ All C2S packet handlers registered");
     }
@@ -155,6 +157,60 @@ public class PacketHandlerRegistry {
         chatState.messages.add(chatMessage);
 
         stateManager.updateChatState(chatState);
+    }
+
+    /**
+     * 反応設定更新パケットハンドラ
+     */
+    private static void registerReactionSettingUpdateHandler() {
+        ServerPlayNetworking.registerGlobalReceiver(
+                ReactionSettingUpdatePacket.PACKET_ID,
+                (payload, context) -> {
+                    String eventType = payload.eventType();
+                    boolean enabled = payload.enabled();
+                    int probability = payload.probability();
+
+                    context.server().execute(() -> {
+                        try {
+                            BackendClient.postJson(
+                                    ModConfig.ENDPOINT_REACTION_SETTING_UPDATE,
+                                    new com.shannon.client.request.ReactionSettingUpdateRequest(
+                                            eventType, enabled, probability));
+
+                            if (ModConfig.LOG_PACKETS) {
+                                LOGGER.debug("ReactionSettingUpdatePacket: {} -> enabled={}, prob={}",
+                                        eventType, enabled, probability);
+                            }
+                        } catch (Exception e) {
+                            ModErrorHandler.handle(
+                                    new PacketHandlingException("ReactionSettingUpdatePacket", e));
+                        }
+                    });
+                });
+    }
+
+    /**
+     * 反応設定リセットパケットハンドラ
+     */
+    private static void registerReactionSettingsResetHandler() {
+        ServerPlayNetworking.registerGlobalReceiver(
+                ReactionSettingsResetPacket.PACKET_ID,
+                (payload, context) -> {
+                    context.server().execute(() -> {
+                        try {
+                            BackendClient.postJson(
+                                    ModConfig.ENDPOINT_REACTION_SETTINGS_RESET,
+                                    new Object()); // 空のリクエスト
+
+                            if (ModConfig.LOG_PACKETS) {
+                                LOGGER.debug("ReactionSettingsResetPacket received");
+                            }
+                        } catch (Exception e) {
+                            ModErrorHandler.handle(
+                                    new PacketHandlingException("ReactionSettingsResetPacket", e));
+                        }
+                    });
+                });
     }
 
     private PacketHandlerRegistry() {

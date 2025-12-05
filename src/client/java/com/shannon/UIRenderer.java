@@ -25,6 +25,8 @@ public class UIRenderer {
     private static final Identifier INVENTORY = Identifier.of("shannonuimod", "textures/inventory.png");
     private static final Identifier PASSIVE_SKILL = Identifier.of("shannonuimod", "textures/passive_skill.png");
     private static final Identifier CHAT = Identifier.of("shannonuimod", "textures/chat.png");
+    private static final Identifier DEBUG = Identifier.of("shannonuimod", "textures/debug.png");
+    private static final Identifier SETTINGS = Identifier.of("shannonuimod", "textures/settings.png");
 
     public static void renderTaskTreeUI(DrawContext context, MinecraftClient mc, int x, int y, int windowWidth,
             int windowHeight, int uiWidth, int uiHeight, TaskTreeState taskTreeState, int scrollOffset) {
@@ -174,7 +176,7 @@ public class UIRenderer {
         int selectedTab = ShannonUIModClient.getSelectedTab();
         if (tabSwitchNextKey != null && tabSwitchNextKey.wasPressed()) {
             ShannonUIModClient.setTabScrollOffset(selectedTab, state.scrollOffset);
-            selectedTab = (selectedTab + 1) % 4;
+            selectedTab = (selectedTab + 1) % 6; // 6タブに変更
             ShannonUIModClient.setSelectedTab(selectedTab);
             state.scrollOffset = ShannonUIModClient.getTabScrollOffset(selectedTab);
         }
@@ -228,33 +230,6 @@ public class UIRenderer {
                 TaskTreeUIRenderer.renderTaskTreeUI(context, mc, innerX, innerY, uiWidth,
                         uiHeight - 2,
                         taskTreeState, state.scrollOffset, state, logsState, logToggleState);
-
-                // ログのクリック判定（押された瞬間だけ）
-                if (state.selectedTab == 0 && mouseJustClicked) {
-                    // セパレータークリック（Y座標で判定）
-                    if (state.logsSeparatorLineY != -1 && logToggleState != null) {
-                        int clickY = relMouseY;
-                        // セパレーターの行の高さ範囲内（7px）
-                        if (clickY >= state.logsSeparatorLineY && clickY < state.logsSeparatorLineY + 7) {
-                            logToggleState.toggleAllLogs();
-                        }
-                    }
-
-                    // 個別ログのクリック（Y座標で判定）
-                    if (state.logClickableLineYStart != null && state.logClickableLineYEnd != null
-                            && logToggleState != null) {
-                        int clickY = relMouseY;
-                        for (java.util.Map.Entry<Integer, Integer> entry : state.logClickableLineYStart.entrySet()) {
-                            int logIndex = entry.getKey();
-                            int startY = entry.getValue();
-                            int endY = state.logClickableLineYEnd.get(logIndex);
-                            if (clickY >= startY && clickY < endY) {
-                                logToggleState.toggleLog(logIndex);
-                                break;
-                            }
-                        }
-                    }
-                }
                 break;
             case 1:
                 ConstantSkillsUIRenderer.renderConstantSkills(context, mc, innerX, innerY, uiWidth, uiHeight - 2,
@@ -267,6 +242,14 @@ public class UIRenderer {
             case 3:
                 ChatUIRenderer.renderChat(context, mc, innerX, innerY, uiWidth, uiHeight - 2, state,
                         state.scrollOffset, chatState, relMouseX, relMouseY, mouseJustClicked);
+                break;
+            case 4:
+                DebugUIRenderer.renderDebug(context, mc, innerX, innerY, uiWidth, uiHeight - 2, state,
+                        state.scrollOffset);
+                break;
+            case 5:
+                SettingsUIRenderer.renderSettings(context, mc, innerX, innerY, uiWidth, uiHeight - 2, state,
+                        state.scrollOffset, relMouseX, relMouseY, mouseJustClicked);
                 break;
         }
         // スクロールバー描画
@@ -384,11 +367,12 @@ public class UIRenderer {
         int borderColor3 = 0xff000000;
         boolean mouseClicked = GLFW.glfwGetMouseButton(mc.getWindow().getHandle(),
                 GLFW.GLFW_MOUSE_BUTTON_1) == GLFW.GLFW_PRESS;
-        Identifier[] icon = { TASK_TREE, PASSIVE_SKILL, INVENTORY, CHAT };
+        Identifier[] icon = { TASK_TREE, PASSIVE_SKILL, INVENTORY, CHAT, DEBUG, SETTINGS };
         String[] tabDescriptionKeys = { "tab.shannonuimod.tasktree", "tab.shannonuimod.passiveskill",
-                "tab.shannonuimod.inventory", "tab.shannonuimod.chat" };
+                "tab.shannonuimod.inventory", "tab.shannonuimod.chat", "tab.shannonuimod.debug",
+                "tab.shannonuimod.settings" };
         int hoveredTab = -1;
-        for (int i = 0; i < 4; i++) {
+        for (int i = 0; i < 6; i++) {
             int tabX = x - tabWidth - 2;
             int tabY = y + i * (tabHeight + 5) + 2;
             int bgColor = (i == state.selectedTab) ? bgColor1 : bgColor2;

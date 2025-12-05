@@ -24,6 +24,8 @@ import com.shannon.network.packet.PlayerStatusStatePacket;
 import com.shannon.network.packet.PlayerStatusState;
 import com.shannon.network.packet.ChatStatePacket;
 import com.shannon.network.packet.ChatState;
+import com.shannon.network.packet.ReactionSettingsState;
+import com.shannon.network.packet.ReactionSettingsStatePacket;
 
 public class ShannonUIModClient implements ClientModInitializer {
 
@@ -36,10 +38,11 @@ public class ShannonUIModClient implements ClientModInitializer {
     private PlayerStatusState playerStatusState;
     private ChatState chatState;
     private DetailedLogsState detailedLogsState;
+    private ReactionSettingsState reactionSettingsState;
     private com.shannon.network.packet.LogToggleState logToggleState = new com.shannon.network.packet.LogToggleState();
     private UIRenderer.UIState uiState = new UIRenderer.UIState();
     private static ShannonUIModClient INSTANCE;
-    private int[] tabScrollOffsets = new int[4];
+    private int[] tabScrollOffsets = new int[6]; // 6タブ分
     private int selectedTab = 0;
 
     public enum UIMode {
@@ -76,6 +79,15 @@ public class ShannonUIModClient implements ClientModInitializer {
             context.client().execute(() -> {
                 ConstantSkillsState state = payload.state();
                 constantSkillsState = state;
+            });
+        });
+
+        ClientPlayNetworking.registerGlobalReceiver(ReactionSettingsStatePacket.PACKET_ID, (payload, context) -> {
+            context.client().execute(() -> {
+                ReactionSettingsState state = payload.state();
+                reactionSettingsState = state;
+                System.out.println("[ShannonUI] Received ReactionSettings via packet: " +
+                        (state.reactions != null ? state.reactions.size() : 0) + " reactions");
             });
         });
 
@@ -212,12 +224,16 @@ public class ShannonUIModClient implements ClientModInitializer {
     }
 
     public static int getTabScrollOffset(int tab) {
-        return INSTANCE != null ? INSTANCE.tabScrollOffsets[tab] : 0;
+        if (INSTANCE == null || tab < 0 || tab >= INSTANCE.tabScrollOffsets.length) {
+            return 0;
+        }
+        return INSTANCE.tabScrollOffsets[tab];
     }
 
     public static void setTabScrollOffset(int tab, int offset) {
-        if (INSTANCE != null)
+        if (INSTANCE != null && tab >= 0 && tab < INSTANCE.tabScrollOffsets.length) {
             INSTANCE.tabScrollOffsets[tab] = offset;
+        }
     }
 
     public static KeyBinding getToggleDisplayUIKey() {
@@ -259,5 +275,10 @@ public class ShannonUIModClient implements ClientModInitializer {
 
     public static com.shannon.network.packet.LogToggleState getLogToggleState() {
         return INSTANCE != null ? INSTANCE.logToggleState : null;
+    }
+
+    public static ReactionSettingsState getReactionSettingsState() {
+        // パケット経由で受信したデータを返す
+        return INSTANCE != null ? INSTANCE.reactionSettingsState : null;
     }
 }
