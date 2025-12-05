@@ -9,7 +9,8 @@ import com.shannon.network.packet.InventoryItemClickPacket;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 
 public class InventoryUIRenderer {
-
+    private static final float SCALE = 0.7f;
+    private static final int LINE_HEIGHT = 10;
     private static boolean wasMousePressed = false;
 
     public static void renderInventory(DrawContext context, MinecraftClient mc, int x, int y, int uiWidth,
@@ -21,16 +22,21 @@ public class InventoryUIRenderer {
                 state.contentHeight = uiHeight;
                 return;
             }
-            int line = 0;
-            float scale = 1.0f;
-            int drawX = 4;
-            int drawY = 4;
-            int yOffset = -scrollOffset;
-            int maxTextWidth = uiWidth - 8; // 8pxマージン×2
-            int startY = drawY + yOffset;
 
             context.getMatrices().translate(x, y, 0);
-            context.getMatrices().scale(scale, scale, 1.0f);
+            context.getMatrices().scale(SCALE, SCALE, 1.0f);
+
+            int scaledMouseX = (int) ((mouseX + 4) / SCALE);
+            int scaledMouseY = (int) ((mouseY + 4) / SCALE);
+            int scaledUiWidth = (int) (uiWidth / SCALE);
+            int scaledUiHeight = (int) (uiHeight / SCALE);
+
+            int line = 0;
+            int drawX = (int) (4 / SCALE);
+            int drawY = (int) (4 / SCALE);
+            int yOffset = (int) (-scrollOffset / SCALE);
+            int maxTextWidth = scaledUiWidth - 8;
+            int startY = drawY + yOffset;
 
             // 装備情報の表示
             String[] equipLabels = { "mainhand", "offhand", "head", "chest", "legs", "feet" };
@@ -47,15 +53,16 @@ public class InventoryUIRenderer {
                 InventoryState.Item item = equipItems[i];
                 String text = label + " " + (item != null ? item.displayName + ": " + item.count : "-");
                 for (OrderedText wrapped : wrapText(mc, text, maxTextWidth)) {
-                    int textY = startY + line * 12;
+                    int textY = startY + line * LINE_HEIGHT;
                     int rectX1 = drawX;
                     int rectY1 = textY - 2 - yOffset;
-                    int rectX2 = rectX1 + uiWidth - 32;
-                    int rectY2 = rectY1 + 12;
-                    boolean hovered = (mouseX >= rectX1 && mouseX <= rectX2 && mouseY >= rectY1 && mouseY <= rectY2);
-                    if (textY >= 0 && textY + 12 <= uiHeight) {
+                    int rectX2 = rectX1 + scaledUiWidth - 32;
+                    int rectY2 = rectY1 + LINE_HEIGHT;
+                    boolean hovered = (scaledMouseX >= rectX1 && scaledMouseX <= rectX2 && scaledMouseY >= rectY1
+                            && scaledMouseY <= rectY2);
+                    if (textY >= 0 && textY + 10 <= scaledUiHeight) {
                         if (hovered) {
-                            context.fill(rectX1 - 1, rectY1 + yOffset, uiWidth - 8, rectY2 + yOffset, 0xFFFFFFFF); // 背景を白
+                            context.fill(rectX1 - 1, rectY1 + yOffset, scaledUiWidth - 8, rectY2 + yOffset, 0xFFFFFFFF);
                             context.drawText(mc.textRenderer, wrapped, drawX, textY, 0x000000, false);
                             if (mouseClicked && !wasMousePressed && item != null) {
                                 ClientPlayNetworking.send(new InventoryItemClickPacket(item.name));
@@ -70,10 +77,10 @@ public class InventoryUIRenderer {
 
             // インベントリ満タン表示
             if (inventoryState.isFull) {
-                String fullText = "※インベントリが満タンです！";
+                String fullText = "※Inventory is full!";
                 for (OrderedText wrapped : wrapText(mc, fullText, maxTextWidth)) {
-                    int textY = startY + line * 12;
-                    if (textY >= 0 && textY + 12 <= uiHeight) {
+                    int textY = startY + line * LINE_HEIGHT;
+                    if (textY >= 0 && textY + 10 <= scaledUiHeight) {
                         context.drawTextWithShadow(mc.textRenderer, wrapped, drawX, textY, 0xFF4444);
                     }
                     line++;
@@ -86,15 +93,16 @@ public class InventoryUIRenderer {
             for (InventoryState.Item item : sortedItems) {
                 String lineText = item.displayName + ": " + item.count;
                 for (OrderedText wrapped : wrapText(mc, lineText, maxTextWidth)) {
-                    int textY = startY + line * 12;
+                    int textY = startY + line * LINE_HEIGHT;
                     int rectX1 = drawX;
                     int rectY1 = textY - 2 - yOffset;
-                    int rectX2 = rectX1 + uiWidth - 32;
-                    int rectY2 = rectY1 + 12;
-                    boolean hovered = (mouseX >= rectX1 && mouseX <= rectX2 && mouseY >= rectY1 && mouseY <= rectY2);
-                    if (textY >= 0 && textY + 12 <= uiHeight) {
+                    int rectX2 = rectX1 + scaledUiWidth - 32;
+                    int rectY2 = rectY1 + LINE_HEIGHT;
+                    boolean hovered = (scaledMouseX >= rectX1 && scaledMouseX <= rectX2 && scaledMouseY >= rectY1
+                            && scaledMouseY <= rectY2);
+                    if (textY >= 0 && textY + 10 <= scaledUiHeight) {
                         if (hovered) {
-                            context.fill(rectX1 - 1, rectY1 + yOffset, uiWidth - 8, rectY2 + yOffset, 0xFFFFFFFF); // 背景を白
+                            context.fill(rectX1 - 1, rectY1 + yOffset, scaledUiWidth - 8, rectY2 + yOffset, 0xFFFFFFFF);
                             context.drawText(mc.textRenderer, wrapped, drawX, textY, 0x000000, false);
                             if (mouseClicked && !wasMousePressed) {
                                 ClientPlayNetworking.send(new InventoryItemClickPacket(item.name));
@@ -106,7 +114,7 @@ public class InventoryUIRenderer {
                     line++;
                 }
             }
-            state.contentHeight = (line + 1) * 12 + 8;
+            state.contentHeight = (int) ((line + 1) * LINE_HEIGHT * SCALE) + 8;
 
             // 表示するものが何もない、または少ない場合はスクロールを一番上に
             if (state.contentHeight <= uiHeight) {

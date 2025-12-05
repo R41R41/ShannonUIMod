@@ -14,35 +14,40 @@ import com.shannon.network.packet.ReactionSettingsResetPacket;
  * 反応イベントと常時スキルの設定UI
  */
 public class SettingsUIRenderer {
-    private static final int SLIDER_WIDTH = 100;
-    private static final int SLIDER_HEIGHT = 8;
-    private static final int CHECKBOX_SIZE = 10;
-    private static final int LINE_HEIGHT = 14;
+    private static final float SCALE = 0.7f;
+    private static final int SLIDER_WIDTH = 80;
+    private static final int SLIDER_HEIGHT = 6;
+    private static final int CHECKBOX_SIZE = 8;
+    private static final int LINE_HEIGHT = 10;
 
-    // ドラッグ状態
-    private static String draggingSlider = null;
     private static boolean wasMousePressed = false;
+    private static String draggingSlider = null;
 
     public static void renderSettings(DrawContext context, MinecraftClient mc, int x, int y,
             int uiWidth, int uiHeight, UIRenderer.UIState state, int scrollOffset,
             int mouseX, int mouseY, boolean mouseClicked) {
         context.getMatrices().push();
-        // クリッピングを有効にして、UI領域外への描画を防ぐ
         context.enableScissor(x, y, x + uiWidth, y + uiHeight);
         try {
             context.getMatrices().translate(x, y, 0);
+            context.getMatrices().scale(SCALE, SCALE, 1.0f);
+
+            int scaledMouseX = (int) ((mouseX + 4) / SCALE);
+            int scaledMouseY = (int) ((mouseY + 4) / SCALE);
+            int scaledUiWidth = (int) (uiWidth / SCALE);
+            int scaledUiHeight = (int) (uiHeight / SCALE);
 
             int line = 0;
-            int drawX = 4;
-            int yOffset = -scrollOffset;
-            int maxTextWidth = uiWidth - 8;
-            int startY = 4 + yOffset;
+            int drawX = (int) (4 / SCALE);
+            int yOffset = (int) (-scrollOffset / SCALE);
+            int maxTextWidth = scaledUiWidth - 8;
+            int startY = (int) (4 / SCALE) + yOffset;
 
             // ヘッダー
             String header = "Settings";
             for (OrderedText lineText : wrapText(mc, header, maxTextWidth)) {
                 int textY = startY + LINE_HEIGHT * line;
-                if (textY >= 0 && textY + 10 <= uiHeight) {
+                if (textY >= 0 && textY + 10 <= scaledUiHeight) {
                     context.drawTextWithShadow(mc.textRenderer, lineText, drawX, textY, 0x55AAFF);
                 }
                 line++;
@@ -50,12 +55,12 @@ public class SettingsUIRenderer {
             line++; // 空行
 
             // リセットボタン
-            int resetBtnX = uiWidth - 80;
+            int resetBtnX = scaledUiWidth - 60;
             int resetBtnY = startY + LINE_HEIGHT;
-            int resetBtnW = 70;
-            int resetBtnH = 14;
-            boolean overResetBtn = mouseX >= resetBtnX && mouseX <= resetBtnX + resetBtnW
-                    && mouseY >= resetBtnY - yOffset && mouseY <= resetBtnY + resetBtnH - yOffset;
+            int resetBtnW = 50;
+            int resetBtnH = 12;
+            boolean overResetBtn = scaledMouseX >= resetBtnX && scaledMouseX <= resetBtnX + resetBtnW
+                    && scaledMouseY >= resetBtnY && scaledMouseY <= resetBtnY + resetBtnH;
             int resetBtnColor = overResetBtn ? 0xFF666666 : 0xFF444444;
             context.fill(resetBtnX, resetBtnY, resetBtnX + resetBtnW, resetBtnY + resetBtnH, resetBtnColor);
             context.fill(resetBtnX, resetBtnY, resetBtnX + resetBtnW, resetBtnY + 1, 0xFF888888);
@@ -64,10 +69,10 @@ public class SettingsUIRenderer {
                     0xFF222222);
             context.fill(resetBtnX + resetBtnW - 1, resetBtnY, resetBtnX + resetBtnW, resetBtnY + resetBtnH,
                     0xFF222222);
-            context.drawTextWithShadow(mc.textRenderer, Text.literal("Reset"), resetBtnX + 20, resetBtnY + 3, 0xFFFFFF);
+            context.drawTextWithShadow(mc.textRenderer, Text.literal("Reset"), resetBtnX + 10, resetBtnY + 2,
+                    overResetBtn ? 0xFFFFFF : 0xCCCCCC);
 
-            if (mouseClicked && overResetBtn) {
-                // リセットボタンクリック - HTTP経由でリセットリクエスト
+            if (mouseClicked && !wasMousePressed && overResetBtn) {
                 sendResetRequest();
             }
             line++;
@@ -77,10 +82,10 @@ public class SettingsUIRenderer {
 
             // === 反応イベント設定 ===
             line++;
-            String reactionsHeader = "▼ Reaction Events";
+            String reactionsHeader = "Reaction Events";
             for (OrderedText lineText : wrapText(mc, reactionsHeader, maxTextWidth)) {
                 int textY = startY + LINE_HEIGHT * line;
-                if (textY >= 0 && textY + 10 <= uiHeight) {
+                if (textY >= 0 && textY + 10 <= scaledUiHeight) {
                     context.drawTextWithShadow(mc.textRenderer, lineText, drawX, textY, 0xFFAA55);
                 }
                 line++;
@@ -88,36 +93,40 @@ public class SettingsUIRenderer {
 
             if (settingsState != null && settingsState.reactions != null) {
                 for (ReactionSettingsState.ReactionConfig reaction : settingsState.reactions) {
-                    line = renderReactionSetting(context, mc, drawX, startY, line, uiWidth, uiHeight,
-                            reaction, mouseX, mouseY - yOffset, mouseClicked, yOffset);
+                    line = renderReactionSetting(context, mc, drawX, startY, line, scaledUiWidth, scaledUiHeight,
+                            reaction, scaledMouseX, scaledMouseY, mouseClicked);
                 }
             } else {
                 String noData = "  Loading...";
                 for (OrderedText lineText : wrapText(mc, noData, maxTextWidth)) {
                     int textY = startY + LINE_HEIGHT * line;
-                    if (textY >= 0 && textY + 10 <= uiHeight) {
+                    if (textY >= 0 && textY + 10 <= scaledUiHeight) {
                         context.drawTextWithShadow(mc.textRenderer, lineText, drawX, textY, 0x888888);
                     }
                     line++;
                 }
 
-                // ヒント: バックエンドに接続されていない可能性
                 line++;
                 String hint = "  (Check backend connection)";
                 for (OrderedText lineText : wrapText(mc, hint, maxTextWidth)) {
                     int textY = startY + LINE_HEIGHT * line;
-                    if (textY >= 0 && textY + 10 <= uiHeight) {
+                    if (textY >= 0 && textY + 10 <= scaledUiHeight) {
                         context.drawTextWithShadow(mc.textRenderer, lineText, drawX, textY, 0x666666);
                     }
                     line++;
                 }
             }
 
-            state.contentHeight = (line + 2) * LINE_HEIGHT + 8;
+            state.contentHeight = (int) ((line + 2) * LINE_HEIGHT * SCALE) + 8;
 
             if (state.contentHeight <= uiHeight) {
                 state.scrollOffset = 0;
                 ShannonUIModClient.setTabScrollOffset(state.selectedTab, 0);
+            }
+
+            // マウスが離されたらドラッグ終了
+            if (!mouseClicked) {
+                draggingSlider = null;
             }
 
             // マウス状態更新
@@ -133,78 +142,77 @@ public class SettingsUIRenderer {
      * 反応設定の1行をレンダリング
      */
     private static int renderReactionSetting(DrawContext context, MinecraftClient mc,
-            int drawX, int startY, int line, int uiWidth, int uiHeight,
+            int drawX, int startY, int line, int scaledUiWidth, int scaledUiHeight,
             ReactionSettingsState.ReactionConfig reaction,
-            int mouseX, int mouseY, boolean mouseClicked, int yOffset) {
+            int mouseX, int mouseY, boolean mouseClicked) {
 
         int textY = startY + LINE_HEIGHT * line;
-        if (textY < -20 || textY > uiHeight + 20) {
-            return line + 2; // 画面外はスキップ
+        if (textY < -20 || textY > scaledUiHeight + 20) {
+            return line + 2;
         }
 
         int indent = 8;
 
-        // チェックボックス
         int checkX = drawX + indent;
-        int checkY = textY + 2;
+        int checkY = textY + 1;
         boolean overCheck = mouseX >= checkX && mouseX <= checkX + CHECKBOX_SIZE
                 && mouseY >= checkY && mouseY <= checkY + CHECKBOX_SIZE;
 
         int checkBgColor = overCheck ? 0xFF555555 : 0xFF333333;
         context.fill(checkX, checkY, checkX + CHECKBOX_SIZE, checkY + CHECKBOX_SIZE, checkBgColor);
-        context.fill(checkX, checkY, checkX + CHECKBOX_SIZE, checkY + 1, 0xFF666666);
-        context.fill(checkX, checkY, checkX + 1, checkY + CHECKBOX_SIZE, 0xFF666666);
+
+        int borderColor = overCheck ? 0xFF888888 : 0xFF555555;
+        context.fill(checkX, checkY, checkX + CHECKBOX_SIZE, checkY + 1, borderColor);
+        context.fill(checkX, checkY, checkX + 1, checkY + CHECKBOX_SIZE, borderColor);
         context.fill(checkX, checkY + CHECKBOX_SIZE - 1, checkX + CHECKBOX_SIZE, checkY + CHECKBOX_SIZE, 0xFF222222);
         context.fill(checkX + CHECKBOX_SIZE - 1, checkY, checkX + CHECKBOX_SIZE, checkY + CHECKBOX_SIZE, 0xFF222222);
 
         if (reaction.enabled) {
-            // チェックマーク
-            context.fill(checkX + 2, checkY + 4, checkX + 4, checkY + 7, 0xFF55FF55);
-            context.fill(checkX + 4, checkY + 5, checkX + 8, checkY + 8, 0xFF55FF55);
+            context.fill(checkX + 2, checkY + 2, checkX + CHECKBOX_SIZE - 2, checkY + CHECKBOX_SIZE - 2, 0xFF55FF55);
         }
 
         if (mouseClicked && overCheck && !wasMousePressed) {
-            // チェックボックスクリック
             sendSettingUpdate(reaction.eventType, !reaction.enabled, reaction.probability);
         }
 
-        // イベント名
         String eventName = getEventDisplayName(reaction.eventType);
-        int nameX = checkX + CHECKBOX_SIZE + 6;
+        int nameX = checkX + CHECKBOX_SIZE + 4;
         int nameColor = reaction.enabled ? 0xFFFFFF : 0x888888;
-        context.drawTextWithShadow(mc.textRenderer, Text.literal(eventName), nameX, textY + 1, nameColor);
+        context.drawTextWithShadow(mc.textRenderer, Text.literal(eventName), nameX, textY, nameColor);
 
         line++;
         textY = startY + LINE_HEIGHT * line;
 
-        // 確率スライダー（有効時のみ表示）
         if (reaction.enabled) {
-            int sliderX = drawX + indent + 20;
-            int sliderY = textY + 2;
+            int sliderX = drawX + indent + 16;
+            int sliderY = textY + 1;
 
-            // スライダー背景
-            context.fill(sliderX, sliderY, sliderX + SLIDER_WIDTH, sliderY + SLIDER_HEIGHT, 0xFF333333);
+            boolean overSlider = mouseX >= sliderX && mouseX <= sliderX + SLIDER_WIDTH
+                    && mouseY >= sliderY && mouseY <= sliderY + SLIDER_HEIGHT + 4;
+            boolean isDragging = reaction.eventType.equals(draggingSlider);
 
-            // スライダー値
+            int bgColor = (overSlider || isDragging) ? 0xFF444444 : 0xFF333333;
+            context.fill(sliderX, sliderY, sliderX + SLIDER_WIDTH, sliderY + SLIDER_HEIGHT, bgColor);
+
             int fillWidth = (int) (SLIDER_WIDTH * reaction.probability / 100.0);
-            int sliderColor = getSliderColor(reaction.probability);
+            int sliderColor = getSliderColor(reaction.probability, overSlider || isDragging);
             context.fill(sliderX, sliderY, sliderX + fillWidth, sliderY + SLIDER_HEIGHT, sliderColor);
 
-            // スライダー枠
-            context.fill(sliderX, sliderY, sliderX + SLIDER_WIDTH, sliderY + 1, 0xFF555555);
+            int sliderBorderColor = (overSlider || isDragging) ? 0xFF777777 : 0xFF555555;
+            context.fill(sliderX, sliderY, sliderX + SLIDER_WIDTH, sliderY + 1, sliderBorderColor);
             context.fill(sliderX, sliderY + SLIDER_HEIGHT - 1, sliderX + SLIDER_WIDTH, sliderY + SLIDER_HEIGHT,
                     0xFF222222);
 
-            // パーセント表示
             String percentText = reaction.probability + "%";
+            int percentColor = (overSlider || isDragging) ? 0xFFFFFF : 0xAAAAAA;
             context.drawTextWithShadow(mc.textRenderer, Text.literal(percentText),
-                    sliderX + SLIDER_WIDTH + 6, sliderY, 0xAAAAAA);
+                    sliderX + SLIDER_WIDTH + 4, sliderY - 1, percentColor);
 
-            // スライダードラッグ処理
-            boolean overSlider = mouseX >= sliderX && mouseX <= sliderX + SLIDER_WIDTH
-                    && mouseY >= sliderY && mouseY <= sliderY + SLIDER_HEIGHT;
+            if (mouseClicked && !wasMousePressed && overSlider) {
+                draggingSlider = reaction.eventType;
+            }
 
-            if (mouseClicked && overSlider) {
+            if (mouseClicked && (isDragging || overSlider)) {
                 int newValue = (int) ((mouseX - sliderX) * 100.0 / SLIDER_WIDTH);
                 newValue = Math.max(0, Math.min(100, newValue));
                 if (newValue != reaction.probability) {
@@ -249,14 +257,14 @@ public class SettingsUIRenderer {
     /**
      * 確率に応じたスライダー色を取得
      */
-    private static int getSliderColor(int probability) {
+    private static int getSliderColor(int probability, boolean hovered) {
         if (probability >= 80)
-            return 0xFF55FF55;
+            return hovered ? 0xFF77FF77 : 0xFF55FF55;
         if (probability >= 50)
-            return 0xFFFFFF55;
+            return hovered ? 0xFFFFFF77 : 0xFFFFFF55;
         if (probability >= 20)
-            return 0xFFFFAA55;
-        return 0xFFFF5555;
+            return hovered ? 0xFFFFCC77 : 0xFFFFAA55;
+        return hovered ? 0xFFFF7777 : 0xFFFF5555;
     }
 
     /**

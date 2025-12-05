@@ -8,27 +8,31 @@ import com.shannon.network.packet.TaskTreeState;
 import com.shannon.network.packet.DetailedLogsState;
 
 public class TaskTreeUIRenderer {
+    private static final float SCALE = 0.7f;
+
     public static void renderTaskTreeUI(DrawContext context, MinecraftClient mc, int x, int y,
             int uiWidth, int uiHeight, TaskTreeState taskTreeState, int scrollOffset, UIRenderer.UIState state,
             DetailedLogsState logsState, com.shannon.network.packet.LogToggleState logToggleState) {
         context.getMatrices().push();
         try {
+            context.getMatrices().translate(x, y, 0);
+            context.getMatrices().scale(SCALE, SCALE, 1.0f);
+
             int line = 0;
-            int drawX = 4;
-            int drawY = 4;
-            int yOffset = -scrollOffset;
-            int maxTextWidth = uiWidth - 8;
+            int drawX = (int) (4 / SCALE);
+            int drawY = (int) (4 / SCALE);
+            int yOffset = (int) (-scrollOffset / SCALE);
+            int maxTextWidth = (int) ((uiWidth - 8) / SCALE);
             int startY = drawY + yOffset;
             final int LINE_HEIGHT = 9;
-
-            context.getMatrices().translate(x, y, 0);
+            int scaledUiHeight = (int) (uiHeight / SCALE);
 
             // === 現在の状態（1行のみ、最上部に固定表示） ===
             String currentStatus = getCurrentStatus(logsState, taskTreeState);
             int statusColor = getStatusColor(logsState, taskTreeState);
             for (OrderedText lineText : wrapText(mc, currentStatus, maxTextWidth)) {
                 int textY = startY + LINE_HEIGHT * line;
-                if (textY >= 0 && textY + 10 <= uiHeight) {
+                if (textY >= 0 && textY + 10 <= scaledUiHeight) {
                     context.drawTextWithShadow(mc.textRenderer, lineText, drawX, textY, statusColor);
                 }
                 line++;
@@ -41,12 +45,12 @@ public class TaskTreeUIRenderer {
                 String noTask = "No active task";
                 for (OrderedText lineText : wrapText(mc, noTask, maxTextWidth)) {
                     int textY = startY + LINE_HEIGHT * line;
-                    if (textY >= 0 && textY + 10 <= uiHeight) {
+                    if (textY >= 0 && textY + 10 <= scaledUiHeight) {
                         context.drawTextWithShadow(mc.textRenderer, lineText, drawX, textY, 0x888888);
                     }
                     line++;
                 }
-                state.contentHeight = (line + 1) * LINE_HEIGHT + 8;
+                state.contentHeight = (int) ((line + 1) * LINE_HEIGHT * SCALE) + 8;
                 return;
             }
 
@@ -54,7 +58,7 @@ public class TaskTreeUIRenderer {
             String taskHeader = "▼ Current Task";
             for (OrderedText lineText : wrapText(mc, taskHeader, maxTextWidth)) {
                 int textY = startY + LINE_HEIGHT * line;
-                if (textY >= 0 && textY + 10 <= uiHeight) {
+                if (textY >= 0 && textY + 10 <= scaledUiHeight) {
                     context.drawTextWithShadow(mc.textRenderer, lineText, drawX, textY, 0x55AAFF);
                 }
                 line++;
@@ -65,7 +69,7 @@ public class TaskTreeUIRenderer {
             int goalColor = getTaskStatusColor(taskTreeState.status);
             for (OrderedText lineText : wrapText(mc, goalLine, maxTextWidth)) {
                 int textY = startY + LINE_HEIGHT * line;
-                if (textY >= 0 && textY + 10 <= uiHeight) {
+                if (textY >= 0 && textY + 10 <= scaledUiHeight) {
                     context.drawTextWithShadow(mc.textRenderer, lineText, drawX, textY, goalColor);
                 }
                 line++;
@@ -76,7 +80,7 @@ public class TaskTreeUIRenderer {
                 String strategyLine = "  " + taskTreeState.strategy;
                 for (OrderedText lineText : wrapText(mc, strategyLine, maxTextWidth)) {
                     int textY = startY + LINE_HEIGHT * line;
-                    if (textY >= 0 && textY + 10 <= uiHeight) {
+                    if (textY >= 0 && textY + 10 <= scaledUiHeight) {
                         context.drawTextWithShadow(mc.textRenderer, lineText, drawX, textY, 0xAAAAAA);
                     }
                     line++;
@@ -89,7 +93,7 @@ public class TaskTreeUIRenderer {
                 String errorLine = "  [ERROR] " + taskTreeState.error;
                 for (OrderedText lineText : wrapText(mc, errorLine, maxTextWidth)) {
                     int textY = startY + LINE_HEIGHT * line;
-                    if (textY >= 0 && textY + 10 <= uiHeight) {
+                    if (textY >= 0 && textY + 10 <= scaledUiHeight) {
                         context.drawTextWithShadow(mc.textRenderer, lineText, drawX, textY, 0xFF5555);
                     }
                     line++;
@@ -103,7 +107,7 @@ public class TaskTreeUIRenderer {
                 String tasksHeader = "▼ Tasks";
                 for (OrderedText lineText : wrapText(mc, tasksHeader, maxTextWidth)) {
                     int textY = startY + LINE_HEIGHT * line;
-                    if (textY >= 0 && textY + 10 <= uiHeight) {
+                    if (textY >= 0 && textY + 10 <= scaledUiHeight) {
                         context.drawTextWithShadow(mc.textRenderer, lineText, drawX, textY, 0x55AAFF);
                     }
                     line++;
@@ -111,7 +115,7 @@ public class TaskTreeUIRenderer {
 
                 for (TaskTreeState.HierarchicalSubTask sub : taskTreeState.hierarchicalSubTasks) {
                     line = renderHierarchicalSubTask(context, mc, sub, line, drawX, startY,
-                            LINE_HEIGHT, uiHeight, maxTextWidth, 0);
+                            LINE_HEIGHT, scaledUiHeight, maxTextWidth, 0);
                 }
             }
             // 旧形式のサブタスク（後方互換性）
@@ -121,7 +125,7 @@ public class TaskTreeUIRenderer {
                 String tasksHeader = "▼ Tasks";
                 for (OrderedText lineText : wrapText(mc, tasksHeader, maxTextWidth)) {
                     int textY = startY + LINE_HEIGHT * line;
-                    if (textY >= 0 && textY + 10 <= uiHeight) {
+                    if (textY >= 0 && textY + 10 <= scaledUiHeight) {
                         context.drawTextWithShadow(mc.textRenderer, lineText, drawX, textY, 0x55AAFF);
                     }
                     line++;
@@ -134,7 +138,7 @@ public class TaskTreeUIRenderer {
                     String subTaskLine = "  " + icon + " " + sub.subTaskGoal;
                     for (OrderedText lineText : wrapText(mc, subTaskLine, maxTextWidth)) {
                         int textY = startY + LINE_HEIGHT * line;
-                        if (textY >= 0 && textY + 10 <= uiHeight) {
+                        if (textY >= 0 && textY + 10 <= scaledUiHeight) {
                             context.drawTextWithShadow(mc.textRenderer, lineText, drawX, textY, color);
                         }
                         line++;
@@ -144,7 +148,7 @@ public class TaskTreeUIRenderer {
                         String resultLine = "    => " + sub.subTaskResult;
                         for (OrderedText lineText : wrapText(mc, resultLine, maxTextWidth)) {
                             int textY = startY + LINE_HEIGHT * line;
-                            if (textY >= 0 && textY + 10 <= uiHeight) {
+                            if (textY >= 0 && textY + 10 <= scaledUiHeight) {
                                 context.drawTextWithShadow(mc.textRenderer, lineText, drawX, textY, 0x88FF88);
                             }
                             line++;
@@ -153,7 +157,7 @@ public class TaskTreeUIRenderer {
                 }
             }
 
-            state.contentHeight = (line + 1) * LINE_HEIGHT + 8;
+            state.contentHeight = (int) ((line + 1) * LINE_HEIGHT * SCALE) + 8;
 
             if (state.contentHeight <= uiHeight) {
                 state.scrollOffset = 0;
@@ -276,7 +280,7 @@ public class TaskTreeUIRenderer {
      */
     private static int renderHierarchicalSubTask(DrawContext context, MinecraftClient mc,
             TaskTreeState.HierarchicalSubTask sub, int line, int drawX, int startY,
-            int lineHeight, int uiHeight, int maxTextWidth, int depth) {
+            int lineHeight, int scaledUiHeight, int maxTextWidth, int depth) {
 
         // インデント（深さに応じて）
         String indent = "  " + "  ".repeat(depth);
@@ -289,7 +293,7 @@ public class TaskTreeUIRenderer {
         String subTaskLine = indent + icon + " " + sub.goal;
         for (OrderedText lineText : wrapText(mc, subTaskLine, maxTextWidth)) {
             int textY = startY + lineHeight * line;
-            if (textY >= 0 && textY + 10 <= uiHeight) {
+            if (textY >= 0 && textY + 10 <= scaledUiHeight) {
                 context.drawTextWithShadow(mc.textRenderer, lineText, drawX, textY, color);
             }
             line++;
@@ -302,7 +306,7 @@ public class TaskTreeUIRenderer {
             String resultLine = resultIndent + "=> " + shortResult;
             for (OrderedText lineText : wrapText(mc, resultLine, maxTextWidth)) {
                 int textY = startY + lineHeight * line;
-                if (textY >= 0 && textY + 10 <= uiHeight) {
+                if (textY >= 0 && textY + 10 <= scaledUiHeight) {
                     context.drawTextWithShadow(mc.textRenderer, lineText, drawX, textY, 0x88FF88);
                 }
                 line++;
@@ -315,7 +319,7 @@ public class TaskTreeUIRenderer {
             String failureLine = failureIndent + "[x] " + sub.failureReason;
             for (OrderedText lineText : wrapText(mc, failureLine, maxTextWidth)) {
                 int textY = startY + lineHeight * line;
-                if (textY >= 0 && textY + 10 <= uiHeight) {
+                if (textY >= 0 && textY + 10 <= scaledUiHeight) {
                     context.drawTextWithShadow(mc.textRenderer, lineText, drawX, textY, 0xFF5555);
                 }
                 line++;
@@ -326,7 +330,7 @@ public class TaskTreeUIRenderer {
         if (sub.children != null && !sub.children.isEmpty()) {
             for (TaskTreeState.HierarchicalSubTask child : sub.children) {
                 line = renderHierarchicalSubTask(context, mc, child, line, drawX, startY,
-                        lineHeight, uiHeight, maxTextWidth, depth + 1);
+                        lineHeight, scaledUiHeight, maxTextWidth, depth + 1);
             }
         }
 

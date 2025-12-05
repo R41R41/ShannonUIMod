@@ -10,6 +10,7 @@ import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import org.lwjgl.glfw.GLFW;
 
 public class ChatUIRenderer {
+    private static final float SCALE = 0.7f;
     private static String currentInput = "";
     private static boolean wasEnterPressed = false;
     private static int cursorBlinkTimer = 0;
@@ -24,24 +25,25 @@ public class ChatUIRenderer {
         // チャット履歴の描画
         context.getMatrices().push();
         try {
-            int line = 0;
-            float scale = 1.0f;
-            int drawX = 4;
-            int drawY = 4;
-            int yOffset = -scrollOffset;
-            int maxTextWidth = uiWidth - 8;
-            int startY = drawY + yOffset;
-
             context.getMatrices().translate(x, y, 0);
-            context.getMatrices().scale(scale, scale, 1.0f);
+            context.getMatrices().scale(SCALE, SCALE, 1.0f);
+
+            int line = 0;
+            int drawX = (int) (4 / SCALE);
+            int drawY = (int) (4 / SCALE);
+            int yOffset = (int) (-scrollOffset / SCALE);
+            int maxTextWidth = (int) ((uiWidth - 8) / SCALE);
+            int startY = drawY + yOffset;
+            int scaledChatHistoryHeight = (int) (chatHistoryHeight / SCALE);
+            final int LINE_HEIGHT = 10;
 
             // チャット履歴の表示
             if (chatState != null && chatState.messages != null && !chatState.messages.isEmpty()) {
                 for (ChatState.ChatMessage msg : chatState.messages) {
                     String fullText = "[" + msg.sender + "] " + msg.message;
                     for (OrderedText wrapped : wrapText(mc, fullText, maxTextWidth)) {
-                        int textY = startY + line * 12;
-                        if (textY >= 0 && textY + 12 <= chatHistoryHeight) {
+                        int textY = startY + line * LINE_HEIGHT;
+                        if (textY >= 0 && textY + 10 <= scaledChatHistoryHeight) {
                             context.drawTextWithShadow(mc.textRenderer, wrapped, drawX, textY, 0xFFFFFF);
                         }
                         line++;
@@ -51,8 +53,8 @@ public class ChatUIRenderer {
                 // チャット履歴がない場合
                 String noMessages = "チャット履歴がありません";
                 for (OrderedText wrapped : wrapText(mc, noMessages, maxTextWidth)) {
-                    int textY = startY + line * 12;
-                    if (textY >= 0 && textY + 12 <= chatHistoryHeight) {
+                    int textY = startY + line * LINE_HEIGHT;
+                    if (textY >= 0 && textY + 10 <= scaledChatHistoryHeight) {
                         context.drawTextWithShadow(mc.textRenderer, wrapped, drawX, textY, 0xAAAAAA);
                     }
                     line++;
@@ -60,7 +62,7 @@ public class ChatUIRenderer {
             }
 
             // チャット履歴の高さを計算（入力欄を除く）
-            state.contentHeight = (line + 1) * 12 + 8;
+            state.contentHeight = (int) ((line + 1) * LINE_HEIGHT * SCALE) + 8;
 
             // 表示するものが何もない、または少ない場合はスクロールを一番上に
             if (state.contentHeight <= chatHistoryHeight) {

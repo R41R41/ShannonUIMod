@@ -11,6 +11,8 @@ import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.minecraft.util.Identifier;
 
 public class ConstantSkillsUIRenderer {
+    private static final float SCALE = 0.7f;
+    private static final int LINE_HEIGHT = 10;
     private static final Identifier STATUS_TRUE = Identifier.of("shannonuimod", "textures/status_true.png");
     private static final Identifier STATUS_FALSE = Identifier.of("shannonuimod", "textures/status_false.png");
     private static boolean wasMousePressed = false;
@@ -24,16 +26,21 @@ public class ConstantSkillsUIRenderer {
                 state.contentHeight = uiHeight;
                 return;
             }
-            int line = 0;
-            float scale = 1.0f;
-            int drawX = 4;
-            int drawY = 4;
-            int yOffset = -state.scrollOffset;
-            int maxTextWidth = uiWidth - 24;
-            int startY = drawY + yOffset;
 
             context.getMatrices().translate(x, y, 0);
-            context.getMatrices().scale(scale, scale, 1.0f);
+            context.getMatrices().scale(SCALE, SCALE, 1.0f);
+
+            int scaledMouseX = (int) ((mouseX + 4) / SCALE);
+            int scaledMouseY = (int) ((mouseY + 4) / SCALE);
+            int scaledUiWidth = (int) (uiWidth / SCALE);
+            int scaledUiHeight = (int) (uiHeight / SCALE);
+
+            int line = 0;
+            int drawX = (int) (4 / SCALE);
+            int drawY = (int) (4 / SCALE);
+            int yOffset = (int) (-state.scrollOffset / SCALE);
+            int maxTextWidth = scaledUiWidth - 24;
+            int startY = drawY + yOffset;
 
             // ツールチップ用一時変数
             String tooltipDesc = null;
@@ -46,8 +53,8 @@ public class ConstantSkillsUIRenderer {
             for (ConstantSkillsState.ConstantSkill skill : constantSkillsState.skills) {
                 String lineText = skill.skillName;
                 // ステータスの円形を描画
-                int statusY = startY + line * 12;
-                if (statusY >= 0 && statusY + 12 <= uiHeight) {
+                int statusY = startY + line * LINE_HEIGHT;
+                if (statusY >= 0 && statusY + 10 <= scaledUiHeight) {
                     if (skill.status) {
                         context.drawTexture(
                                 RenderLayer::getGuiTextured,
@@ -67,15 +74,16 @@ public class ConstantSkillsUIRenderer {
                     }
                 }
                 for (OrderedText wrapped : wrapText(mc, lineText, maxTextWidth)) {
-                    int textY = startY + line * 12;
+                    int textY = startY + line * LINE_HEIGHT;
                     int rectX1 = drawX + 12;
                     int rectY1 = textY - 2 - yOffset;
-                    int rectX2 = rectX1 + uiWidth - 32;
-                    int rectY2 = rectY1 + 12;
-                    boolean hovered = (mouseX >= rectX1 && mouseX <= rectX2 && mouseY >= rectY1 && mouseY <= rectY2);
-                    if (textY >= 0 && textY + 12 <= uiHeight) {
+                    int rectX2 = rectX1 + scaledUiWidth - 32;
+                    int rectY2 = rectY1 + LINE_HEIGHT;
+                    boolean hovered = (scaledMouseX >= rectX1 && scaledMouseX <= rectX2 && scaledMouseY >= rectY1
+                            && scaledMouseY <= rectY2);
+                    if (textY >= 0 && textY + 10 <= scaledUiHeight) {
                         if (hovered) {
-                            context.fill(rectX1 - 1, rectY1 + yOffset, uiWidth - 8, rectY2 + yOffset, 0xFFFFFFFF);
+                            context.fill(rectX1 - 1, rectY1 + yOffset, scaledUiWidth - 8, rectY2 + yOffset, 0xFFFFFFFF);
                             context.drawText(mc.textRenderer, wrapped, drawX + 12, textY, 0xFF000000, false);
 
                             if (mouseClicked && !wasMousePressed) {
@@ -85,8 +93,8 @@ public class ConstantSkillsUIRenderer {
                             if (skill.description != null && !skill.description.isEmpty()) {
                                 tooltipDesc = skill.description;
                                 tooltipX = rectX1;
-                                tooltipY = textY + 14;
-                                tooltipLines = wrapText(mc, skill.description, uiWidth - 32);
+                                tooltipY = textY + 12;
+                                tooltipLines = wrapText(mc, skill.description, scaledUiWidth - 32);
                                 tooltipWidth = 0;
                                 for (OrderedText descLine : tooltipLines) {
                                     int w = mc.textRenderer.getWidth(descLine);
@@ -103,7 +111,7 @@ public class ConstantSkillsUIRenderer {
                     line++;
                 }
             }
-            state.contentHeight = (line + 1) * 12 + 8;
+            state.contentHeight = (int) ((line + 1) * LINE_HEIGHT * SCALE) + 8;
 
             // 表示するものが何もない、または少ない場合はスクロールを一番上に
             if (state.contentHeight <= uiHeight) {
@@ -116,19 +124,19 @@ public class ConstantSkillsUIRenderer {
                 int skipStart = hoveredLine + 1;
                 int skipEnd = hoveredLine + 3;
                 for (int i = skipStart; i <= skipEnd; i++) {
-                    int textY = startY + i * 12;
+                    int textY = startY + i * LINE_HEIGHT;
                     int rectX1 = drawX + 12;
                     int rectY1 = textY - 2 - yOffset;
-                    int rectY2 = rectY1 + 12;
-                    if (textY >= 0 && textY + 12 <= uiHeight) {
-                        context.fill(rectX1 - 1, rectY1 + yOffset, uiWidth - 8, rectY2 + yOffset, 0xFF000000);
+                    int rectY2 = rectY1 + LINE_HEIGHT;
+                    if (textY >= 0 && textY + 10 <= scaledUiHeight) {
+                        context.fill(rectX1 - 1, rectY1 + yOffset, scaledUiWidth - 8, rectY2 + yOffset, 0xFF000000);
                     }
                 }
             }
 
             // ループ後にツールチップを最前面に描画
             if (tooltipDesc != null && tooltipLines != null) {
-                context.fill(tooltipX - 1, tooltipY - 3, uiWidth - 8, tooltipY + 36,
+                context.fill(tooltipX - 1, tooltipY - 3, scaledUiWidth - 8, tooltipY + 30,
                         0xF0000000);
                 int descY = tooltipY;
                 for (OrderedText descLine : tooltipLines) {
