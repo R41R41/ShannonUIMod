@@ -200,7 +200,7 @@ public class PacketHandlerRegistry {
                         try {
                             BackendClient.postJson(
                                     ModConfig.ENDPOINT_REACTION_SETTINGS_RESET,
-                                    new Object()); // 空のリクエスト
+                                    java.util.Collections.emptyMap()); // 空のリクエスト
 
                             if (ModConfig.LOG_PACKETS) {
                                 LOGGER.debug("ReactionSettingsResetPacket received");

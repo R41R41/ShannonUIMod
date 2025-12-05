@@ -1,5 +1,6 @@
 package com.shannon;
 
+import com.shannon.command.ShannonCommand;
 import com.shannon.config.ModConfig;
 import com.shannon.http.HttpServerManager;
 import com.shannon.network.PacketHandlerRegistry;
@@ -7,6 +8,7 @@ import com.shannon.network.PacketRegistry;
 import com.shannon.state.StateManager;
 import com.shannon.util.InventoryStateUtil;
 import net.fabricmc.api.ModInitializer;
+import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.network.ServerPlayerEntity;
@@ -47,6 +49,11 @@ public class ShannonUIMod implements ModInitializer {
 
 		// C2Sパケットハンドラの登録
 		PacketHandlerRegistry.registerC2SHandlers();
+
+		// コマンドの登録
+		CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> {
+			ShannonCommand.register(dispatcher);
+		});
 
 		// サーバーインスタンスをStateManagerにセット
 		ServerLifecycleEvents.SERVER_STARTED.register(server -> {
