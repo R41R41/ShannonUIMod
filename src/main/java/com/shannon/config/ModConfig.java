@@ -22,6 +22,9 @@ public class ModConfig {
     /** HTTPサーバーのポート（Backendからのリクエストを受信） */
     public static final int HTTP_SERVER_PORT = 8081;
 
+    /** クライアントサイドHTTPサーバーのポート（スクリーンショット等） */
+    public static final int CLIENT_HTTP_SERVER_PORT = 8083;
+
     /** HTTPサーバーのスレッドプールサイズ */
     public static final int HTTP_THREAD_POOL_SIZE = 4;
 

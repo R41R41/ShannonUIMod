@@ -1,5 +1,6 @@
 package com.shannon;
 
+import com.shannon.http.ClientHttpServerManager;
 import com.shannon.network.packet.DetailedLogsState;
 import com.shannon.network.packet.DetailedLogsStatePacket;
 
@@ -60,6 +61,9 @@ public class ShannonUIModClient implements ClientModInitializer {
     @Override
     public void onInitializeClient() {
         System.out.println("ShannonUIModClient onInitializeClient");
+
+        // クライアントサイドHTTPサーバーを起動（スクリーンショット等）
+        ClientHttpServerManager.startServer();
 
         ClientPlayNetworking.registerGlobalReceiver(TaskTreeStatePacket.PACKET_ID, (payload, context) -> {
             context.client().execute(() -> {
