@@ -48,6 +48,15 @@ public class ModConfig {
     /** 反応設定リセットエンドポイント */
     public static final String ENDPOINT_REACTION_SETTINGS_RESET = "/reaction_settings_reset";
 
+    /** タスク削除エンドポイント */
+    public static final String ENDPOINT_TASK_DELETE = "/task_delete";
+
+    /** タスク優先実行エンドポイント */
+    public static final String ENDPOINT_TASK_PRIORITIZE = "/task_prioritize";
+
+    /** タスクリスト取得エンドポイント */
+    public static final String ENDPOINT_TASK_LIST = "/task_list";
+
     // ===== ターゲットプレイヤー設定 =====
 
     /** ボット操作の対象プレイヤー名 */

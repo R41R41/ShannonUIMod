@@ -53,6 +53,7 @@ public class HttpServerManager {
         // 各エンドポイントを登録
         server.createContext("/task", new TaskEndpoint());
         server.createContext("/task_logs", new TaskLogsEndpoint());
+        server.createContext("/task_list", new TaskListEndpoint());
         server.createContext("/constant_skills", new ConstantSkillsEndpoint());
         server.createContext("/chat", new ChatEndpoint());
         server.createContext("/inventory_click", new InventoryClickEndpoint());
@@ -60,6 +61,9 @@ public class HttpServerManager {
         server.createContext("/chat_message", new ChatMessageEndpoint());
         server.createContext("/reaction_settings", new ReactionSettingsEndpoint());
         server.createContext("/bot_chat", new BotChatEndpoint());
+        server.createContext("/screenshot", new ServerScreenshotEndpoint());
+        server.createContext("/task_delete", new TaskDeleteEndpoint());
+        server.createContext("/task_prioritize", new TaskPrioritizeEndpoint());
 
         LOGGER.info("全エンドポイントの登録が完了しました");
     }

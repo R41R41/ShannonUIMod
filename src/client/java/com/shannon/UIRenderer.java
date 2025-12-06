@@ -227,6 +227,12 @@ public class UIRenderer {
             case 0:
                 com.shannon.network.packet.DetailedLogsState logsState = ShannonUIModClient.getDetailedLogsState();
                 com.shannon.network.packet.LogToggleState logToggleState = ShannonUIModClient.getLogToggleState();
+                // ホバー処理
+                TaskTreeUIRenderer.handleHover(innerX, innerY, uiWidth, uiHeight - 2, mouseX, mouseY);
+                // クリック処理
+                if (mouseJustClicked) {
+                    TaskTreeUIRenderer.handleClick(innerX, innerY, uiWidth, uiHeight - 2, mouseX, mouseY);
+                }
                 TaskTreeUIRenderer.renderTaskTreeUI(context, mc, innerX, innerY, uiWidth,
                         uiHeight - 2,
                         taskTreeState, state.scrollOffset, state, logsState, logToggleState);

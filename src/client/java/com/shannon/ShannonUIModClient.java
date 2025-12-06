@@ -27,6 +27,12 @@ import com.shannon.network.packet.ChatStatePacket;
 import com.shannon.network.packet.ChatState;
 import com.shannon.network.packet.ReactionSettingsState;
 import com.shannon.network.packet.ReactionSettingsStatePacket;
+import com.shannon.network.packet.ScreenshotRequestPacket;
+import com.shannon.network.packet.ScreenshotResultPacket;
+import com.shannon.network.packet.TaskListStatePacket;
+import com.shannon.util.ScreenshotUtil;
+import com.shannon.http.endpoints.ScreenshotEndpoint;
+import com.shannon.state.StateManager;
 
 public class ShannonUIModClient implements ClientModInitializer {
 
@@ -34,6 +40,7 @@ public class ShannonUIModClient implements ClientModInitializer {
     private static KeyBinding toggleHUDAndScreenUIKey;
     private static KeyBinding tabSwitchNextKey;
     private TaskTreeState taskTreeState;
+    private TaskListStatePacket.TaskListState taskListState;
     private InventoryState inventoryState;
     private ConstantSkillsState constantSkillsState;
     private PlayerStatusState playerStatusState;
@@ -45,6 +52,7 @@ public class ShannonUIModClient implements ClientModInitializer {
     private static ShannonUIModClient INSTANCE;
     private int[] tabScrollOffsets = new int[6]; // 6タブ分
     private int selectedTab = 0;
+    private static String selectedTaskId = null;
 
     public enum UIMode {
         HIDDEN,
@@ -69,6 +77,20 @@ public class ShannonUIModClient implements ClientModInitializer {
             context.client().execute(() -> {
                 TaskTreeState state = payload.state();
                 taskTreeState = state;
+            });
+        });
+
+        ClientPlayNetworking.registerGlobalReceiver(TaskListStatePacket.PACKET_ID, (payload, context) -> {
+            context.client().execute(() -> {
+                TaskListStatePacket.TaskListState state = payload.state();
+                taskListState = state;
+                System.out.println("📥 Client received TaskListState: " +
+                        (state != null && state.tasks != null ? state.tasks.size() : 0) + " tasks, emergencyTask=" +
+                        (state != null && state.emergencyTask != null ? state.emergencyTask.goal : "null"));
+                // 最初のタスクを選択（選択がない場合）
+                if (selectedTaskId == null && state != null && state.tasks != null && !state.tasks.isEmpty()) {
+                    selectedTaskId = state.tasks.get(0).id;
+                }
             });
         });
 
@@ -117,6 +139,47 @@ public class ShannonUIModClient implements ClientModInitializer {
             });
         });
 
+        // スクリーンショットリクエストパケットハンドラ（ボット視点で撮影）
+        ClientPlayNetworking.registerGlobalReceiver(ScreenshotRequestPacket.PACKET_ID, (payload, context) -> {
+            context.client().execute(() -> {
+                System.out.println("[ShannonUI] Screenshot request received: " + payload.requestId() + " for bot: "
+                        + payload.botName());
+
+                // スクリーンショットオプションを設定
+                ScreenshotEndpoint.ScreenshotOptions options = new ScreenshotEndpoint.ScreenshotOptions();
+                options.width = payload.width();
+                options.height = payload.height();
+
+                // ボットの視点からスクリーンショットを撮影（フレーム待機あり）
+                ScreenshotUtil.captureFromBotViewDelayed(
+                        options,
+                        payload.botName(),
+                        payload.botX(),
+                        payload.botY(),
+                        payload.botZ(),
+                        payload.botYaw(),
+                        payload.botPitch(),
+                        (result) -> {
+                            // 結果をパケットで送信
+                            ScreenshotResultPacket resultPacket = new ScreenshotResultPacket(
+                                    payload.requestId(),
+                                    result.success,
+                                    result.base64Image != null ? result.base64Image : "",
+                                    result.width,
+                                    result.height,
+                                    result.playerPosition != null ? result.playerPosition.x : 0,
+                                    result.playerPosition != null ? result.playerPosition.y : 0,
+                                    result.playerPosition != null ? result.playerPosition.z : 0,
+                                    result.playerRotation != null ? result.playerRotation.yaw : 0,
+                                    result.playerRotation != null ? result.playerRotation.pitch : 0,
+                                    result.error != null ? result.error : "");
+
+                            ClientPlayNetworking.send(resultPacket);
+                            System.out.println("[ShannonUI] Screenshot result sent: " + result.success);
+                        });
+            });
+        });
+
         // キーバインドの登録
         toggleDisplayUIKey = KeyBindingHelper.registerKeyBinding(new KeyBinding(
                 "key.shannonuimod.toggleDisplayUI",
@@ -134,18 +197,19 @@ public class ShannonUIModClient implements ClientModInitializer {
                 GLFW.GLFW_KEY_N,
                 "category.shannonuimod"));
 
-        MinecraftClient.getInstance().execute(() -> {
-            // キーイベントの監視
-            ClientTickEvents.END_CLIENT_TICK.register(client -> {
-                // Uキー: HUD型UIの表示/非表示 or Screen→HUD
-                if (toggleDisplayUIKey.wasPressed()) {
-                    updateUIMode(true, client);
-                }
-                // Iキー: Screen型UIの表示/非表示 or HUD→Screen
-                if (toggleHUDAndScreenUIKey.wasPressed()) {
-                    updateUIMode(false, client);
-                }
-            });
+        // キーイベントの監視（execute外で登録）
+        ClientTickEvents.END_CLIENT_TICK.register(client -> {
+            // Uキー: HUD型UIの表示/非表示 or Screen→HUD
+            if (toggleDisplayUIKey.wasPressed()) {
+                updateUIMode(true, client);
+            }
+            // Iキー: Screen型UIの表示/非表示 or HUD→Screen
+            if (toggleHUDAndScreenUIKey.wasPressed()) {
+                updateUIMode(false, client);
+            }
+
+            // スクリーンショット処理（フレーム待機後の撮影）
+            ScreenshotUtil.tick();
         });
 
         HudRenderCallback.EVENT.register((DrawContext context, RenderTickCounter tickCounter) -> {
@@ -284,5 +348,17 @@ public class ShannonUIModClient implements ClientModInitializer {
     public static ReactionSettingsState getReactionSettingsState() {
         // パケット経由で受信したデータを返す
         return INSTANCE != null ? INSTANCE.reactionSettingsState : null;
+    }
+
+    public static TaskListStatePacket.TaskListState getTaskListState() {
+        return INSTANCE != null ? INSTANCE.taskListState : null;
+    }
+
+    public static String getSelectedTaskId() {
+        return selectedTaskId;
+    }
+
+    public static void setSelectedTaskId(String taskId) {
+        selectedTaskId = taskId;
     }
 }

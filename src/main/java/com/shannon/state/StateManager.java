@@ -21,11 +21,15 @@ public class StateManager {
 
     // 状態
     private TaskTreeState taskTreeState = new TaskTreeState();
+    private TaskListStatePacket.TaskListState taskListState = new TaskListStatePacket.TaskListState();
     private DetailedLogsState logsState = new DetailedLogsState();
     private ConstantSkillsState skillsState = new ConstantSkillsState();
     private InventoryState inventoryState = new InventoryState();
     private ChatState chatState = new ChatState();
     private ReactionSettingsState reactionSettingsState = new ReactionSettingsState();
+
+    // 選択中のタスクID
+    private String selectedTaskId = null;
 
     // サーバーインスタンス
     private MinecraftServer server;
@@ -35,6 +39,7 @@ public class StateManager {
 
     public enum StateType {
         TASK_TREE,
+        TASK_LIST,
         LOGS,
         SKILLS,
         INVENTORY,
@@ -68,6 +73,37 @@ public class StateManager {
         LOGGER.info("TaskTreeState updated: " + newState);
         notifyListeners(StateType.TASK_TREE);
         broadcastTaskTreeState();
+    }
+
+    public void updateTaskListState(TaskListStatePacket.TaskListState newState) {
+        this.taskListState = newState;
+        LOGGER.info("TaskListState updated: " + (newState != null && newState.tasks != null ? newState.tasks.size() : 0)
+                + " tasks");
+        notifyListeners(StateType.TASK_LIST);
+        broadcastTaskListState();
+    }
+
+    public TaskListStatePacket.TaskListState getTaskListState() {
+        return taskListState;
+    }
+
+    public String getSelectedTaskId() {
+        return selectedTaskId;
+    }
+
+    public void setSelectedTaskId(String taskId) {
+        this.selectedTaskId = taskId;
+    }
+
+    private void broadcastTaskListState() {
+        if (taskListState == null || server == null) {
+            return;
+        }
+        for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
+            if (ServerPlayNetworking.canSend(player, TaskListStatePacket.PACKET_ID)) {
+                ServerPlayNetworking.send(player, new TaskListStatePacket(taskListState));
+            }
+        }
     }
 
     public void updateLogsState(DetailedLogsState newState) {
@@ -147,6 +183,17 @@ public class StateManager {
 
     public ChatState getChatState() {
         return chatState;
+    }
+
+    /**
+     * ターゲットプレイヤーを取得（最初に接続しているプレイヤー）
+     */
+    public ServerPlayerEntity getTargetPlayer() {
+        if (server == null) {
+            return null;
+        }
+        var players = server.getPlayerManager().getPlayerList();
+        return players.isEmpty() ? null : players.get(0);
     }
 
     // ===== Broadcasting =====

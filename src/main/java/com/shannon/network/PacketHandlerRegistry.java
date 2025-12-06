@@ -10,6 +10,7 @@ import com.shannon.config.ModConfig;
 import com.shannon.error.ModErrorHandler;
 import com.shannon.error.exceptions.PacketHandlingException;
 import com.shannon.network.packet.*;
+import com.shannon.http.endpoints.ServerScreenshotEndpoint;
 import com.shannon.state.StateManager;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.server.network.ServerPlayerEntity;
@@ -35,6 +36,8 @@ public class PacketHandlerRegistry {
         registerChatMessageHandler();
         registerReactionSettingUpdateHandler();
         registerReactionSettingsResetHandler();
+        registerScreenshotResultHandler();
+        registerTaskActionHandler();
 
         LOGGER.info("✅ All C2S packet handlers registered");
     }
@@ -208,6 +211,62 @@ public class PacketHandlerRegistry {
                         } catch (Exception e) {
                             ModErrorHandler.handle(
                                     new PacketHandlingException("ReactionSettingsResetPacket", e));
+                        }
+                    });
+                });
+    }
+
+    /**
+     * スクリーンショット結果パケットハンドラ
+     */
+    private static void registerScreenshotResultHandler() {
+        ServerPlayNetworking.registerGlobalReceiver(
+                ScreenshotResultPacket.PACKET_ID,
+                (payload, context) -> {
+                    try {
+                        // HTTPエンドポイントに結果を渡す
+                        ServerScreenshotEndpoint.handleResult(payload);
+
+                        if (ModConfig.LOG_PACKETS) {
+                            LOGGER.debug("ScreenshotResultPacket received: {} (success: {})",
+                                    payload.requestId(), payload.success());
+                        }
+                    } catch (Exception e) {
+                        ModErrorHandler.handle(
+                                new PacketHandlingException("ScreenshotResultPacket", e));
+                    }
+                });
+    }
+
+    /**
+     * タスクアクションパケットハンドラ（削除、優先実行）
+     */
+    private static void registerTaskActionHandler() {
+        ServerPlayNetworking.registerGlobalReceiver(
+                TaskActionPacket.PACKET_ID,
+                (payload, context) -> {
+                    context.server().execute(() -> {
+                        try {
+                            String action = payload.action();
+                            String taskId = payload.taskId();
+
+                            String endpoint = null;
+                            if (TaskActionPacket.ACTION_DELETE.equals(action)) {
+                                endpoint = ModConfig.ENDPOINT_TASK_DELETE;
+                            } else if (TaskActionPacket.ACTION_PRIORITIZE.equals(action)) {
+                                endpoint = ModConfig.ENDPOINT_TASK_PRIORITIZE;
+                            }
+
+                            if (endpoint != null) {
+                                BackendClient.postJson(endpoint, java.util.Map.of("taskId", taskId));
+                            }
+
+                            if (ModConfig.LOG_PACKETS) {
+                                LOGGER.debug("TaskActionPacket received: action={}, taskId={}", action, taskId);
+                            }
+                        } catch (Exception e) {
+                            ModErrorHandler.handle(
+                                    new PacketHandlingException("TaskActionPacket", e));
                         }
                     });
                 });
