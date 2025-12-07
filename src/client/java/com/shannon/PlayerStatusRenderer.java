@@ -18,6 +18,9 @@ public class PlayerStatusRenderer {
     private static final Identifier HUNGER_HALF = Identifier.of("minecraft", "textures/gui/sprites/hud/food_half.png");
     private static final Identifier HUNGER_EMPTY = Identifier.of("minecraft",
             "textures/gui/sprites/hud/food_empty.png");
+    private static final Identifier BUBBLE_FULL = Identifier.of("minecraft", "textures/gui/sprites/hud/air.png");
+    private static final Identifier BUBBLE_BURST = Identifier.of("minecraft",
+            "textures/gui/sprites/hud/air_bursting.png");
 
     public static void renderPlayerStatus(DrawContext context, MinecraftClient mc, int windowWidth, int windowHeight,
             int textureSize, PlayerStatusState state) {
@@ -93,6 +96,32 @@ public class PlayerStatusRenderer {
                         0, 0,
                         textureSize, textureSize,
                         textureSize, textureSize);
+            }
+
+            // 酸素ゲージ（水中のみ）
+            PlayerEntity botPlayer = null;
+            for (PlayerEntity player : mc.world.getPlayers()) {
+                if (player.getName().getString().equals("I_am_Shannon")) {
+                    botPlayer = player;
+                    break;
+                }
+            }
+
+            if (botPlayer != null && botPlayer.isSubmergedInWater()) {
+                int air = botPlayer.getAir();
+                int maxAir = botPlayer.getMaxAir();
+                int bubbles = (int) Math.ceil((double) air / maxAir * 10);
+
+                for (int i = 0; i < 10; i++) {
+                    Identifier bubbleTex = (i < bubbles) ? BUBBLE_FULL : BUBBLE_BURST;
+                    context.drawTexture(
+                            RenderLayer::getGuiTextured,
+                            bubbleTex,
+                            x + (9 - i) * textureSize, y + textureSize * 2 + 4,
+                            0, 0,
+                            textureSize, textureSize,
+                            textureSize, textureSize);
+                }
             }
         } finally {
             context.getMatrices().pop();
