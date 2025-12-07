@@ -77,8 +77,12 @@ public class StateManager {
 
     public void updateTaskListState(TaskListStatePacket.TaskListState newState) {
         this.taskListState = newState;
-        LOGGER.info("TaskListState updated: " + (newState != null && newState.tasks != null ? newState.tasks.size() : 0)
-                + " tasks");
+        String emergencyInfo = (newState != null && newState.emergencyTask != null)
+                ? newState.emergencyTask.goal
+                : "null";
+        LOGGER.info("TaskListState updated: {} tasks, emergencyTask={}",
+                (newState != null && newState.tasks != null ? newState.tasks.size() : 0),
+                emergencyInfo);
         notifyListeners(StateType.TASK_LIST);
         broadcastTaskListState();
     }
@@ -99,6 +103,12 @@ public class StateManager {
         if (taskListState == null || server == null) {
             return;
         }
+        String emergencyInfo = (taskListState.emergencyTask != null)
+                ? taskListState.emergencyTask.goal
+                : "null";
+        LOGGER.info("📤 Broadcasting TaskListState: {} tasks, emergencyTask={}",
+                taskListState.tasks != null ? taskListState.tasks.size() : 0,
+                emergencyInfo);
         for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
             if (ServerPlayNetworking.canSend(player, TaskListStatePacket.PACKET_ID)) {
                 ServerPlayNetworking.send(player, new TaskListStatePacket(taskListState));
