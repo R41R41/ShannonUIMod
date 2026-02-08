@@ -15,9 +15,12 @@ import net.minecraft.server.network.ServerPlayerEntity;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.shannon.network.packet.AdvancementsStatePacket;
 import com.shannon.network.packet.InventoryState;
 import com.shannon.network.packet.PlayerStatusState;
 import com.shannon.network.packet.PlayerStatusStatePacket;
+import com.shannon.util.AdvancementCollector;
+import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 
 /**
@@ -66,6 +69,66 @@ public class ShannonUIMod implements ModInitializer {
 
 		// イベント登録
 		MyModServer.registerEvents();
+
+		// プレイヤーJOIN時に進捗データを自動送信
+		ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> {
+			ServerPlayerEntity joinedPlayer = handler.getPlayer();
+			String joinedName = joinedPlayer.getName().getString();
+			LOGGER.info("[Advancements] Player joined: {}", joinedName);
+
+			// 1tick待ってからデータ収集（プレイヤーのAdvancementTrackerの初期化完了を待つ）
+			server.execute(() -> {
+				try {
+					String targetName = ModConfig.TARGET_PLAYER_NAME;
+
+					// ターゲットプレイヤーがオンラインか確認
+					boolean targetOnline = false;
+					for (ServerPlayerEntity p : server.getPlayerManager().getPlayerList()) {
+						if (p.getName().getString().equals(targetName)) {
+							targetOnline = true;
+							break;
+						}
+					}
+
+					if (!targetOnline) {
+						LOGGER.debug("[Advancements] Target player '{}' not online, skipping", targetName);
+						return;
+					}
+
+					// 進捗データを収集
+					com.shannon.network.packet.AdvancementsState state =
+							AdvancementCollector.collect(server, targetName);
+
+					// ターゲットプレイヤー本人がJOINした場合: 全プレイヤーに送信
+					// それ以外のプレイヤーがJOINした場合: そのプレイヤーにだけ送信
+					if (joinedName.equals(targetName)) {
+						for (ServerPlayerEntity p : server.getPlayerManager().getPlayerList()) {
+							if (ServerPlayNetworking.canSend(p, AdvancementsStatePacket.PACKET_ID)) {
+								try {
+									ServerPlayNetworking.send(p, new AdvancementsStatePacket(state));
+								} catch (Exception e) {
+									LOGGER.error("[Advancements] Failed to send to {}", p.getName().getString(), e);
+								}
+							}
+						}
+						LOGGER.info("[Advancements] Target player joined - sent to all clients ({} categories)",
+								state.categories != null ? state.categories.size() : 0);
+					} else {
+						if (ServerPlayNetworking.canSend(joinedPlayer, AdvancementsStatePacket.PACKET_ID)) {
+							try {
+								ServerPlayNetworking.send(joinedPlayer, new AdvancementsStatePacket(state));
+								LOGGER.info("[Advancements] Sent to joining player {} ({} categories)",
+										joinedName, state.categories != null ? state.categories.size() : 0);
+							} catch (Exception e) {
+								LOGGER.error("[Advancements] Failed to send to {}", joinedName, e);
+							}
+						}
+					}
+				} catch (Exception e) {
+					LOGGER.error("[Advancements] Error in JOIN handler", e);
+				}
+			});
+		});
 
 		LOGGER.info("✅ ShannonUIMod initialized successfully!");
 	}

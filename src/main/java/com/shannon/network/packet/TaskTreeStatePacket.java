@@ -10,20 +10,32 @@ public record TaskTreeStatePacket(TaskTreeState state) implements CustomPayload 
     public static final CustomPayload.Id<TaskTreeStatePacket> PACKET_ID = new CustomPayload.Id<>(
             Identifier.of("shannonuimod", "task_tree_state"));
 
+    /** パケットに書き込む文字列の最大長（バッファオーバーフロー防止） */
+    private static final int MAX_STRING_LENGTH = 4096;
+
+    /** 文字列を安全な長さに切り詰める */
+    private static String safeString(String str) {
+        if (str == null) return "";
+        if (str.length() > MAX_STRING_LENGTH) {
+            return str.substring(0, MAX_STRING_LENGTH) + "...";
+        }
+        return str;
+    }
+
     public static final PacketCodec<RegistryByteBuf, TaskTreeStatePacket> PACKET_CODEC = PacketCodec.of(
             (value, buf) -> {
                 // 基本フィールド
-                buf.writeString(value.state.goal != null ? value.state.goal : "");
-                buf.writeString(value.state.strategy != null ? value.state.strategy : "");
-                buf.writeString(value.state.status != null ? value.state.status : "");
+                buf.writeString(safeString(value.state.goal));
+                buf.writeString(safeString(value.state.strategy));
+                buf.writeString(safeString(value.state.status));
                 buf.writeBoolean(value.state.error != null);
                 if (value.state.error != null)
-                    buf.writeString(value.state.error);
+                    buf.writeString(safeString(value.state.error));
 
                 // currentSubTaskId
                 buf.writeBoolean(value.state.currentSubTaskId != null);
                 if (value.state.currentSubTaskId != null) {
-                    buf.writeString(value.state.currentSubTaskId);
+                    buf.writeString(safeString(value.state.currentSubTaskId));
                 }
 
                 // hierarchicalSubTasks（新形式）
@@ -40,12 +52,12 @@ public record TaskTreeStatePacket(TaskTreeState state) implements CustomPayload 
                 if (value.state.subTasks != null && !value.state.subTasks.isEmpty()) {
                     buf.writeInt(value.state.subTasks.size());
                     for (TaskTreeState.SubTask sub : value.state.subTasks) {
-                        buf.writeString(sub.subTaskGoal != null ? sub.subTaskGoal : "");
-                        buf.writeString(sub.subTaskStrategy != null ? sub.subTaskStrategy : "");
-                        buf.writeString(sub.subTaskStatus != null ? sub.subTaskStatus : "");
+                        buf.writeString(safeString(sub.subTaskGoal));
+                        buf.writeString(safeString(sub.subTaskStrategy));
+                        buf.writeString(safeString(sub.subTaskStatus));
                         buf.writeBoolean(sub.subTaskResult != null);
                         if (sub.subTaskResult != null)
-                            buf.writeString(sub.subTaskResult);
+                            buf.writeString(safeString(sub.subTaskResult));
                     }
                 } else {
                     buf.writeInt(0);
@@ -93,14 +105,14 @@ public record TaskTreeStatePacket(TaskTreeState state) implements CustomPayload 
      * HierarchicalSubTaskを再帰的に書き込む
      */
     private static void writeHierarchicalSubTask(RegistryByteBuf buf, TaskTreeState.HierarchicalSubTask sub) {
-        buf.writeString(sub.id != null ? sub.id : "");
-        buf.writeString(sub.goal != null ? sub.goal : "");
-        buf.writeString(sub.strategy != null ? sub.strategy : "");
-        buf.writeString(sub.status != null ? sub.status : "");
-        buf.writeString(sub.result != null ? sub.result : "");
-        buf.writeString(sub.failureReason != null ? sub.failureReason : "");
+        buf.writeString(safeString(sub.id));
+        buf.writeString(safeString(sub.goal));
+        buf.writeString(safeString(sub.strategy));
+        buf.writeString(safeString(sub.status));
+        buf.writeString(safeString(sub.result));
+        buf.writeString(safeString(sub.failureReason));
         buf.writeInt(sub.depth);
-        buf.writeString(sub.parentId != null ? sub.parentId : "");
+        buf.writeString(safeString(sub.parentId));
         buf.writeBoolean(sub.needsDecomposition);
 
         // children（再帰的に書き込む）

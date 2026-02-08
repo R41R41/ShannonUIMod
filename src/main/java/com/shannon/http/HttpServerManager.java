@@ -64,6 +64,7 @@ public class HttpServerManager {
         server.createContext("/screenshot", new ServerScreenshotEndpoint());
         server.createContext("/task_delete", new TaskDeleteEndpoint());
         server.createContext("/task_prioritize", new TaskPrioritizeEndpoint());
+        server.createContext("/advancements", new AdvancementsEndpoint());
 
         LOGGER.info("全エンドポイントの登録が完了しました");
     }

@@ -30,6 +30,9 @@ import com.shannon.network.packet.ReactionSettingsStatePacket;
 import com.shannon.network.packet.ScreenshotRequestPacket;
 import com.shannon.network.packet.ScreenshotResultPacket;
 import com.shannon.network.packet.TaskListStatePacket;
+import com.shannon.network.packet.AdvancementsState;
+import com.shannon.network.packet.AdvancementsStatePacket;
+import com.shannon.network.packet.RequestAdvancementsPacket;
 import com.shannon.util.ScreenshotUtil;
 import com.shannon.http.endpoints.ScreenshotEndpoint;
 import com.shannon.state.StateManager;
@@ -47,10 +50,12 @@ public class ShannonUIModClient implements ClientModInitializer {
     private ChatState chatState;
     private DetailedLogsState detailedLogsState;
     private ReactionSettingsState reactionSettingsState;
+    private AdvancementsState advancementsState;
+    private boolean advancementsRequested = false; // タブ表示時のリクエスト制御
     private com.shannon.network.packet.LogToggleState logToggleState = new com.shannon.network.packet.LogToggleState();
     private UIRenderer.UIState uiState = new UIRenderer.UIState();
     private static ShannonUIModClient INSTANCE;
-    private int[] tabScrollOffsets = new int[6]; // 6タブ分
+    private int[] tabScrollOffsets = new int[7]; // 7タブ分
     private int selectedTab = 0;
     private static String selectedTaskId = null;
 
@@ -136,6 +141,16 @@ public class ShannonUIModClient implements ClientModInitializer {
                 DetailedLogsState state = payload.state();
                 detailedLogsState = state;
                 System.out.println("DetailedLogsState received: " + state);
+            });
+        });
+
+        ClientPlayNetworking.registerGlobalReceiver(AdvancementsStatePacket.PACKET_ID, (payload, context) -> {
+            context.client().execute(() -> {
+                AdvancementsState state = payload.state();
+                advancementsState = state;
+                System.out.println("[ShannonUI] AdvancementsState received: " +
+                        state.playerName + " (" +
+                        (state.categories != null ? state.categories.size() : 0) + " categories)");
             });
         });
 
@@ -360,5 +375,29 @@ public class ShannonUIModClient implements ClientModInitializer {
 
     public static void setSelectedTaskId(String taskId) {
         selectedTaskId = taskId;
+    }
+
+    public static AdvancementsState getAdvancementsState() {
+        return INSTANCE != null ? INSTANCE.advancementsState : null;
+    }
+
+    /**
+     * 進捗データをサーバーにリクエスト（タブ切り替え時に呼ぶ）
+     */
+    public static void requestAdvancements() {
+        if (INSTANCE == null) return;
+        try {
+            ClientPlayNetworking.send(new RequestAdvancementsPacket(""));
+            INSTANCE.advancementsRequested = true;
+        } catch (Exception e) {
+            System.err.println("[ShannonUI] Failed to request advancements: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 進捗がリクエスト済みかどうか
+     */
+    public static boolean isAdvancementsRequested() {
+        return INSTANCE != null && INSTANCE.advancementsRequested;
     }
 }

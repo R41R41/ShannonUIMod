@@ -27,6 +27,7 @@ public class UIRenderer {
     private static final Identifier CHAT = Identifier.of("shannonuimod", "textures/chat.png");
     private static final Identifier DEBUG = Identifier.of("shannonuimod", "textures/debug.png");
     private static final Identifier SETTINGS = Identifier.of("shannonuimod", "textures/settings.png");
+    private static final Identifier ADVANCEMENTS = Identifier.of("shannonuimod", "textures/advancements.png");
 
     public static void renderTaskTreeUI(DrawContext context, MinecraftClient mc, int x, int y, int windowWidth,
             int windowHeight, int uiWidth, int uiHeight, TaskTreeState taskTreeState, int scrollOffset) {
@@ -176,7 +177,7 @@ public class UIRenderer {
         int selectedTab = ShannonUIModClient.getSelectedTab();
         if (tabSwitchNextKey != null && tabSwitchNextKey.wasPressed()) {
             ShannonUIModClient.setTabScrollOffset(selectedTab, state.scrollOffset);
-            selectedTab = (selectedTab + 1) % 6; // 6タブに変更
+            selectedTab = (selectedTab + 1) % 7; // 7タブに変更
             ShannonUIModClient.setSelectedTab(selectedTab);
             state.scrollOffset = ShannonUIModClient.getTabScrollOffset(selectedTab);
         }
@@ -256,6 +257,12 @@ public class UIRenderer {
             case 5:
                 SettingsUIRenderer.renderSettings(context, mc, innerX, innerY, uiWidth, uiHeight - 2, state,
                         state.scrollOffset, relMouseX, relMouseY, mouseJustClicked);
+                break;
+            case 6:
+                com.shannon.network.packet.AdvancementsState advancementsState = ShannonUIModClient
+                        .getAdvancementsState();
+                AdvancementsUIRenderer.renderAdvancements(context, mc, innerX, innerY, uiWidth, uiHeight - 2, state,
+                        state.scrollOffset, advancementsState, relMouseX, relMouseY, mouseJustClicked);
                 break;
         }
         // スクロールバー描画
@@ -373,12 +380,12 @@ public class UIRenderer {
         int borderColor3 = 0xff000000;
         boolean mouseClicked = GLFW.glfwGetMouseButton(mc.getWindow().getHandle(),
                 GLFW.GLFW_MOUSE_BUTTON_1) == GLFW.GLFW_PRESS;
-        Identifier[] icon = { TASK_TREE, PASSIVE_SKILL, INVENTORY, CHAT, DEBUG, SETTINGS };
+        Identifier[] icon = { TASK_TREE, PASSIVE_SKILL, INVENTORY, CHAT, DEBUG, SETTINGS, ADVANCEMENTS };
         String[] tabDescriptionKeys = { "tab.shannonuimod.tasktree", "tab.shannonuimod.passiveskill",
                 "tab.shannonuimod.inventory", "tab.shannonuimod.chat", "tab.shannonuimod.debug",
-                "tab.shannonuimod.settings" };
+                "tab.shannonuimod.settings", "tab.shannonuimod.advancements" };
         int hoveredTab = -1;
-        for (int i = 0; i < 6; i++) {
+        for (int i = 0; i < 7; i++) {
             int tabX = x - tabWidth - 2;
             int tabY = y + i * (tabHeight + 5) + 2;
             int bgColor = (i == state.selectedTab) ? bgColor1 : bgColor2;

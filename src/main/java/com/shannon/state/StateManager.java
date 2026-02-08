@@ -215,7 +215,11 @@ public class StateManager {
 
         for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
             if (ServerPlayNetworking.canSend(player, TaskTreeStatePacket.PACKET_ID)) {
-                ServerPlayNetworking.send(player, new TaskTreeStatePacket(taskTreeState));
+                try {
+                    ServerPlayNetworking.send(player, new TaskTreeStatePacket(taskTreeState));
+                } catch (Exception e) {
+                    LOGGER.error("Failed to send TaskTreeState packet to player {}: {}", player.getName().getString(), e.getMessage());
+                }
             }
         }
     }

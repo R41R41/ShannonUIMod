@@ -38,6 +38,7 @@ public class PacketHandlerRegistry {
         registerReactionSettingsResetHandler();
         registerScreenshotResultHandler();
         registerTaskActionHandler();
+        registerRequestAdvancementsHandler();
 
         LOGGER.info("✅ All C2S packet handlers registered");
     }
@@ -267,6 +268,61 @@ public class PacketHandlerRegistry {
                         } catch (Exception e) {
                             ModErrorHandler.handle(
                                     new PacketHandlingException("TaskActionPacket", e));
+                        }
+                    });
+                });
+    }
+
+    /**
+     * 進捗データリクエストパケットハンドラ
+     * クライアントからのリクエストに応じて進捗データを収集・送信
+     */
+    private static void registerRequestAdvancementsHandler() {
+        ServerPlayNetworking.registerGlobalReceiver(
+                RequestAdvancementsPacket.PACKET_ID,
+                (payload, context) -> {
+                    ServerPlayerEntity player = context.player();
+                    String requestedPlayer = payload.playerName();
+                    LOGGER.info("[Advancements] Request received from {} for '{}'",
+                            player.getName().getString(), requestedPlayer);
+
+                    // 空の場合はターゲットプレイヤー
+                    if (requestedPlayer == null || requestedPlayer.isEmpty()) {
+                        requestedPlayer = ModConfig.TARGET_PLAYER_NAME;
+                    }
+                    final String targetName = requestedPlayer;
+
+                    // プレイヤーリストをログ出力
+                    LOGGER.info("[Advancements] Looking for '{}', online players: {}",
+                            targetName,
+                            context.server().getPlayerManager().getPlayerList().stream()
+                                    .map(p -> p.getName().getString())
+                                    .reduce((a, b) -> a + ", " + b)
+                                    .orElse("none"));
+
+                    context.server().execute(() -> {
+                        try {
+                            com.shannon.network.packet.AdvancementsState state =
+                                com.shannon.util.AdvancementCollector.collect(context.server(), targetName);
+
+                            LOGGER.info("[Advancements] Collected: playerName='{}', categories={}",
+                                    state.playerName,
+                                    state.categories != null ? state.categories.size() : 0);
+
+                            // リクエストしたプレイヤーにのみ送信
+                            if (net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.canSend(
+                                    player, AdvancementsStatePacket.PACKET_ID)) {
+                                net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.send(
+                                    player, new AdvancementsStatePacket(state));
+                                LOGGER.info("[Advancements] Sent to {}", player.getName().getString());
+                            } else {
+                                LOGGER.warn("[Advancements] Cannot send to {} - channel not available",
+                                        player.getName().getString());
+                            }
+                        } catch (Exception e) {
+                            LOGGER.error("[Advancements] Error processing request", e);
+                            ModErrorHandler.handle(
+                                    new PacketHandlingException("RequestAdvancementsPacket", e));
                         }
                     });
                 });

@@ -42,8 +42,10 @@ public class PacketRegistry {
                                 ReactionSettingsStatePacket.PACKET_CODEC);
                 PayloadTypeRegistry.playS2C().register(ScreenshotRequestPacket.PACKET_ID,
                                 ScreenshotRequestPacket.PACKET_CODEC);
+                PayloadTypeRegistry.playS2C().register(AdvancementsStatePacket.PACKET_ID,
+                                AdvancementsStatePacket.PACKET_CODEC);
 
-                LOGGER.debug("  ✓ S2C packets registered (10 types)");
+                LOGGER.debug("  ✓ S2C packets registered (11 types)");
         }
 
         /**
@@ -65,8 +67,10 @@ public class PacketRegistry {
                                 ScreenshotResultPacket.PACKET_CODEC);
                 PayloadTypeRegistry.playC2S().register(TaskActionPacket.PACKET_ID,
                                 TaskActionPacket.PACKET_CODEC);
+                PayloadTypeRegistry.playC2S().register(RequestAdvancementsPacket.PACKET_ID,
+                                RequestAdvancementsPacket.PACKET_CODEC);
 
-                LOGGER.debug("  ✓ C2S packets registered (8 types)");
+                LOGGER.debug("  ✓ C2S packets registered (9 types)");
         }
 
         private PacketRegistry() {
