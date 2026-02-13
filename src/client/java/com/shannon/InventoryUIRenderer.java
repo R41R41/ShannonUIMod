@@ -4,13 +4,22 @@ import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.text.OrderedText;
 import net.minecraft.text.Text;
+import net.minecraft.item.ItemStack;
+import net.minecraft.registry.Registries;
+import net.minecraft.util.Identifier;
 import com.shannon.network.packet.InventoryState;
 import com.shannon.network.packet.InventoryItemClickPacket;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 
+/**
+ * インベントリUIレンダラー
+ * アイテムアイコン表示＆装備スロットの視覚化対応
+ */
 public class InventoryUIRenderer {
-    private static final float SCALE = 0.7f;
+    private static final float SCALE = RenderUtils.SCALE;
     private static final int LINE_HEIGHT = 10;
+    private static final int SLOT_SIZE = 18; // スロット背景のサイズ（16pxアイコン + 2px余白）
+    private static final int ITEM_ROW_HEIGHT = 20; // アイテム行の高さ（アイコン+テキスト）
     private static boolean wasMousePressed = false;
 
     public static void renderInventory(DrawContext context, MinecraftClient mc, int x, int y, int uiWidth,
@@ -31,104 +40,170 @@ public class InventoryUIRenderer {
             int scaledUiWidth = (int) (uiWidth / SCALE);
             int scaledUiHeight = (int) (uiHeight / SCALE);
 
-            int line = 0;
             int drawX = (int) (4 / SCALE);
             int drawY = (int) (4 / SCALE);
             int yOffset = (int) (-scrollOffset / SCALE);
             int maxTextWidth = scaledUiWidth - 8;
             int startY = drawY + yOffset;
+            int currentY = startY;
 
-            // 装備情報の表示
+            // === Equipment セクション ===
+            if (currentY >= 0 && currentY + 10 <= scaledUiHeight) {
+                context.drawTextWithShadow(mc.textRenderer, Text.literal("装備"), drawX, currentY,
+                        RenderUtils.COLOR_HEADER);
+            }
+            currentY += LINE_HEIGHT + 4;
+
+            // 装備スロットを描画
             String[] equipLabels = { "mainhand", "offhand", "head", "chest", "legs", "feet" };
+            String[] equipDisplayLabels = { "メイン", "オフハンド", "頭", "胸", "脚", "足" };
             InventoryState.Item[] equipItems = {
-                    inventoryState.mainHand,
-                    inventoryState.offHand,
-                    inventoryState.head,
-                    inventoryState.chest,
-                    inventoryState.legs,
-                    inventoryState.feet
+                    inventoryState.mainHand, inventoryState.offHand,
+                    inventoryState.head, inventoryState.chest,
+                    inventoryState.legs, inventoryState.feet
             };
+
             for (int i = 0; i < equipLabels.length; i++) {
-                String label = equipLabels[i];
                 InventoryState.Item item = equipItems[i];
-                String text = label + " " + (item != null ? item.displayName + ": " + item.count : "-");
-                for (OrderedText wrapped : wrapText(mc, text, maxTextWidth)) {
-                    int textY = startY + line * LINE_HEIGHT;
-                    int rectX1 = drawX;
-                    int rectY1 = textY - 2 - yOffset;
-                    int rectX2 = rectX1 + scaledUiWidth - 32;
-                    int rectY2 = rectY1 + LINE_HEIGHT;
-                    boolean hovered = (scaledMouseX >= rectX1 && scaledMouseX <= rectX2 && scaledMouseY >= rectY1
-                            && scaledMouseY <= rectY2);
-                    if (textY >= 0 && textY + 10 <= scaledUiHeight) {
-                        if (hovered) {
-                            context.fill(rectX1 - 1, rectY1 + yOffset, scaledUiWidth - 8, rectY2 + yOffset, 0xFFFFFFFF);
-                            context.drawText(mc.textRenderer, wrapped, drawX, textY, 0x000000, false);
-                            if (mouseClicked && !wasMousePressed && item != null) {
-                                ClientPlayNetworking.send(new InventoryItemClickPacket(item.name));
-                            }
-                        } else {
-                            context.drawTextWithShadow(mc.textRenderer, wrapped, drawX, textY, 0xAAAAAA);
+                int slotY = currentY;
+
+                if (slotY >= -SLOT_SIZE && slotY + SLOT_SIZE <= scaledUiHeight + SLOT_SIZE) {
+                    int slotMouseY = slotY - yOffset;
+                    boolean hovered = scaledMouseX >= drawX && scaledMouseX <= drawX + SLOT_SIZE
+                            && scaledMouseY >= slotMouseY && scaledMouseY <= slotMouseY + SLOT_SIZE;
+
+                    // スロット背景
+                    RenderUtils.drawSlotBackground(context, drawX, slotY, SLOT_SIZE, hovered);
+
+                    // アイテムアイコン
+                    if (item != null) {
+                        ItemStack stack = getItemStack(item.name);
+                        if (!stack.isEmpty()) {
+                            context.drawItem(stack, drawX + 1, slotY + 1);
                         }
                     }
-                    line++;
+
+                    // ラベルとアイテム名
+                    String labelText = equipDisplayLabels[i] + ": "
+                            + (item != null ? item.displayName : "-");
+                    if (slotY >= 0 && slotY + 10 <= scaledUiHeight) {
+                        int textColor = hovered ? 0xFFFF55 : (item != null ? 0xFFFFFF : 0x888888);
+                        context.drawTextWithShadow(mc.textRenderer, Text.literal(labelText),
+                                drawX + SLOT_SIZE + 4, slotY + 5, textColor);
+                    }
+
+                    // クリック処理
+                    if (hovered && mouseClicked && !wasMousePressed && item != null) {
+                        ClientPlayNetworking.send(new InventoryItemClickPacket(item.name));
+                    }
                 }
+
+                currentY += ITEM_ROW_HEIGHT;
             }
 
-            // インベントリ満タン表示
+            currentY += 4;
+
+            // セパレーター
+            if (currentY >= 0 && currentY <= scaledUiHeight) {
+                context.fill(drawX, currentY, scaledUiWidth - 8, currentY + 1, RenderUtils.COLOR_SEPARATOR);
+            }
+            currentY += 6;
+
+            // === Inventory セクション ===
+            // インベントリ満タン警告
             if (inventoryState.isFull) {
-                String fullText = "※Inventory is full!";
-                for (OrderedText wrapped : wrapText(mc, fullText, maxTextWidth)) {
-                    int textY = startY + line * LINE_HEIGHT;
-                    if (textY >= 0 && textY + 10 <= scaledUiHeight) {
-                        context.drawTextWithShadow(mc.textRenderer, wrapped, drawX, textY, 0xFF4444);
-                    }
-                    line++;
+                if (currentY >= 0 && currentY + 10 <= scaledUiHeight) {
+                    context.drawTextWithShadow(mc.textRenderer, Text.literal("! インベントリ満タン !"),
+                            drawX, currentY, RenderUtils.COLOR_ERROR);
                 }
+                currentY += LINE_HEIGHT + 2;
             }
 
-            // アイテムリスト表示
-            java.util.List<InventoryState.Item> sortedItems = new java.util.ArrayList<>(inventoryState.items);
-            java.util.Collections.sort(sortedItems, (a, b) -> a.displayName.compareToIgnoreCase(b.displayName));
-            for (InventoryState.Item item : sortedItems) {
-                String lineText = item.displayName + ": " + item.count;
-                for (OrderedText wrapped : wrapText(mc, lineText, maxTextWidth)) {
-                    int textY = startY + line * LINE_HEIGHT;
-                    int rectX1 = drawX;
-                    int rectY1 = textY - 2 - yOffset;
-                    int rectX2 = rectX1 + scaledUiWidth - 32;
-                    int rectY2 = rectY1 + LINE_HEIGHT;
-                    boolean hovered = (scaledMouseX >= rectX1 && scaledMouseX <= rectX2 && scaledMouseY >= rectY1
-                            && scaledMouseY <= rectY2);
-                    if (textY >= 0 && textY + 10 <= scaledUiHeight) {
-                        if (hovered) {
-                            context.fill(rectX1 - 1, rectY1 + yOffset, scaledUiWidth - 8, rectY2 + yOffset, 0xFFFFFFFF);
-                            context.drawText(mc.textRenderer, wrapped, drawX, textY, 0x000000, false);
-                            if (mouseClicked && !wasMousePressed) {
-                                ClientPlayNetworking.send(new InventoryItemClickPacket(item.name));
+            // アイテム数ヘッダー
+            int itemCount = inventoryState.items != null ? inventoryState.items.size() : 0;
+            if (currentY >= 0 && currentY + 10 <= scaledUiHeight) {
+                context.drawTextWithShadow(mc.textRenderer,
+                        Text.literal("インベントリ (" + itemCount + "個)"),
+                        drawX, currentY, RenderUtils.COLOR_HEADER);
+            }
+            currentY += LINE_HEIGHT + 4;
+
+            // アイテムリスト（アイコン付き）
+            if (inventoryState.items != null) {
+                java.util.List<InventoryState.Item> sortedItems = new java.util.ArrayList<>(inventoryState.items);
+                java.util.Collections.sort(sortedItems, (a, b) -> a.displayName.compareToIgnoreCase(b.displayName));
+
+                for (InventoryState.Item item : sortedItems) {
+                    int itemY = currentY;
+
+                    if (itemY >= -SLOT_SIZE && itemY + SLOT_SIZE <= scaledUiHeight + SLOT_SIZE) {
+                        int itemMouseY = itemY - yOffset;
+                        boolean hovered = scaledMouseX >= drawX && scaledMouseX <= scaledUiWidth - 8
+                                && scaledMouseY >= itemMouseY && scaledMouseY <= itemMouseY + SLOT_SIZE;
+
+                        // アイテムアイコン（小さめスロット）
+                        ItemStack stack = getItemStack(item.name);
+                        if (!stack.isEmpty() && itemY >= 0 && itemY + SLOT_SIZE <= scaledUiHeight) {
+                            RenderUtils.drawSlotBackground(context, drawX, itemY, SLOT_SIZE, hovered);
+                            context.drawItem(stack, drawX + 1, itemY + 1);
+                        }
+
+                        // テキスト
+                        String itemText = item.displayName + ": " + item.count;
+                        if (itemY >= 0 && itemY + 10 <= scaledUiHeight) {
+                            if (hovered) {
+                                context.fill(drawX + SLOT_SIZE + 2, itemY,
+                                        scaledUiWidth - 8, itemY + SLOT_SIZE, 0x44FFFFFF);
+                                context.drawTextWithShadow(mc.textRenderer, Text.literal(itemText),
+                                        drawX + SLOT_SIZE + 4, itemY + 5, 0xFFFF55);
+                            } else {
+                                context.drawTextWithShadow(mc.textRenderer, Text.literal(itemText),
+                                        drawX + SLOT_SIZE + 4, itemY + 5, 0xFFFFFF);
                             }
-                        } else {
-                            context.drawTextWithShadow(mc.textRenderer, wrapped, drawX, textY, 0xFFFFFF);
+                        }
+
+                        // クリック処理
+                        if (hovered && mouseClicked && !wasMousePressed) {
+                            ClientPlayNetworking.send(new InventoryItemClickPacket(item.name));
                         }
                     }
-                    line++;
+
+                    currentY += ITEM_ROW_HEIGHT;
                 }
             }
-            state.contentHeight = (int) ((line + 1) * LINE_HEIGHT * SCALE) + 8;
 
-            // 表示するものが何もない、または少ない場合はスクロールを一番上に
-            if (state.contentHeight <= uiHeight) {
-                state.scrollOffset = 0;
-                ShannonUIModClient.setTabScrollOffset(state.selectedTab, 0);
-            }
+            // コンテンツ高さ計算
+            int totalContentPixels = currentY - startY + 16;
+            RenderUtils.updateContentHeight(state, totalContentPixels, SCALE, uiHeight);
+
         } finally {
             wasMousePressed = mouseClicked;
             context.getMatrices().pop();
         }
     }
 
-    public static java.util.List<OrderedText> wrapText(MinecraftClient mc, String text, int maxWidth) {
-        Text txt = Text.literal(text);
-        return mc.textRenderer.wrapLines(txt, maxWidth);
+    /**
+     * アイテム名からItemStackを生成
+     */
+    private static ItemStack getItemStack(String itemName) {
+        try {
+            if (itemName == null || itemName.isEmpty() || itemName.equals("-"))
+                return ItemStack.EMPTY;
+
+            Identifier id;
+            if (itemName.contains(":")) {
+                id = Identifier.of(itemName);
+            } else {
+                id = Identifier.of("minecraft", itemName);
+            }
+
+            net.minecraft.item.Item item = Registries.ITEM.get(id);
+            if (item != null) {
+                return new ItemStack(item);
+            }
+            return ItemStack.EMPTY;
+        } catch (Exception e) {
+            return ItemStack.EMPTY;
+        }
     }
 }

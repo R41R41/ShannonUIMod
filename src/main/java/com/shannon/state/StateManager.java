@@ -70,7 +70,10 @@ public class StateManager {
 
     public void updateTaskTreeState(TaskTreeState newState) {
         this.taskTreeState = newState;
-        LOGGER.info("TaskTreeState updated: " + newState);
+        LOGGER.info("TaskTreeState updated: goal='{}', status={}, subTasks={}",
+                newState.goal,
+                newState.status,
+                newState.hierarchicalSubTasks != null ? newState.hierarchicalSubTasks.size() : 0);
         notifyListeners(StateType.TASK_TREE);
         broadcastTaskTreeState();
     }
@@ -103,12 +106,8 @@ public class StateManager {
         if (taskListState == null || server == null) {
             return;
         }
-        String emergencyInfo = (taskListState.emergencyTask != null)
-                ? taskListState.emergencyTask.goal
-                : "null";
-        LOGGER.info("📤 Broadcasting TaskListState: {} tasks, emergencyTask={}",
-                taskListState.tasks != null ? taskListState.tasks.size() : 0,
-                emergencyInfo);
+        LOGGER.debug("📤 Broadcasting TaskListState: {} tasks",
+                taskListState.tasks != null ? taskListState.tasks.size() : 0);
         for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
             if (ServerPlayNetworking.canSend(player, TaskListStatePacket.PACKET_ID)) {
                 ServerPlayNetworking.send(player, new TaskListStatePacket(taskListState));
@@ -135,7 +134,7 @@ public class StateManager {
                 this.logsState.logs.remove(0);
             }
 
-            LOGGER.info("DetailedLogsState merged: added {} logs, total {} logs",
+            LOGGER.debug("DetailedLogsState merged: added {} logs, total {} logs",
                     newState.logs.size(), this.logsState.logs.size());
         }
 
@@ -218,7 +217,8 @@ public class StateManager {
                 try {
                     ServerPlayNetworking.send(player, new TaskTreeStatePacket(taskTreeState));
                 } catch (Exception e) {
-                    LOGGER.error("Failed to send TaskTreeState packet to player {}: {}", player.getName().getString(), e.getMessage());
+                    LOGGER.error("Failed to send TaskTreeState packet to player {}: {}", player.getName().getString(),
+                            e.getMessage());
                 }
             }
         }

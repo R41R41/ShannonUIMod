@@ -236,7 +236,8 @@ public class UIRenderer {
                 }
                 TaskTreeUIRenderer.renderTaskTreeUI(context, mc, innerX, innerY, uiWidth,
                         uiHeight - 2,
-                        taskTreeState, state.scrollOffset, state, logsState, logToggleState);
+                        taskTreeState, state.scrollOffset, state, logsState, logToggleState,
+                        relMouseX, relMouseY, mouseJustClicked);
                 break;
             case 1:
                 ConstantSkillsUIRenderer.renderConstantSkills(context, mc, innerX, innerY, uiWidth, uiHeight - 2,
@@ -405,10 +406,15 @@ public class UIRenderer {
                     0, 0,
                     tabWidth, tabHeight,
                     tabWidth, tabHeight);
-            // クリック判定
+            // クリック判定（タブ切替時にスクロール位置の保存・復元も行う）
             if (mouseClicked && mouseX >= tabX && mouseX <= tabX + tabWidth && mouseY >= tabY
                     && mouseY <= tabY + tabHeight) {
-                state.selectedTab = i;
+                if (state.selectedTab != i) {
+                    ShannonUIModClient.setTabScrollOffset(state.selectedTab, state.scrollOffset);
+                    state.selectedTab = i;
+                    ShannonUIModClient.setSelectedTab(i);
+                    state.scrollOffset = ShannonUIModClient.getTabScrollOffset(i);
+                }
             }
             // ホバー判定
             if (mouseX >= tabX && mouseX <= tabX + tabWidth && mouseY >= tabY && mouseY <= tabY + tabHeight) {

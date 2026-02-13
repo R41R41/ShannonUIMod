@@ -49,8 +49,14 @@ public class ShannonUIScreen extends Screen {
 
     @Override
     public boolean charTyped(char chr, int modifiers) {
+        // チャットタブ
         if (uiState.selectedTab == 3) {
             ChatUIRenderer.handleCharTyped(chr, modifiers);
+            return true;
+        }
+        // 設定タブ（数値入力中）
+        if (uiState.selectedTab == 5 && SettingsUIRenderer.isEditing()) {
+            SettingsUIRenderer.handleCharTyped(chr, modifiers);
             return true;
         }
         return super.charTyped(chr, modifiers);
@@ -73,7 +79,7 @@ public class ShannonUIScreen extends Screen {
         if (ShannonUIModClient.getTabSwitchNextKey().getBoundKeyTranslationKey().equals(pressedKeyTranslation)) {
             int selectedTab = ShannonUIModClient.getSelectedTab();
             ShannonUIModClient.setTabScrollOffset(selectedTab, uiState.scrollOffset);
-            selectedTab = (selectedTab + 1) % 6;
+            selectedTab = (selectedTab + 1) % 7;
             ShannonUIModClient.setSelectedTab(selectedTab);
             uiState.selectedTab = selectedTab;
             uiState.scrollOffset = ShannonUIModClient.getTabScrollOffset(selectedTab);
@@ -88,6 +94,12 @@ public class ShannonUIScreen extends Screen {
         // チャットタブでのキー入力処理（特殊キー処理後）
         if (uiState.selectedTab == 3) {
             ChatUIRenderer.handleKeyPress(keyCode, scanCode, modifiers);
+            return true;
+        }
+
+        // 設定タブ（数値入力中）
+        if (uiState.selectedTab == 5 && SettingsUIRenderer.isEditing()) {
+            SettingsUIRenderer.handleKeyPress(keyCode, scanCode, modifiers);
             return true;
         }
 
@@ -117,7 +129,7 @@ public class ShannonUIScreen extends Screen {
         if (ShannonUIModClient.getTabSwitchNextKey().getBoundKeyTranslationKey().equals(pressedKeyTranslation)) {
             int selectedTab = ShannonUIModClient.getSelectedTab();
             ShannonUIModClient.setTabScrollOffset(selectedTab, uiState.scrollOffset);
-            selectedTab = (selectedTab + 1) % 6;
+            selectedTab = (selectedTab + 1) % 7;
             ShannonUIModClient.setSelectedTab(selectedTab);
             uiState.selectedTab = selectedTab;
             uiState.scrollOffset = ShannonUIModClient.getTabScrollOffset(selectedTab);

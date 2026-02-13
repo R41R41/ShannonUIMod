@@ -55,7 +55,7 @@ public class ChatUIRenderer {
                 }
             } else {
                 // チャット履歴がない場合
-                String noMessages = "No messages yet";
+                String noMessages = "メッセージなし";
                 for (OrderedText wrapped : wrapText(mc, noMessages, maxTextWidth)) {
                     int textY = startY + line * LINE_HEIGHT;
                     if (textY >= 0 && textY + 10 <= scaledChatHistoryHeight) {
@@ -123,7 +123,7 @@ public class ChatUIRenderer {
             int textY = inputBoxY + 2;
             String displayText = currentInput;
             if (displayText.isEmpty()) {
-                String placeholder = isInputFocused ? "" : "Type message...";
+                String placeholder = isInputFocused ? "" : "メッセージを入力...";
                 context.drawText(mc.textRenderer, placeholder, textX, textY, 0x666666, false);
             } else {
                 context.drawText(mc.textRenderer, displayText, textX, textY, 0xFFFFFF, false);
@@ -184,8 +184,7 @@ public class ChatUIRenderer {
     }
 
     public static java.util.List<OrderedText> wrapText(MinecraftClient mc, String text, int maxWidth) {
-        Text txt = Text.literal(text);
-        return mc.textRenderer.wrapLines(txt, maxWidth);
+        return RenderUtils.wrapText(mc, text, maxWidth);
     }
 
     public static String getCurrentInput() {

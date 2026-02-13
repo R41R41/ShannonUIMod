@@ -30,7 +30,7 @@ public class DebugUIRenderer {
             int scaledUiHeight = (int) (uiHeight / SCALE);
 
             // ヘッダー
-            String header = "Debug Logs";
+            String header = "デバッグログ";
             for (OrderedText lineText : wrapText(mc, header, maxTextWidth)) {
                 int textY = startY + LINE_HEIGHT * line;
                 if (textY >= 0 && textY + 10 <= scaledUiHeight) {
@@ -44,7 +44,7 @@ public class DebugUIRenderer {
             DetailedLogsState logsState = ShannonUIModClient.getDetailedLogsState();
 
             if (logsState == null || logsState.logs == null || logsState.logs.isEmpty()) {
-                String noLogs = "No debug logs available.";
+                String noLogs = "デバッグログはありません。";
                 for (OrderedText lineText : wrapText(mc, noLogs, maxTextWidth)) {
                     int textY = startY + LINE_HEIGHT * line;
                     if (textY >= 0 && textY + 10 <= scaledUiHeight) {
@@ -78,7 +78,7 @@ public class DebugUIRenderer {
                 if (log.metadata != null) {
                     // パラメータ
                     if (log.metadata.parameters != null && !log.metadata.parameters.isEmpty()) {
-                        String paramLine = "    args: " + truncate(log.metadata.parameters, 80);
+                        String paramLine = "    引数: " + truncate(log.metadata.parameters, 80);
                         for (OrderedText lineText : wrapText(mc, paramLine, maxTextWidth)) {
                             int textY = startY + LINE_HEIGHT * line;
                             if (textY >= 0 && textY + 10 <= scaledUiHeight) {
@@ -90,7 +90,7 @@ public class DebugUIRenderer {
 
                     // 実行時間
                     if (log.metadata.duration != null && log.metadata.duration > 0) {
-                        String durationLine = "    time: " + log.metadata.duration + "ms";
+                        String durationLine = "    実行時間: " + log.metadata.duration + "ms";
                         for (OrderedText lineText : wrapText(mc, durationLine, maxTextWidth)) {
                             int textY = startY + LINE_HEIGHT * line;
                             if (textY >= 0 && textY + 10 <= scaledUiHeight) {
@@ -102,7 +102,7 @@ public class DebugUIRenderer {
 
                     // エラー
                     if (log.metadata.error != null && !log.metadata.error.isEmpty()) {
-                        String errorLine = "    err: " + log.metadata.error;
+                        String errorLine = "    エラー: " + log.metadata.error;
                         for (OrderedText lineText : wrapText(mc, errorLine, maxTextWidth)) {
                             int textY = startY + LINE_HEIGHT * line;
                             if (textY >= 0 && textY + 10 <= scaledUiHeight) {
@@ -181,9 +181,9 @@ public class DebugUIRenderer {
             return "*";
         switch (phase.toLowerCase()) {
             case "planning":
-                return "[PLAN]";
+                return "[計画]";
             case "execution":
-                return "[EXEC]";
+                return "[実行]";
             default:
                 return "[" + phase.toUpperCase().substring(0, Math.min(4, phase.length())) + "]";
         }
@@ -199,7 +199,6 @@ public class DebugUIRenderer {
     }
 
     private static java.util.List<OrderedText> wrapText(MinecraftClient mc, String text, int maxWidth) {
-        Text txt = Text.literal(text);
-        return mc.textRenderer.wrapLines(txt, maxWidth);
+        return RenderUtils.wrapText(mc, text, maxWidth);
     }
 }

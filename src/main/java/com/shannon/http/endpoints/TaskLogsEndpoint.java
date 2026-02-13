@@ -32,9 +32,13 @@ public class TaskLogsEndpoint implements HttpHandler {
         try {
             InputStream is = exchange.getRequestBody();
             String json = new String(is.readAllBytes(), StandardCharsets.UTF_8);
-            LOGGER.info("受信したJSON (task_logs): " + json);
-
             JsonNode rootNode = mapper.readTree(json);
+            JsonNode goalNode = rootNode.get("goal");
+            JsonNode logsArrayNode = rootNode.get("logs");
+            LOGGER.info("受信: task_logs goal={}, logs={}件",
+                    goalNode != null ? goalNode.asText("?") : "?",
+                    logsArrayNode != null ? logsArrayNode.size() : 0);
+            LOGGER.debug("受信したJSON (task_logs): {}", json);
             JsonNode logsNode = rootNode.get("logs");
 
             DetailedLogsState newLogsState = new DetailedLogsState();

@@ -31,9 +31,12 @@ public class TaskEndpoint implements HttpHandler {
         try {
             InputStream is = exchange.getRequestBody();
             String json = new String(is.readAllBytes(), StandardCharsets.UTF_8);
-            LOGGER.info("受信したJSON: " + json);
-
             TaskTreeState newState = mapper.readValue(json, TaskTreeState.class);
+            LOGGER.info("受信: task goal={}, status={}, subTasks={}",
+                    newState.goal,
+                    newState.status,
+                    newState.hierarchicalSubTasks != null ? newState.hierarchicalSubTasks.size() : 0);
+            LOGGER.debug("受信したJSON (task): {}", json);
 
             // StateManager経由で更新
             ShannonUIMod.getStateManager().updateTaskTreeState(newState);

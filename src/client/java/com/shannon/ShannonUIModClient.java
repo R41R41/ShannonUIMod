@@ -258,9 +258,10 @@ public class ShannonUIModClient implements ClientModInitializer {
                     if (client.currentScreen instanceof ShannonUIScreen) {
                         client.setScreen(null);
                     }
-                    // HUD型UIのスクロール位置を復元
+                    // 共有のタブ・スクロール位置をHUD用uiStateに同期
                     if (INSTANCE != null) {
-                        INSTANCE.uiState.scrollOffset = getTabScrollOffset(INSTANCE.uiState.selectedTab);
+                        INSTANCE.uiState.selectedTab = INSTANCE.selectedTab;
+                        INSTANCE.uiState.scrollOffset = getTabScrollOffset(INSTANCE.selectedTab);
                     }
                     break;
                 case HUD:
@@ -286,8 +287,10 @@ public class ShannonUIModClient implements ClientModInitializer {
                         client.setScreen(null);
                     }
                     uiMode = UIMode.HUD;
+                    // 共有のタブ・スクロール位置をHUD用uiStateに同期
                     if (INSTANCE != null) {
-                        INSTANCE.uiState.scrollOffset = getTabScrollOffset(INSTANCE.uiState.selectedTab);
+                        INSTANCE.uiState.selectedTab = INSTANCE.selectedTab;
+                        INSTANCE.uiState.scrollOffset = getTabScrollOffset(INSTANCE.selectedTab);
                     }
                     break;
             }
