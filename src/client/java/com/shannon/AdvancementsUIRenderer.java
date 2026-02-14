@@ -56,11 +56,11 @@ public class AdvancementsUIRenderer {
             AdvancementsState advState,
             int mouseX, int mouseY, boolean mouseClicked) {
 
-        context.getMatrices().push();
+        context.getMatrices().pushMatrix();
         context.enableScissor(x, y, x + uiWidth, y + uiHeight);
         try {
-            context.getMatrices().translate(x, y, 0);
-            context.getMatrices().scale(SCALE, SCALE, 1.0f);
+            context.getMatrices().translate(x, y);
+            context.getMatrices().scale(SCALE, SCALE);
 
             int scaledMX = (int) ((mouseX + 4) / SCALE);
             int scaledMY = (int) ((mouseY + 4) / SCALE);
@@ -264,7 +264,7 @@ public class AdvancementsUIRenderer {
             wasMousePressed = mouseClicked;
         } finally {
             context.disableScissor();
-            context.getMatrices().pop();
+            context.getMatrices().popMatrix();
         }
     }
 
@@ -329,9 +329,11 @@ public class AdvancementsUIRenderer {
 
         try {
             if (mc.world != null) {
-                MutableText text = Text.Serialization.fromJson(jsonStr, mc.world.getRegistryManager());
-                if (text != null) {
-                    return text;
+                com.google.gson.JsonElement jsonElement = com.google.gson.JsonParser.parseString(jsonStr);
+                var ops = mc.world.getRegistryManager().getOps(com.mojang.serialization.JsonOps.INSTANCE);
+                var result = net.minecraft.text.TextCodecs.CODEC.parse(ops, jsonElement);
+                if (result.result().isPresent()) {
+                    return (MutableText) result.result().get();
                 }
             }
         } catch (Exception e) {

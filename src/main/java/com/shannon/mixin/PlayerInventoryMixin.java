@@ -20,8 +20,7 @@ public class PlayerInventoryMixin {
     private void onInsertStackReturn(ItemStack stack, CallbackInfoReturnable<Boolean> cir) {
         PlayerInventory inv = (PlayerInventory) (Object) this;
         if (inv.player != null && inv.player.getName().getString().contains(ModConfig.TARGET_PLAYER_NAME)) {
-            if (inv.player.getServer() != null && !inv.player.getWorld().isClient) {
-                net.minecraft.server.network.ServerPlayerEntity serverPlayer = (net.minecraft.server.network.ServerPlayerEntity) inv.player;
+            if (inv.player instanceof net.minecraft.server.network.ServerPlayerEntity serverPlayer) {
                 ShannonUIMod.sendInventoryStateToAll(serverPlayer);
             }
         }
@@ -32,8 +31,7 @@ public class PlayerInventoryMixin {
     private void onSetStackReturn(int slot, ItemStack stack, CallbackInfo ci) {
         PlayerInventory inv = (PlayerInventory) (Object) this;
         if (inv.player != null && inv.player.getName().getString().contains(ModConfig.TARGET_PLAYER_NAME)) {
-            if (inv.player.getServer() != null && !inv.player.getWorld().isClient) {
-                net.minecraft.server.network.ServerPlayerEntity serverPlayer = (net.minecraft.server.network.ServerPlayerEntity) inv.player;
+            if (inv.player instanceof net.minecraft.server.network.ServerPlayerEntity serverPlayer) {
                 ShannonUIMod.sendInventoryStateToAll(serverPlayer);
             }
         }
@@ -44,8 +42,7 @@ public class PlayerInventoryMixin {
     private void onRemoveStackReturn(int slot, int amount, CallbackInfoReturnable<ItemStack> cir) {
         PlayerInventory inv = (PlayerInventory) (Object) this;
         if (inv.player != null && inv.player.getName().getString().contains(ModConfig.TARGET_PLAYER_NAME)) {
-            if (inv.player.getServer() != null && !inv.player.getWorld().isClient) {
-                net.minecraft.server.network.ServerPlayerEntity serverPlayer = (net.minecraft.server.network.ServerPlayerEntity) inv.player;
+            if (inv.player instanceof net.minecraft.server.network.ServerPlayerEntity serverPlayer) {
                 ShannonUIMod.sendInventoryStateToAll(serverPlayer);
             }
         }

@@ -204,9 +204,7 @@ public class ShannonUIMod implements ModInitializer {
 			return;
 		}
 
-		if (targetPlayer.getWorld().isClient) {
-			return;
-		}
+		// ServerPlayerEntity は常にサーバーサイド（1.21.11でgetWorld()が削除されたため直接チェック不要）
 
 		float health = targetPlayer.getHealth();
 		float maxHealth = targetPlayer.getMaxHealth();

@@ -50,8 +50,10 @@ public class ScreenshotUtil {
             int width = framebuffer.textureWidth;
             int height = framebuffer.textureHeight;
 
-            // NativeImageを使用してスクリーンショットを撮影
-            NativeImage nativeImage = ScreenshotRecorder.takeScreenshot(framebuffer);
+            // NativeImageを使用してスクリーンショットを撮影（1.21.11: コールバック方式）
+            final NativeImage[] imageHolder = {null};
+            ScreenshotRecorder.takeScreenshot(framebuffer, img -> imageHolder[0] = img);
+            NativeImage nativeImage = imageHolder[0];
 
             if (nativeImage == null) {
                 result.success = false;

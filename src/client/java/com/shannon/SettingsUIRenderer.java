@@ -31,11 +31,11 @@ public class SettingsUIRenderer {
     public static void renderSettings(DrawContext context, MinecraftClient mc, int x, int y,
             int uiWidth, int uiHeight, UIRenderer.UIState state, int scrollOffset,
             int mouseX, int mouseY, boolean mouseClicked) {
-        context.getMatrices().push();
+        context.getMatrices().pushMatrix();
         context.enableScissor(x, y, x + uiWidth, y + uiHeight);
         try {
-            context.getMatrices().translate(x, y, 0);
-            context.getMatrices().scale(SCALE, SCALE, 1.0f);
+            context.getMatrices().translate(x, y);
+            context.getMatrices().scale(SCALE, SCALE);
 
             int scaledMouseX = (int) ((mouseX + 4) / SCALE);
             int scaledMouseY = (int) ((mouseY + 4) / SCALE);
@@ -128,7 +128,7 @@ public class SettingsUIRenderer {
             wasMousePressed = mouseClicked;
         } finally {
             context.disableScissor();
-            context.getMatrices().pop();
+            context.getMatrices().popMatrix();
         }
     }
 

@@ -26,10 +26,10 @@ public class ChatUIRenderer {
         int chatHistoryHeight = uiHeight - inputAreaHeight - 4;
 
         // チャット履歴の描画
-        context.getMatrices().push();
+        context.getMatrices().pushMatrix();
         try {
-            context.getMatrices().translate(x, y, 0);
-            context.getMatrices().scale(SCALE, SCALE, 1.0f);
+            context.getMatrices().translate(x, y);
+            context.getMatrices().scale(SCALE, SCALE);
 
             int line = 0;
             int drawX = (int) (4 / SCALE);
@@ -75,14 +75,14 @@ public class ChatUIRenderer {
             }
 
         } finally {
-            context.getMatrices().pop();
+            context.getMatrices().popMatrix();
         }
 
         // 入力欄の描画（スケール適用、スクロールの影響を受けない固定位置）
-        context.getMatrices().push();
+        context.getMatrices().pushMatrix();
         try {
-            context.getMatrices().translate(x, y, 0);
-            context.getMatrices().scale(SCALE, SCALE, 1.0f);
+            context.getMatrices().translate(x, y);
+            context.getMatrices().scale(SCALE, SCALE);
 
             int scaledUiWidth = (int) (uiWidth / SCALE);
             int scaledChatHistoryHeight = (int) (chatHistoryHeight / SCALE);
@@ -141,7 +141,7 @@ public class ChatUIRenderer {
             wasMousePressed = mouseClicked;
 
         } finally {
-            context.getMatrices().pop();
+            context.getMatrices().popMatrix();
         }
     }
 

@@ -1,8 +1,11 @@
 package com.shannon;
 
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.gui.Click;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
+import net.minecraft.client.input.CharInput;
+import net.minecraft.client.input.KeyInput;
 import net.minecraft.text.Text;
 import net.minecraft.client.util.InputUtil;
 
@@ -48,7 +51,9 @@ public class ShannonUIScreen extends Screen {
     }
 
     @Override
-    public boolean charTyped(char chr, int modifiers) {
+    public boolean charTyped(CharInput charInput) {
+        char chr = (char) charInput.codepoint();
+        int modifiers = charInput.modifiers();
         // チャットタブ
         if (uiState.selectedTab == 3) {
             ChatUIRenderer.handleCharTyped(chr, modifiers);
@@ -59,12 +64,12 @@ public class ShannonUIScreen extends Screen {
             SettingsUIRenderer.handleCharTyped(chr, modifiers);
             return true;
         }
-        return super.charTyped(chr, modifiers);
+        return super.charTyped(charInput);
     }
 
     @Override
-    public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
-        InputUtil.Key pressedKey = InputUtil.fromKeyCode(keyCode, scanCode);
+    public boolean keyPressed(KeyInput keyInput) {
+        InputUtil.Key pressedKey = InputUtil.fromKeyCode(keyInput);
         String pressedKeyTranslation = pressedKey.getTranslationKey();
 
         // 特殊キーの処理（全タブ共通）
@@ -86,24 +91,24 @@ public class ShannonUIScreen extends Screen {
             return true;
         }
         // ESCキーが押されたら、UIを非表示にする
-        if (pressedKeyTranslation.equals("key.keyboard.escape")) {
+        if (keyInput.isEscape()) {
             ShannonUIModClient.updateUIMode(false, MinecraftClient.getInstance());
             return true;
         }
 
         // チャットタブでのキー入力処理（特殊キー処理後）
         if (uiState.selectedTab == 3) {
-            ChatUIRenderer.handleKeyPress(keyCode, scanCode, modifiers);
+            ChatUIRenderer.handleKeyPress(keyInput.key(), keyInput.scancode(), keyInput.modifiers());
             return true;
         }
 
         // 設定タブ（数値入力中）
         if (uiState.selectedTab == 5 && SettingsUIRenderer.isEditing()) {
-            SettingsUIRenderer.handleKeyPress(keyCode, scanCode, modifiers);
+            SettingsUIRenderer.handleKeyPress(keyInput.key(), keyInput.scancode(), keyInput.modifiers());
             return true;
         }
 
-        return super.keyPressed(keyCode, scanCode, modifiers);
+        return super.keyPressed(keyInput);
     }
 
     @Override
@@ -114,7 +119,8 @@ public class ShannonUIScreen extends Screen {
     }
 
     @Override
-    public boolean mouseClicked(double mouseX, double mouseY, int button) {
+    public boolean mouseClicked(Click click, boolean doubled) {
+        int button = click.buttonInfo().button();
         InputUtil.Key pressedKey = InputUtil.Type.MOUSE.createFromCode(button);
         String pressedKeyTranslation = pressedKey.getTranslationKey();
 
@@ -135,6 +141,6 @@ public class ShannonUIScreen extends Screen {
             uiState.scrollOffset = ShannonUIModClient.getTabScrollOffset(selectedTab);
             return true;
         }
-        return super.mouseClicked(mouseX, mouseY, button);
+        return super.mouseClicked(click, doubled);
     }
 }

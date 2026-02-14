@@ -15,10 +15,10 @@ public class DebugUIRenderer {
 
     public static void renderDebug(DrawContext context, MinecraftClient mc, int x, int y,
             int uiWidth, int uiHeight, UIRenderer.UIState state, int scrollOffset) {
-        context.getMatrices().push();
+        context.getMatrices().pushMatrix();
         try {
-            context.getMatrices().translate(x, y, 0);
-            context.getMatrices().scale(SCALE, SCALE, 1.0f);
+            context.getMatrices().translate(x, y);
+            context.getMatrices().scale(SCALE, SCALE);
 
             int line = 0;
             int drawX = (int) (4 / SCALE);
@@ -121,7 +121,7 @@ public class DebugUIRenderer {
                 ShannonUIModClient.setTabScrollOffset(state.selectedTab, 0);
             }
         } finally {
-            context.getMatrices().pop();
+            context.getMatrices().popMatrix();
         }
     }
 

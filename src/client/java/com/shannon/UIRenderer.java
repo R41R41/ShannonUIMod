@@ -5,7 +5,7 @@ import net.minecraft.client.gui.DrawContext;
 import net.minecraft.text.OrderedText;
 import net.minecraft.text.Text;
 import net.minecraft.text.Style;
-import net.minecraft.client.render.RenderLayer;
+import net.minecraft.client.gl.RenderPipelines;
 import org.lwjgl.glfw.GLFW;
 import org.lwjgl.glfw.GLFWScrollCallbackI;
 import net.minecraft.util.Identifier;
@@ -31,7 +31,7 @@ public class UIRenderer {
 
     public static void renderTaskTreeUI(DrawContext context, MinecraftClient mc, int x, int y, int windowWidth,
             int windowHeight, int uiWidth, int uiHeight, TaskTreeState taskTreeState, int scrollOffset) {
-        context.getMatrices().push();
+        context.getMatrices().pushMatrix();
         try {
             if (taskTreeState == null)
                 return;
@@ -43,8 +43,8 @@ public class UIRenderer {
             int maxTextWidth = uiWidth - 16; // 8pxマージン×2
             int startY = drawY + yOffset;
 
-            context.getMatrices().translate(x, y, 0);
-            context.getMatrices().scale(scale, scale, 1.0f);
+            context.getMatrices().translate(x, y);
+            context.getMatrices().scale(scale, scale);
 
             String status = taskTreeState.status == null ? "" : taskTreeState.status.toLowerCase();
             int statusColor = 0xAAAAAA;
@@ -140,7 +140,7 @@ public class UIRenderer {
 
             contentHeight = (line + 1) * 10 + 16; // 16px余白
         } finally {
-            context.getMatrices().pop();
+            context.getMatrices().popMatrix();
         }
     }
 
@@ -400,7 +400,7 @@ public class UIRenderer {
             context.fill(tabX - 2, tabY - 2, tabX + tabWidth, tabY - 1, borderColor3);
             context.fill(tabX - 2, tabY + tabHeight + 1, tabX + tabWidth, tabY + tabHeight + 2, borderColor3);
             context.drawTexture(
-                    RenderLayer::getGuiTextured,
+                    RenderPipelines.GUI_TEXTURED,
                     icon[i],
                     tabX, tabY,
                     0, 0,

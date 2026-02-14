@@ -200,17 +200,17 @@ public class ShannonUIModClient implements ClientModInitializer {
                 "key.shannonuimod.toggleDisplayUI",
                 InputUtil.Type.KEYSYM,
                 GLFW.GLFW_KEY_U,
-                "category.shannonuimod"));
+                KeyBinding.Category.MISC));
         toggleHUDAndScreenUIKey = KeyBindingHelper.registerKeyBinding(new KeyBinding(
                 "key.shannonuimod.toggleHUDAndScreenUI",
                 InputUtil.Type.KEYSYM,
                 GLFW.GLFW_KEY_I,
-                "category.shannonuimod"));
+                KeyBinding.Category.MISC));
         tabSwitchNextKey = KeyBindingHelper.registerKeyBinding(new KeyBinding(
                 "key.shannonuimod.tabSwitchNext",
                 InputUtil.Type.KEYSYM,
                 GLFW.GLFW_KEY_N,
-                "category.shannonuimod"));
+                KeyBinding.Category.MISC));
 
         // キーイベントの監視（execute外で登録）
         ClientTickEvents.END_CLIENT_TICK.register(client -> {

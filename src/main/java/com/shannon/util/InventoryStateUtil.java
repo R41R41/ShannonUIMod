@@ -3,6 +3,7 @@ package com.shannon.util;
 import com.shannon.network.packet.InventoryState;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.item.ItemStack;
+import net.minecraft.entity.EquipmentSlot;
 import java.util.ArrayList;
 import java.util.List;
 import net.minecraft.registry.Registries;
@@ -11,42 +12,42 @@ public class InventoryStateUtil {
     public static InventoryState createInventoryState(ServerPlayerEntity player) {
         InventoryState state = new InventoryState();
 
-        // 1. まず部位ごとの装備をセット
-        // 防具（部位ごとに分けて格納）
-        ItemStack[] armorStacks = player.getInventory().armor.toArray(new ItemStack[0]);
-        if (armorStacks.length == 4) {
-            // feet (boots)
-            if (!armorStacks[0].isEmpty()) {
-                InventoryState.Item item = new InventoryState.Item();
-                item.name = Registries.ITEM.getId(armorStacks[0].getItem()).toString();
-                item.count = String.valueOf(armorStacks[0].getCount());
-                item.displayName = armorStacks[0].getName().getString();
-                state.feet = item;
-            }
-            // legs (leggings)
-            if (!armorStacks[1].isEmpty()) {
-                InventoryState.Item item = new InventoryState.Item();
-                item.name = Registries.ITEM.getId(armorStacks[1].getItem()).toString();
-                item.count = String.valueOf(armorStacks[1].getCount());
-                item.displayName = armorStacks[1].getName().getString();
-                state.legs = item;
-            }
-            // chest (chestplate)
-            if (!armorStacks[2].isEmpty()) {
-                InventoryState.Item item = new InventoryState.Item();
-                item.name = Registries.ITEM.getId(armorStacks[2].getItem()).toString();
-                item.count = String.valueOf(armorStacks[2].getCount());
-                item.displayName = armorStacks[2].getName().getString();
-                state.chest = item;
-            }
-            // head (helmet)
-            if (!armorStacks[3].isEmpty()) {
-                InventoryState.Item item = new InventoryState.Item();
-                item.name = Registries.ITEM.getId(armorStacks[3].getItem()).toString();
-                item.count = String.valueOf(armorStacks[3].getCount());
-                item.displayName = armorStacks[3].getName().getString();
-                state.head = item;
-            }
+        // 1. まず部位ごとの装備をセット（EquipmentSlotベースのアクセス - 1.21.11対応）
+        // feet (boots)
+        ItemStack feetStack = player.getEquippedStack(EquipmentSlot.FEET);
+        if (!feetStack.isEmpty()) {
+            InventoryState.Item item = new InventoryState.Item();
+            item.name = Registries.ITEM.getId(feetStack.getItem()).toString();
+            item.count = String.valueOf(feetStack.getCount());
+            item.displayName = feetStack.getName().getString();
+            state.feet = item;
+        }
+        // legs (leggings)
+        ItemStack legsStack = player.getEquippedStack(EquipmentSlot.LEGS);
+        if (!legsStack.isEmpty()) {
+            InventoryState.Item item = new InventoryState.Item();
+            item.name = Registries.ITEM.getId(legsStack.getItem()).toString();
+            item.count = String.valueOf(legsStack.getCount());
+            item.displayName = legsStack.getName().getString();
+            state.legs = item;
+        }
+        // chest (chestplate)
+        ItemStack chestStack = player.getEquippedStack(EquipmentSlot.CHEST);
+        if (!chestStack.isEmpty()) {
+            InventoryState.Item item = new InventoryState.Item();
+            item.name = Registries.ITEM.getId(chestStack.getItem()).toString();
+            item.count = String.valueOf(chestStack.getCount());
+            item.displayName = chestStack.getName().getString();
+            state.chest = item;
+        }
+        // head (helmet)
+        ItemStack headStack = player.getEquippedStack(EquipmentSlot.HEAD);
+        if (!headStack.isEmpty()) {
+            InventoryState.Item item = new InventoryState.Item();
+            item.name = Registries.ITEM.getId(headStack.getItem()).toString();
+            item.count = String.valueOf(headStack.getCount());
+            item.displayName = headStack.getName().getString();
+            state.head = item;
         }
 
         // メインハンド
@@ -76,17 +77,19 @@ public class InventoryStateUtil {
         if (state.offHand != null)
             equipped.add(offHandStack);
         if (state.head != null)
-            equipped.add(armorStacks[3]);
+            equipped.add(headStack);
         if (state.chest != null)
-            equipped.add(armorStacks[2]);
+            equipped.add(chestStack);
         if (state.legs != null)
-            equipped.add(armorStacks[1]);
+            equipped.add(legsStack);
         if (state.feet != null)
-            equipped.add(armorStacks[0]);
+            equipped.add(feetStack);
 
-        // 3. items生成
+        // 3. items生成（スロット0-35がメインインベントリ）
         state.items = new ArrayList<>();
-        for (ItemStack stack : player.getInventory().main) {
+        int mainSize = 36; // メインインベントリは36スロット
+        for (int i = 0; i < mainSize; i++) {
+            ItemStack stack = player.getInventory().getStack(i);
             if (!stack.isEmpty()) {
                 InventoryState.Item item = new InventoryState.Item();
                 item.name = Registries.ITEM.getId(stack.getItem()).toString();
@@ -98,8 +101,8 @@ public class InventoryStateUtil {
 
         // インベントリが満タンか
         state.isFull = true;
-        for (ItemStack stack : player.getInventory().main) {
-            if (stack.isEmpty()) {
+        for (int i = 0; i < mainSize; i++) {
+            if (player.getInventory().getStack(i).isEmpty()) {
                 state.isFull = false;
                 break;
             }

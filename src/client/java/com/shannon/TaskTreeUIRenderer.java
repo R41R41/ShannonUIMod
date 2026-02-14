@@ -41,10 +41,10 @@ public class TaskTreeUIRenderer {
             int relMouseX, int relMouseY, boolean mouseJustClicked) {
 
         lastScrollOffset = scrollOffset;
-        context.getMatrices().push();
+        context.getMatrices().pushMatrix();
         try {
-            context.getMatrices().translate(x, y, 0);
-            context.getMatrices().scale(SCALE, SCALE, 1.0f);
+            context.getMatrices().translate(x, y);
+            context.getMatrices().scale(SCALE, SCALE);
 
             int drawX = (int) (4 / SCALE);
             int drawY = (int) (4 / SCALE);
@@ -129,7 +129,7 @@ public class TaskTreeUIRenderer {
                 ShannonUIModClient.setTabScrollOffset(state.selectedTab, 0);
             }
         } finally {
-            context.getMatrices().pop();
+            context.getMatrices().popMatrix();
         }
     }
 

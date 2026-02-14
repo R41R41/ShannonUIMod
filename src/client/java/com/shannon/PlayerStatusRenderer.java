@@ -2,7 +2,7 @@ package com.shannon;
 
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.render.RenderLayer;
+import net.minecraft.client.gl.RenderPipelines;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.util.Identifier;
 
@@ -24,7 +24,7 @@ public class PlayerStatusRenderer {
 
     public static void renderPlayerStatus(DrawContext context, MinecraftClient mc, int windowWidth, int windowHeight,
             int textureSize, PlayerStatusState state) {
-        context.getMatrices().push();
+        context.getMatrices().pushMatrix();
         try {
             if (state == null) {
                 return;
@@ -40,7 +40,7 @@ public class PlayerStatusRenderer {
             boolean hasHalfHeart = (health % 2) == 1;
             int x = screenWidth - windowWidth - 10;
             int y = screenHeight - windowHeight - 10;
-            context.drawTexture(RenderLayer::getGuiTextured,
+            context.drawTexture(RenderPipelines.GUI_TEXTURED,
                     SHANNON_ICON,
                     x, y,
                     0, 0,
@@ -56,14 +56,14 @@ public class PlayerStatusRenderer {
                 } else {
                     heartTex = HEART_CONTAINER;
                 }
-                context.drawTexture(RenderLayer::getGuiTextured,
+                context.drawTexture(RenderPipelines.GUI_TEXTURED,
                         HEART_CONTAINER,
                         x + i * textureSize, y,
                         0, 0,
                         textureSize, textureSize,
                         textureSize, textureSize);
                 context.drawTexture(
-                        RenderLayer::getGuiTextured,
+                        RenderPipelines.GUI_TEXTURED,
                         heartTex,
                         x + i * textureSize, y,
                         0, 0,
@@ -83,14 +83,14 @@ public class PlayerStatusRenderer {
                     hungerTex = HUNGER_EMPTY;
                 }
                 context.drawTexture(
-                        RenderLayer::getGuiTextured,
+                        RenderPipelines.GUI_TEXTURED,
                         HUNGER_EMPTY,
                         x + (9 - i) * textureSize, y + textureSize + 2,
                         0, 0,
                         textureSize, textureSize,
                         textureSize, textureSize);
                 context.drawTexture(
-                        RenderLayer::getGuiTextured,
+                        RenderPipelines.GUI_TEXTURED,
                         hungerTex,
                         x + (9 - i) * textureSize, y + textureSize + 2,
                         0, 0,
@@ -115,7 +115,7 @@ public class PlayerStatusRenderer {
                 for (int i = 0; i < 10; i++) {
                     Identifier bubbleTex = (i < bubbles) ? BUBBLE_FULL : BUBBLE_BURST;
                     context.drawTexture(
-                            RenderLayer::getGuiTextured,
+                            RenderPipelines.GUI_TEXTURED,
                             bubbleTex,
                             x + (9 - i) * textureSize, y + textureSize * 2 + 4,
                             0, 0,
@@ -124,7 +124,7 @@ public class PlayerStatusRenderer {
                 }
             }
         } finally {
-            context.getMatrices().pop();
+            context.getMatrices().popMatrix();
         }
     }
 }

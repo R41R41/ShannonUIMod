@@ -2,7 +2,7 @@ package com.shannon;
 
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.render.RenderLayer;
+import net.minecraft.client.gl.RenderPipelines;
 import net.minecraft.text.OrderedText;
 import net.minecraft.text.Text;
 import com.shannon.network.packet.ConstantSkillsState;
@@ -51,14 +51,14 @@ public class ConstantSkillsUIRenderer {
     public static void renderConstantSkills(DrawContext context, MinecraftClient mc, int x, int y, int uiWidth,
             int uiHeight, UIRenderer.UIState state, ConstantSkillsState constantSkillsState, int mouseX, int mouseY,
             boolean mouseClicked) {
-        context.getMatrices().push();
+        context.getMatrices().pushMatrix();
         try {
             if (constantSkillsState == null || constantSkillsState.skills == null
                     || constantSkillsState.skills.isEmpty()) {
                 int drawXEmpty = (int) (4 / SCALE);
                 int drawYEmpty = (int) (4 / SCALE);
-                context.getMatrices().translate(x, y, 0);
-                context.getMatrices().scale(SCALE, SCALE, 1.0f);
+                context.getMatrices().translate(x, y);
+                context.getMatrices().scale(SCALE, SCALE);
                 context.drawTextWithShadow(mc.textRenderer, Text.literal("常時スキル"), drawXEmpty, drawYEmpty,
                         RenderUtils.COLOR_HEADER);
                 context.drawTextWithShadow(mc.textRenderer, Text.literal("読み込み中..."), drawXEmpty,
@@ -69,8 +69,8 @@ public class ConstantSkillsUIRenderer {
                 return;
             }
 
-            context.getMatrices().translate(x, y, 0);
-            context.getMatrices().scale(SCALE, SCALE, 1.0f);
+            context.getMatrices().translate(x, y);
+            context.getMatrices().scale(SCALE, SCALE);
 
             int scaledMouseX = (int) ((mouseX + 4) / SCALE);
             int scaledMouseY = (int) ((mouseY + 4) / SCALE);
@@ -147,7 +147,7 @@ public class ConstantSkillsUIRenderer {
                         // ステータスアイコン
                         if (statusY >= 0 && statusY + 10 <= scaledUiHeight) {
                             Identifier statusIcon = skill.status ? STATUS_TRUE : STATUS_FALSE;
-                            context.drawTexture(RenderLayer::getGuiTextured, statusIcon,
+                            context.drawTexture(RenderPipelines.GUI_TEXTURED, statusIcon,
                                     drawX + 8, statusY, 0, 0, 8, 8, 8, 8);
                         }
 
@@ -213,7 +213,7 @@ public class ConstantSkillsUIRenderer {
             }
         } finally {
             wasMousePressed = mouseClicked;
-            context.getMatrices().pop();
+            context.getMatrices().popMatrix();
         }
     }
 }

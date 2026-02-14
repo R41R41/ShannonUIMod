@@ -25,15 +25,15 @@ public class InventoryUIRenderer {
     public static void renderInventory(DrawContext context, MinecraftClient mc, int x, int y, int uiWidth,
             int uiHeight, UIRenderer.UIState state, int scrollOffset, InventoryState inventoryState, int mouseX,
             int mouseY, boolean mouseClicked) {
-        context.getMatrices().push();
+        context.getMatrices().pushMatrix();
         try {
             if (inventoryState == null) {
                 state.contentHeight = uiHeight;
                 return;
             }
 
-            context.getMatrices().translate(x, y, 0);
-            context.getMatrices().scale(SCALE, SCALE, 1.0f);
+            context.getMatrices().translate(x, y);
+            context.getMatrices().scale(SCALE, SCALE);
 
             int scaledMouseX = (int) ((mouseX + 4) / SCALE);
             int scaledMouseY = (int) ((mouseY + 4) / SCALE);
@@ -178,7 +178,7 @@ public class InventoryUIRenderer {
 
         } finally {
             wasMousePressed = mouseClicked;
-            context.getMatrices().pop();
+            context.getMatrices().popMatrix();
         }
     }
 

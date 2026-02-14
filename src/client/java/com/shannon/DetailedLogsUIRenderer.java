@@ -14,7 +14,7 @@ import java.util.TimeZone;
 public class DetailedLogsUIRenderer {
     public static void renderDetailedLogsUI(DrawContext context, MinecraftClient mc, int x, int y,
             int uiWidth, int uiHeight, DetailedLogsState logsState, int scrollOffset, UIRenderer.UIState state) {
-        context.getMatrices().push();
+        context.getMatrices().pushMatrix();
         try {
             if (logsState == null || logsState.logs == null || logsState.logs.isEmpty()) {
                 // ログがない場合
@@ -22,7 +22,7 @@ public class DetailedLogsUIRenderer {
 
                 int drawX = 4;
                 int drawY = 4;
-                context.getMatrices().translate(x, y, 0);
+                context.getMatrices().translate(x, y);
                 context.drawTextWithShadow(mc.textRenderer, Text.literal("No detailed logs available."),
                         drawX, drawY, 0xAAAAAA);
 
@@ -37,8 +37,8 @@ public class DetailedLogsUIRenderer {
             int maxTextWidth = uiWidth - 8; // 8pxマージン×2
             int startY = drawY + yOffset;
 
-            context.getMatrices().translate(x, y, 0);
-            context.getMatrices().scale(scale, scale, 1.0f);
+            context.getMatrices().translate(x, y);
+            context.getMatrices().scale(scale, scale);
 
             // ログを古い順に表示（最新のログは一番下）
             for (LogEntry log : logsState.logs) {
@@ -138,7 +138,7 @@ public class DetailedLogsUIRenderer {
                 ShannonUIModClient.setTabScrollOffset(state.selectedTab, 0);
             }
         } finally {
-            context.getMatrices().pop();
+            context.getMatrices().popMatrix();
         }
     }
 

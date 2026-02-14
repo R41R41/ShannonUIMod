@@ -121,8 +121,8 @@ public final class RenderUtils {
         int th = totalLines * lh + pad * 2;
 
         // Z軸を前面に移動して他のテキストの上に描画
-        ctx.getMatrices().push();
-        ctx.getMatrices().translate(0, 0, 200);
+        ctx.getMatrices().pushMatrix();
+        // Note: z-ordering not supported in Matrix3x2fStack (1.21.11+)
 
         // 背景（完全不透明）
         ctx.fill(x - pad, y - pad, x + tw, y + th - pad, 0xFF100010);
@@ -142,7 +142,7 @@ public final class RenderUtils {
             }
         }
 
-        ctx.getMatrices().pop();
+        ctx.getMatrices().popMatrix();
     }
 
     // === アイテムスロット背景 ===
