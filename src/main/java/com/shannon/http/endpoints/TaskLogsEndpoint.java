@@ -1,7 +1,10 @@
 package com.shannon.http.endpoints;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.gson.Gson;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import com.shannon.ShannonUIMod;
 import com.shannon.network.packet.DetailedLogsState;
 import com.sun.net.httpserver.HttpExchange;
@@ -20,7 +23,7 @@ import java.nio.charset.StandardCharsets;
  */
 public class TaskLogsEndpoint implements HttpHandler {
     private static final Logger LOGGER = LoggerFactory.getLogger(TaskLogsEndpoint.class);
-    private final ObjectMapper mapper = new ObjectMapper();
+    private final Gson gson = new Gson();
 
     @Override
     public void handle(HttpExchange exchange) throws IOException {
@@ -32,33 +35,35 @@ public class TaskLogsEndpoint implements HttpHandler {
         try {
             InputStream is = exchange.getRequestBody();
             String json = new String(is.readAllBytes(), StandardCharsets.UTF_8);
-            JsonNode rootNode = mapper.readTree(json);
-            JsonNode goalNode = rootNode.get("goal");
-            JsonNode logsArrayNode = rootNode.get("logs");
+            JsonObject rootNode = JsonParser.parseString(json).getAsJsonObject();
+            JsonElement goalElement = rootNode.get("goal");
+            JsonElement logsArrayElement = rootNode.get("logs");
             LOGGER.info("受信: task_logs goal={}, logs={}件",
-                    goalNode != null ? goalNode.asText("?") : "?",
-                    logsArrayNode != null ? logsArrayNode.size() : 0);
+                    goalElement != null && !goalElement.isJsonNull() ? goalElement.getAsString() : "?",
+                    logsArrayElement != null && logsArrayElement.isJsonArray() ? logsArrayElement.getAsJsonArray().size() : 0);
             LOGGER.debug("受信したJSON (task_logs): {}", json);
-            JsonNode logsNode = rootNode.get("logs");
 
             DetailedLogsState newLogsState = new DetailedLogsState();
-            if (logsNode != null && logsNode.isArray()) {
-                for (JsonNode logNode : logsNode) {
+            if (logsArrayElement != null && logsArrayElement.isJsonArray()) {
+                JsonArray logsArray = logsArrayElement.getAsJsonArray();
+                for (JsonElement logElement : logsArray) {
+                    JsonObject logNode = logElement.getAsJsonObject();
                     DetailedLogsState.LogEntry log = new DetailedLogsState.LogEntry();
-                    log.timestamp = logNode.get("timestamp").asText("");
-                    log.phase = logNode.get("phase").asText("");
-                    log.level = logNode.get("level").asText("");
-                    log.source = logNode.get("source").asText("");
-                    log.content = logNode.get("content").asText("");
+                    log.timestamp = getAsString(logNode, "timestamp", "");
+                    log.phase = getAsString(logNode, "phase", "");
+                    log.level = getAsString(logNode, "level", "");
+                    log.source = getAsString(logNode, "source", "");
+                    log.content = getAsString(logNode, "content", "");
 
-                    JsonNode metadataNode = logNode.get("metadata");
-                    if (metadataNode != null && !metadataNode.isNull()) {
+                    JsonElement metadataElement = logNode.get("metadata");
+                    if (metadataElement != null && !metadataElement.isJsonNull() && metadataElement.isJsonObject()) {
+                        JsonObject metadataNode = metadataElement.getAsJsonObject();
                         log.metadata = new DetailedLogsState.LogEntry.LogMetadata();
                         if (metadataNode.has("skillName")) {
-                            log.metadata.skillName = metadataNode.get("skillName").asText("");
+                            log.metadata.skillName = getAsString(metadataNode, "skillName", "");
                         }
                         if (metadataNode.has("toolName")) {
-                            log.metadata.toolName = metadataNode.get("toolName").asText("");
+                            log.metadata.toolName = getAsString(metadataNode, "toolName", "");
                         }
                         if (metadataNode.has("parameters")) {
                             log.metadata.parameters = metadataNode.get("parameters").toString();
@@ -66,11 +71,11 @@ public class TaskLogsEndpoint implements HttpHandler {
                         if (metadataNode.has("result")) {
                             log.metadata.result = metadataNode.get("result").toString();
                         }
-                        if (metadataNode.has("duration")) {
-                            log.metadata.duration = metadataNode.get("duration").asInt(-1);
+                        if (metadataNode.has("duration") && !metadataNode.get("duration").isJsonNull()) {
+                            log.metadata.duration = metadataNode.get("duration").getAsInt();
                         }
                         if (metadataNode.has("error")) {
-                            log.metadata.error = metadataNode.get("error").asText("");
+                            log.metadata.error = getAsString(metadataNode, "error", "");
                         }
                     }
 
@@ -91,5 +96,11 @@ public class TaskLogsEndpoint implements HttpHandler {
             exchange.sendResponseHeaders(500, 0);
             exchange.getResponseBody().close();
         }
+    }
+
+    private String getAsString(JsonObject obj, String key, String defaultValue) {
+        JsonElement el = obj.get(key);
+        if (el == null || el.isJsonNull()) return defaultValue;
+        return el.getAsString();
     }
 }

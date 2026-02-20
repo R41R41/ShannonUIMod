@@ -52,6 +52,7 @@ public class ConstantSkillsUIRenderer {
             int uiHeight, UIRenderer.UIState state, ConstantSkillsState constantSkillsState, int mouseX, int mouseY,
             boolean mouseClicked) {
         context.getMatrices().pushMatrix();
+        context.enableScissor(x, y, x + uiWidth, y + uiHeight);
         try {
             if (constantSkillsState == null || constantSkillsState.skills == null
                     || constantSkillsState.skills.isEmpty()) {
@@ -207,12 +208,13 @@ public class ConstantSkillsUIRenderer {
                 context.fill(tooltipX - 1, tooltipY - 3, scaledUiWidth - 8, tooltipY + tooltipH - 6, 0xF0000000);
                 int descY = tooltipY;
                 for (OrderedText descLine : tooltipLines) {
-                    context.drawTextWithShadow(mc.textRenderer, descLine, tooltipX, descY, 0xFFFFFF);
+                    context.drawTextWithShadow(mc.textRenderer, descLine, tooltipX, descY, 0xFFFFFFFF);
                     descY += 12;
                 }
             }
         } finally {
             wasMousePressed = mouseClicked;
+            context.disableScissor();
             context.getMatrices().popMatrix();
         }
     }

@@ -1,8 +1,8 @@
 package com.shannon.http.endpoints;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ArrayNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.google.gson.Gson;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
 import com.shannon.ShannonUIMod;
 import com.shannon.config.ModConfig;
 import com.sun.net.httpserver.HttpExchange;
@@ -35,7 +35,7 @@ import java.util.concurrent.TimeUnit;
  */
 public class AdvancementsEndpoint implements HttpHandler {
     private static final Logger LOGGER = LoggerFactory.getLogger(AdvancementsEndpoint.class);
-    private final ObjectMapper mapper = new ObjectMapper();
+    private final Gson gson = new Gson();
 
     /**
      * サーバースレッドから収集する軽量データ
@@ -198,31 +198,32 @@ public class AdvancementsEndpoint implements HttpHandler {
      * HTTPスレッドで実行: 収集済みデータからJSON文字列を生成
      */
     private String buildJsonResponse(CollectedData collected) throws Exception {
-        ObjectNode root = mapper.createObjectNode();
+        JsonObject root = new JsonObject();
 
         if (collected.error() != null) {
-            root.put("error", collected.error());
-            return mapper.writeValueAsString(root);
+            root.addProperty("error", collected.error());
+            return gson.toJson(root);
         }
 
-        root.put("playerName", collected.playerName());
-        ArrayNode advancementsArray = root.putArray("advancements");
+        root.addProperty("playerName", collected.playerName());
+        JsonArray advancementsArray = new JsonArray();
+        root.add("advancements", advancementsArray);
 
         for (AdvancementData adv : collected.advancements()) {
-            ObjectNode advNode = mapper.createObjectNode();
-            advNode.put("id", adv.id());
-            advNode.put("category", adv.category());
-            advNode.put("title", adv.title());
-            advNode.put("description", adv.description());
-            advNode.put("frame", adv.frame());
-            advNode.put("done", adv.done());
-            advNode.put("progress", adv.progress());
-            advNode.put("criteriaCompleted", adv.criteriaCompleted());
-            advNode.put("criteriaTotal", adv.criteriaTotal());
+            JsonObject advNode = new JsonObject();
+            advNode.addProperty("id", adv.id());
+            advNode.addProperty("category", adv.category());
+            advNode.addProperty("title", adv.title());
+            advNode.addProperty("description", adv.description());
+            advNode.addProperty("frame", adv.frame());
+            advNode.addProperty("done", adv.done());
+            advNode.addProperty("progress", adv.progress());
+            advNode.addProperty("criteriaCompleted", adv.criteriaCompleted());
+            advNode.addProperty("criteriaTotal", adv.criteriaTotal());
             advancementsArray.add(advNode);
         }
 
-        return mapper.writeValueAsString(root);
+        return gson.toJson(root);
     }
 
     /**
@@ -276,9 +277,9 @@ public class AdvancementsEndpoint implements HttpHandler {
      */
     private void sendErrorResponse(HttpExchange exchange, int statusCode, String message) throws IOException {
         try {
-            ObjectNode errorNode = mapper.createObjectNode();
-            errorNode.put("error", message);
-            byte[] responseBytes = mapper.writeValueAsString(errorNode).getBytes(StandardCharsets.UTF_8);
+            JsonObject errorNode = new JsonObject();
+            errorNode.addProperty("error", message);
+            byte[] responseBytes = gson.toJson(errorNode).getBytes(StandardCharsets.UTF_8);
             exchange.getResponseHeaders().set("Content-Type", "application/json; charset=UTF-8");
             exchange.sendResponseHeaders(statusCode, responseBytes.length);
             OutputStream os = exchange.getResponseBody();

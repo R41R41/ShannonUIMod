@@ -6,7 +6,7 @@ import com.shannon.network.packet.DetailedLogsStatePacket;
 
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
-import net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback;
+import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.render.RenderTickCounter;
@@ -196,21 +196,23 @@ public class ShannonUIModClient implements ClientModInitializer {
         });
 
         // キーバインドの登録
+        KeyBinding.Category shannonCategory = KeyBinding.Category.create(
+                net.minecraft.util.Identifier.of("shannonuimod", "category"));
         toggleDisplayUIKey = KeyBindingHelper.registerKeyBinding(new KeyBinding(
                 "key.shannonuimod.toggleDisplayUI",
                 InputUtil.Type.KEYSYM,
                 GLFW.GLFW_KEY_U,
-                KeyBinding.Category.MISC));
+                shannonCategory));
         toggleHUDAndScreenUIKey = KeyBindingHelper.registerKeyBinding(new KeyBinding(
                 "key.shannonuimod.toggleHUDAndScreenUI",
                 InputUtil.Type.KEYSYM,
                 GLFW.GLFW_KEY_I,
-                KeyBinding.Category.MISC));
+                shannonCategory));
         tabSwitchNextKey = KeyBindingHelper.registerKeyBinding(new KeyBinding(
                 "key.shannonuimod.tabSwitchNext",
                 InputUtil.Type.KEYSYM,
                 GLFW.GLFW_KEY_N,
-                KeyBinding.Category.MISC));
+                shannonCategory));
 
         // キーイベントの監視（execute外で登録）
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
@@ -227,7 +229,7 @@ public class ShannonUIModClient implements ClientModInitializer {
             ScreenshotUtil.tick();
         });
 
-        HudRenderCallback.EVENT.register((DrawContext context, RenderTickCounter tickCounter) -> {
+        HudElementRegistry.addLast(net.minecraft.util.Identifier.of("shannonuimod", "hud"), (context, tickCounter) -> {
             MinecraftClient mc = MinecraftClient.getInstance();
             if (mc.player == null || mc.world == null)
                 return;

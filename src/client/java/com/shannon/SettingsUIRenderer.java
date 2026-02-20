@@ -103,7 +103,7 @@ public class SettingsUIRenderer {
                 for (OrderedText lineText : RenderUtils.wrapText(mc, hint, maxTextWidth)) {
                     int textY = startY + LINE_HEIGHT * line;
                     if (textY >= 0 && textY + 10 <= scaledUiHeight) {
-                        context.drawTextWithShadow(mc.textRenderer, lineText, drawX, textY, 0x666666);
+                        context.drawTextWithShadow(mc.textRenderer, lineText, drawX, textY, 0xFF666666);
                     }
                     line++;
                 }

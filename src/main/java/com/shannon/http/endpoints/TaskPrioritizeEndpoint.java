@@ -1,6 +1,6 @@
 package com.shannon.http.endpoints;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.gson.Gson;
 import com.shannon.config.ModConfig;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
@@ -23,7 +23,7 @@ import java.util.Map;
  */
 public class TaskPrioritizeEndpoint implements HttpHandler {
     private static final Logger LOGGER = LoggerFactory.getLogger(TaskPrioritizeEndpoint.class);
-    private static final ObjectMapper MAPPER = new ObjectMapper();
+    private static final Gson GSON = new Gson();
     private static final HttpClient HTTP_CLIENT = HttpClient.newBuilder()
             .connectTimeout(Duration.ofSeconds(5))
             .build();

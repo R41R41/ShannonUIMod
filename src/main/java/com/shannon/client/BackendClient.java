@@ -1,6 +1,6 @@
 package com.shannon.client;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.gson.Gson;
 import com.shannon.config.ModConfig;
 import com.shannon.error.ModErrorHandler;
 import com.shannon.error.exceptions.BackendCommunicationException;
@@ -20,7 +20,7 @@ import java.util.function.Consumer;
  */
 public class BackendClient {
     private static final Logger LOGGER = LoggerFactory.getLogger(BackendClient.class);
-    private static final ObjectMapper MAPPER = new ObjectMapper();
+    private static final Gson GSON = new Gson();
 
     /**
      * BackendにPOSTリクエストを送信（JSON文字列）
@@ -95,7 +95,7 @@ public class BackendClient {
      */
     public static void postJson(String endpoint, Object data, Consumer<Integer> callback) {
         try {
-            String json = MAPPER.writeValueAsString(data);
+            String json = GSON.toJson(data);
 
             if (ModConfig.DEBUG_MODE) {
                 LOGGER.debug("POST {} body: {}", endpoint, json);

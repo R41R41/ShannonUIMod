@@ -42,6 +42,7 @@ public class TaskTreeUIRenderer {
 
         lastScrollOffset = scrollOffset;
         context.getMatrices().pushMatrix();
+        context.enableScissor(x, y, x + uiWidth, y + uiHeight);
         try {
             context.getMatrices().translate(x, y);
             context.getMatrices().scale(SCALE, SCALE);
@@ -129,6 +130,7 @@ public class TaskTreeUIRenderer {
                 ShannonUIModClient.setTabScrollOffset(state.selectedTab, 0);
             }
         } finally {
+            context.disableScissor();
             context.getMatrices().popMatrix();
         }
     }
@@ -337,7 +339,7 @@ public class TaskTreeUIRenderer {
             String resultLine = indent + "    => " + shortResult;
             for (OrderedText lineText : RenderUtils.wrapText(mc, resultLine, maxTextWidth)) {
                 if (currentY >= 0 && currentY + 10 <= scaledUiHeight) {
-                    context.drawTextWithShadow(mc.textRenderer, lineText, drawX, currentY, 0x88FF88);
+                    context.drawTextWithShadow(mc.textRenderer, lineText, drawX, currentY, 0xFF88FF88);
                 }
                 currentY += LINE_HEIGHT;
             }

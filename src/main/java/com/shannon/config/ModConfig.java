@@ -1,10 +1,24 @@
 package com.shannon.config;
 
+import com.google.gson.Gson;
+import com.google.gson.JsonObject;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.io.IOException;
+import java.io.Reader;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+
 /**
  * ShannonUIModの設定を一元管理するクラス
  * 全ての設定値をここで定義し、変更を容易にする
+ * config/shannonuimod.json ファイルで各サーバーごとの設定を上書き可能
  */
 public class ModConfig {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(ModConfig.class);
 
     // ===== Backend接続設定 =====
 
@@ -19,11 +33,36 @@ public class ModConfig {
 
     // ===== HTTPサーバー設定 =====
 
+    /** HTTPサーバーのポート（デフォルト値、config/shannonuimod.json で上書き可能） */
+    private static final int HTTP_SERVER_PORT_DEFAULT = 8081;
+
     /** HTTPサーバーのポート（Backendからのリクエストを受信） */
-    public static final int HTTP_SERVER_PORT = 8081;
+    public static final int HTTP_SERVER_PORT = loadHttpServerPort();
 
     /** クライアントサイドHTTPサーバーのポート（スクリーンショット等） */
     public static final int CLIENT_HTTP_SERVER_PORT = 8083;
+
+    /**
+     * config/shannonuimod.json からHTTPサーバーポートを読み込む
+     * ファイルが存在しない場合はデフォルト値 (8081) を使用
+     */
+    private static int loadHttpServerPort() {
+        Path configPath = Paths.get("config", "shannonuimod.json");
+        if (Files.exists(configPath)) {
+            try (Reader reader = Files.newBufferedReader(configPath)) {
+                Gson gson = new Gson();
+                JsonObject json = gson.fromJson(reader, JsonObject.class);
+                if (json != null && json.has("httpServerPort")) {
+                    int port = json.get("httpServerPort").getAsInt();
+                    LOGGER.info("📋 config/shannonuimod.json からHTTPポートを読み込みました: {}", port);
+                    return port;
+                }
+            } catch (IOException e) {
+                LOGGER.warn("config/shannonuimod.json の読み込みに失敗しました。デフォルトポートを使用します。", e);
+            }
+        }
+        return HTTP_SERVER_PORT_DEFAULT;
+    }
 
     /** HTTPサーバーのスレッドプールサイズ */
     public static final int HTTP_THREAD_POOL_SIZE = 4;

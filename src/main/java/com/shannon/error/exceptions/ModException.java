@@ -1,7 +1,6 @@
 package com.shannon.error.exceptions;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.gson.Gson;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -61,7 +60,7 @@ public abstract class ModException extends Exception {
      * エラーをJSON形式で出力
      */
     public String toJson() {
-        ObjectMapper mapper = new ObjectMapper();
+        Gson gson = new Gson();
         Map<String, Object> errorInfo = new HashMap<>();
         errorInfo.put("errorCode", errorCode);
         errorInfo.put("message", getMessage());
@@ -70,12 +69,7 @@ public abstract class ModException extends Exception {
         if (getCause() != null) {
             errorInfo.put("cause", getCause().getMessage());
         }
-
-        try {
-            return mapper.writeValueAsString(errorInfo);
-        } catch (JsonProcessingException e) {
-            return "{\"error\":\"JSON serialization failed\"}";
-        }
+        return gson.toJson(errorInfo);
     }
 
     @Override

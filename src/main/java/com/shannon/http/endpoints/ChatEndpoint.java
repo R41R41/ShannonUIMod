@@ -1,7 +1,7 @@
 package com.shannon.http.endpoints;
 
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
 import com.shannon.ShannonUIMod;
 import com.shannon.network.packet.ChatState;
 import com.sun.net.httpserver.HttpExchange;
@@ -12,6 +12,7 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.lang.reflect.Type;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 
@@ -21,7 +22,7 @@ import java.util.List;
  */
 public class ChatEndpoint implements HttpHandler {
     private static final Logger LOGGER = LoggerFactory.getLogger(ChatEndpoint.class);
-    private final ObjectMapper mapper = new ObjectMapper();
+    private final Gson gson = new Gson();
 
     @Override
     public void handle(HttpExchange exchange) throws IOException {
@@ -35,9 +36,8 @@ public class ChatEndpoint implements HttpHandler {
             String json = new String(is.readAllBytes(), StandardCharsets.UTF_8);
             LOGGER.info("受信したJSON: " + json);
 
-            List<ChatState.ChatMessage> messages = mapper.readValue(json,
-                    new TypeReference<List<ChatState.ChatMessage>>() {
-                    });
+            Type listType = new TypeToken<List<ChatState.ChatMessage>>() {}.getType();
+            List<ChatState.ChatMessage> messages = gson.fromJson(json, listType);
 
             ChatState newState = new ChatState();
             newState.messages = messages;

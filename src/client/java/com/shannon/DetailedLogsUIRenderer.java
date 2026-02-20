@@ -24,7 +24,7 @@ public class DetailedLogsUIRenderer {
                 int drawY = 4;
                 context.getMatrices().translate(x, y);
                 context.drawTextWithShadow(mc.textRenderer, Text.literal("No detailed logs available."),
-                        drawX, drawY, 0xAAAAAA);
+                        drawX, drawY, 0xFFAAAAAA);
 
                 return;
             }
@@ -96,7 +96,7 @@ public class DetailedLogsUIRenderer {
                 for (OrderedText lineText : wrapText(mc, content, maxTextWidth)) {
                     int textY = startY + 10 * line;
                     if (textY >= 0 && textY + 10 <= uiHeight) {
-                        context.drawTextWithShadow(mc.textRenderer, lineText, drawX, textY, 0xCCCCCC);
+                        context.drawTextWithShadow(mc.textRenderer, lineText, drawX, textY, 0xFFCCCCCC);
                     }
                     line++;
                 }
@@ -108,7 +108,7 @@ public class DetailedLogsUIRenderer {
                         for (OrderedText lineText : wrapText(mc, durationStr, maxTextWidth)) {
                             int textY = startY + 10 * line;
                             if (textY >= 0 && textY + 10 <= uiHeight) {
-                                context.drawTextWithShadow(mc.textRenderer, lineText, drawX, textY, 0x888888);
+                                context.drawTextWithShadow(mc.textRenderer, lineText, drawX, textY, 0xFF888888);
                             }
                             line++;
                         }
@@ -119,7 +119,7 @@ public class DetailedLogsUIRenderer {
                         for (OrderedText lineText : wrapText(mc, errorStr, maxTextWidth)) {
                             int textY = startY + 10 * line;
                             if (textY >= 0 && textY + 10 <= uiHeight) {
-                                context.drawTextWithShadow(mc.textRenderer, lineText, drawX, textY, 0xFF8888);
+                                context.drawTextWithShadow(mc.textRenderer, lineText, drawX, textY, 0xFFFF8888);
                             }
                             line++;
                         }
@@ -259,7 +259,7 @@ public class DetailedLogsUIRenderer {
         for (OrderedText lineText : wrapText(mc, header, maxTextWidth)) {
             int textY = startY + 10 * line;
             if (textY >= 0 && textY + 10 <= uiHeight) {
-                context.drawTextWithShadow(mc.textRenderer, lineText, drawX, textY, 0x5599FF);
+                context.drawTextWithShadow(mc.textRenderer, lineText, drawX, textY, 0xFF5599FF);
             }
             line++;
         }
@@ -269,7 +269,7 @@ public class DetailedLogsUIRenderer {
         for (OrderedText lineText : wrapText(mc, content, maxTextWidth)) {
             int textY = startY + 10 * line;
             if (textY >= 0 && textY + 10 <= uiHeight) {
-                context.drawTextWithShadow(mc.textRenderer, lineText, drawX, textY, 0x55FF55);
+                context.drawTextWithShadow(mc.textRenderer, lineText, drawX, textY, 0xFF55FF55);
             }
             line++;
         }
@@ -283,7 +283,7 @@ public class DetailedLogsUIRenderer {
             for (OrderedText lineText : wrapText(mc, strategyText, maxTextWidth)) {
                 int textY = startY + 10 * line;
                 if (textY >= 0 && textY + 10 <= uiHeight) {
-                    context.drawTextWithShadow(mc.textRenderer, lineText, drawX, textY, 0xFFFF55);
+                    context.drawTextWithShadow(mc.textRenderer, lineText, drawX, textY, 0xFFFFFF55);
                 }
                 line++;
             }
@@ -296,7 +296,7 @@ public class DetailedLogsUIRenderer {
             for (OrderedText lineText : wrapText(mc, actionsHeader, maxTextWidth)) {
                 int textY = startY + 10 * line;
                 if (textY >= 0 && textY + 10 <= uiHeight) {
-                    context.drawTextWithShadow(mc.textRenderer, lineText, drawX, textY, 0xFFAA55);
+                    context.drawTextWithShadow(mc.textRenderer, lineText, drawX, textY, 0xFFFFAA55);
                 }
                 line++;
             }
@@ -325,7 +325,7 @@ public class DetailedLogsUIRenderer {
                                 for (OrderedText lineText : wrapText(mc, actionLine, maxTextWidth)) {
                                     int textY = startY + 10 * line;
                                     if (textY >= 0 && textY + 10 <= uiHeight) {
-                                        context.drawTextWithShadow(mc.textRenderer, lineText, drawX, textY, 0xCCCCCC);
+                                        context.drawTextWithShadow(mc.textRenderer, lineText, drawX, textY, 0xFFCCCCCC);
                                     }
                                     line++;
                                 }
@@ -339,7 +339,7 @@ public class DetailedLogsUIRenderer {
                     for (OrderedText lineText : wrapText(mc, actionsSummary, maxTextWidth)) {
                         int textY = startY + 10 * line;
                         if (textY >= 0 && textY + 10 <= uiHeight) {
-                            context.drawTextWithShadow(mc.textRenderer, lineText, drawX, textY, 0xCCCCCC);
+                            context.drawTextWithShadow(mc.textRenderer, lineText, drawX, textY, 0xFFCCCCCC);
                         }
                         line++;
                     }
@@ -354,7 +354,7 @@ public class DetailedLogsUIRenderer {
             for (OrderedText lineText : wrapText(mc, subTasksHeader, maxTextWidth)) {
                 int textY = startY + 10 * line;
                 if (textY >= 0 && textY + 10 <= uiHeight) {
-                    context.drawTextWithShadow(mc.textRenderer, lineText, drawX, textY, 0x55AAFF);
+                    context.drawTextWithShadow(mc.textRenderer, lineText, drawX, textY, 0xFF55AAFF);
                 }
                 line++;
             }
@@ -400,7 +400,7 @@ public class DetailedLogsUIRenderer {
                     for (OrderedText lineText : wrapText(mc, subTasksSummary, maxTextWidth)) {
                         int textY = startY + 10 * line;
                         if (textY >= 0 && textY + 10 <= uiHeight) {
-                            context.drawTextWithShadow(mc.textRenderer, lineText, drawX, textY, 0xCCCCCC);
+                            context.drawTextWithShadow(mc.textRenderer, lineText, drawX, textY, 0xFFCCCCCC);
                         }
                         line++;
                     }
@@ -423,7 +423,7 @@ public class DetailedLogsUIRenderer {
         for (OrderedText lineText : wrapText(mc, header, maxTextWidth)) {
             int textY = startY + 10 * line;
             if (textY >= 0 && textY + 10 <= uiHeight) {
-                context.drawTextWithShadow(mc.textRenderer, lineText, drawX, textY, 0x5599FF);
+                context.drawTextWithShadow(mc.textRenderer, lineText, drawX, textY, 0xFF5599FF);
             }
             line++;
         }
@@ -434,7 +434,7 @@ public class DetailedLogsUIRenderer {
         for (OrderedText lineText : wrapText(mc, content, maxTextWidth)) {
             int textY = startY + 10 * line;
             if (textY >= 0 && textY + 10 <= uiHeight) {
-                context.drawTextWithShadow(mc.textRenderer, lineText, drawX, textY, 0xFFFF55);
+                context.drawTextWithShadow(mc.textRenderer, lineText, drawX, textY, 0xFFFFFF55);
             }
             line++;
         }
@@ -483,7 +483,7 @@ public class DetailedLogsUIRenderer {
         for (OrderedText lineText : wrapText(mc, header, maxTextWidth)) {
             int textY = startY + 10 * line;
             if (textY >= 0 && textY + 10 <= uiHeight) {
-                context.drawTextWithShadow(mc.textRenderer, lineText, drawX, textY, 0xFFAA55);
+                context.drawTextWithShadow(mc.textRenderer, lineText, drawX, textY, 0xFFFFAA55);
             }
             line++;
         }
@@ -495,7 +495,7 @@ public class DetailedLogsUIRenderer {
         for (OrderedText lineText : wrapText(mc, content, maxTextWidth)) {
             int textY = startY + 10 * line;
             if (textY >= 0 && textY + 10 <= uiHeight) {
-                context.drawTextWithShadow(mc.textRenderer, lineText, drawX, textY, 0xFFFF55);
+                context.drawTextWithShadow(mc.textRenderer, lineText, drawX, textY, 0xFFFFFF55);
             }
             line++;
         }
@@ -515,7 +515,7 @@ public class DetailedLogsUIRenderer {
         for (OrderedText lineText : wrapText(mc, header, maxTextWidth)) {
             int textY = startY + 10 * line;
             if (textY >= 0 && textY + 10 <= uiHeight) {
-                context.drawTextWithShadow(mc.textRenderer, lineText, drawX, textY, 0xFFAA55);
+                context.drawTextWithShadow(mc.textRenderer, lineText, drawX, textY, 0xFFFFAA55);
             }
             line++;
         }
@@ -525,7 +525,7 @@ public class DetailedLogsUIRenderer {
         for (OrderedText lineText : wrapText(mc, content, maxTextWidth)) {
             int textY = startY + 10 * line;
             if (textY >= 0 && textY + 10 <= uiHeight) {
-                context.drawTextWithShadow(mc.textRenderer, lineText, drawX, textY, 0x55FF55);
+                context.drawTextWithShadow(mc.textRenderer, lineText, drawX, textY, 0xFF55FF55);
             }
             line++;
         }

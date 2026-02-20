@@ -26,6 +26,7 @@ public class InventoryUIRenderer {
             int uiHeight, UIRenderer.UIState state, int scrollOffset, InventoryState inventoryState, int mouseX,
             int mouseY, boolean mouseClicked) {
         context.getMatrices().pushMatrix();
+        context.enableScissor(x, y, x + uiWidth, y + uiHeight);
         try {
             if (inventoryState == null) {
                 state.contentHeight = uiHeight;
@@ -87,7 +88,7 @@ public class InventoryUIRenderer {
                     String labelText = equipDisplayLabels[i] + ": "
                             + (item != null ? item.displayName : "-");
                     if (slotY >= 0 && slotY + 10 <= scaledUiHeight) {
-                        int textColor = hovered ? 0xFFFF55 : (item != null ? 0xFFFFFF : 0x888888);
+                        int textColor = hovered ? 0xFFFFFF55 : (item != null ? 0xFFFFFFFF : 0xFF888888);
                         context.drawTextWithShadow(mc.textRenderer, Text.literal(labelText),
                                 drawX + SLOT_SIZE + 4, slotY + 5, textColor);
                     }
@@ -155,10 +156,10 @@ public class InventoryUIRenderer {
                                 context.fill(drawX + SLOT_SIZE + 2, itemY,
                                         scaledUiWidth - 8, itemY + SLOT_SIZE, 0x44FFFFFF);
                                 context.drawTextWithShadow(mc.textRenderer, Text.literal(itemText),
-                                        drawX + SLOT_SIZE + 4, itemY + 5, 0xFFFF55);
+                                        drawX + SLOT_SIZE + 4, itemY + 5, 0xFFFFFF55);
                             } else {
                                 context.drawTextWithShadow(mc.textRenderer, Text.literal(itemText),
-                                        drawX + SLOT_SIZE + 4, itemY + 5, 0xFFFFFF);
+                                        drawX + SLOT_SIZE + 4, itemY + 5, 0xFFFFFFFF);
                             }
                         }
 
@@ -178,6 +179,7 @@ public class InventoryUIRenderer {
 
         } finally {
             wasMousePressed = mouseClicked;
+            context.disableScissor();
             context.getMatrices().popMatrix();
         }
     }

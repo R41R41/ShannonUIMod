@@ -1,7 +1,7 @@
 package com.shannon.http.endpoints;
 
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
 import com.shannon.ShannonUIMod;
 import com.shannon.network.packet.ConstantSkillsState;
 import com.sun.net.httpserver.HttpExchange;
@@ -12,6 +12,7 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.lang.reflect.Type;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 
@@ -21,7 +22,7 @@ import java.util.List;
  */
 public class ConstantSkillsEndpoint implements HttpHandler {
     private static final Logger LOGGER = LoggerFactory.getLogger(ConstantSkillsEndpoint.class);
-    private final ObjectMapper mapper = new ObjectMapper();
+    private final Gson gson = new Gson();
 
     @Override
     public void handle(HttpExchange exchange) throws IOException {
@@ -35,9 +36,8 @@ public class ConstantSkillsEndpoint implements HttpHandler {
             String json = new String(is.readAllBytes(), StandardCharsets.UTF_8);
             LOGGER.info("受信したJSON: " + json);
 
-            List<ConstantSkillsState.ConstantSkill> skills = mapper.readValue(json,
-                    new TypeReference<List<ConstantSkillsState.ConstantSkill>>() {
-                    });
+            Type listType = new TypeToken<List<ConstantSkillsState.ConstantSkill>>() {}.getType();
+            List<ConstantSkillsState.ConstantSkill> skills = gson.fromJson(json, listType);
 
             ConstantSkillsState newState = new ConstantSkillsState();
             newState.skills = skills;

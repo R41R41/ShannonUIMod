@@ -1,6 +1,6 @@
 package com.shannon.http.endpoints;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.gson.Gson;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
 import com.shannon.ShannonUIMod;
@@ -20,7 +20,7 @@ import java.util.Map;
  */
 public class TaskListEndpoint implements HttpHandler {
     private static final Logger LOGGER = LoggerFactory.getLogger(TaskListEndpoint.class);
-    private static final ObjectMapper MAPPER = new ObjectMapper();
+    private static final Gson GSON = new Gson();
 
     @Override
     public void handle(HttpExchange exchange) throws IOException {
@@ -35,7 +35,7 @@ public class TaskListEndpoint implements HttpHandler {
     private void handlePost(HttpExchange exchange) throws IOException {
         try {
             String requestBody = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
-            Map<String, Object> data = MAPPER.readValue(requestBody, Map.class);
+            Map<String, Object> data = GSON.fromJson(requestBody, Map.class);
 
             TaskListStatePacket.TaskListState state = new TaskListStatePacket.TaskListState();
             state.tasks = new ArrayList<>();

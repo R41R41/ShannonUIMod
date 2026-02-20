@@ -18,16 +18,16 @@ public final class RenderUtils {
     public static final int LINE_HEIGHT = 10;
     public static final int ICON_SIZE = 16; // Minecraftアイテムアイコンサイズ
 
-    // === 共通色 ===
-    public static final int COLOR_HEADER = 0x55AAFF;
-    public static final int COLOR_SUCCESS = 0x55FF55;
-    public static final int COLOR_ERROR = 0xFF5555;
-    public static final int COLOR_WARNING = 0xFFAA55;
-    public static final int COLOR_IN_PROGRESS = 0xFFFF55;
-    public static final int COLOR_TEXT = 0xFFFFFF;
-    public static final int COLOR_SUBTEXT = 0xAAAAAA;
-    public static final int COLOR_MUTED = 0x888888;
-    public static final int COLOR_CATEGORY = 0xFFAA55;
+    // === 共通色 (1.21.11: アルファ 0xFF を明示的に指定する必要がある) ===
+    public static final int COLOR_HEADER = 0xFF55AAFF;
+    public static final int COLOR_SUCCESS = 0xFF55FF55;
+    public static final int COLOR_ERROR = 0xFFFF5555;
+    public static final int COLOR_WARNING = 0xFFFFAA55;
+    public static final int COLOR_IN_PROGRESS = 0xFFFFFF55;
+    public static final int COLOR_TEXT = 0xFFFFFFFF;
+    public static final int COLOR_SUBTEXT = 0xFFAAAAAA;
+    public static final int COLOR_MUTED = 0xFF888888;
+    public static final int COLOR_CATEGORY = 0xFFFFAA55;
     public static final int COLOR_SEPARATOR = 0xFF555555;
 
     // UI背景色
@@ -74,7 +74,7 @@ public final class RenderUtils {
         // 中央テキスト
         int tw = mc.textRenderer.getWidth(text);
         ctx.drawTextWithShadow(mc.textRenderer, Text.literal(text),
-                x + (w - tw) / 2, y + (h - 8) / 2, hover ? COLOR_TEXT : 0xCCCCCC);
+                x + (w - tw) / 2, y + (h - 8) / 2, hover ? COLOR_TEXT : 0xFFCCCCCC);
         return mouseDown && !wasDown && hover;
     }
 

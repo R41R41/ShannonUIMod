@@ -84,7 +84,7 @@ public class UIRenderer {
                 for (OrderedText lineText : wrapText(mc, "Error: " + taskTreeState.error, maxTextWidth)) {
                     int textY = startY + 10 * line;
                     if (textY >= 0 && textY + 10 <= uiHeight) {
-                        context.drawTextWithShadow(mc.textRenderer, lineText, drawX, textY, 0xFF8888);
+                        context.drawTextWithShadow(mc.textRenderer, lineText, drawX, textY, 0xFFFF8888);
                     }
                     line++;
                 }
@@ -129,7 +129,7 @@ public class UIRenderer {
                         for (OrderedText lineText : wrapText(mc, "  => " + sub.subTaskResult, maxTextWidth)) {
                             int textY = startY + 10 * line;
                             if (textY >= 0 && textY + 10 <= uiHeight) {
-                                context.drawTextWithShadow(mc.textRenderer, lineText, drawX, textY, 0x8888FF);
+                                context.drawTextWithShadow(mc.textRenderer, lineText, drawX, textY, 0xFF8888FF);
                             }
                             line++;
                         }
@@ -431,7 +431,9 @@ public class UIRenderer {
             int tooltipY = tabY + tabHeight / 2 - 8;
             int tooltipHeight = 19;
             context.fill(tooltipX - 4, tooltipY - 3, tooltipX + textWidth + 3, tooltipY + tooltipHeight, 0xF0000000);
-            context.drawTextWithShadow(mc.textRenderer, desc, tooltipX, tooltipY + 4, 0xFFFFFF);
+            context.enableScissor(tooltipX - 4, tooltipY - 3, tooltipX + textWidth + 3, tooltipY + tooltipHeight);
+            context.drawTextWithShadow(mc.textRenderer, desc, tooltipX, tooltipY + 4, 0xFFFFFFFF);
+            context.disableScissor();
         }
     }
 

@@ -16,6 +16,7 @@ public class DebugUIRenderer {
     public static void renderDebug(DrawContext context, MinecraftClient mc, int x, int y,
             int uiWidth, int uiHeight, UIRenderer.UIState state, int scrollOffset) {
         context.getMatrices().pushMatrix();
+        context.enableScissor(x, y, x + uiWidth, y + uiHeight);
         try {
             context.getMatrices().translate(x, y);
             context.getMatrices().scale(SCALE, SCALE);
@@ -34,7 +35,7 @@ public class DebugUIRenderer {
             for (OrderedText lineText : wrapText(mc, header, maxTextWidth)) {
                 int textY = startY + LINE_HEIGHT * line;
                 if (textY >= 0 && textY + 10 <= scaledUiHeight) {
-                    context.drawTextWithShadow(mc.textRenderer, lineText, drawX, textY, 0x55AAFF);
+                    context.drawTextWithShadow(mc.textRenderer, lineText, drawX, textY, 0xFF55AAFF);
                 }
                 line++;
             }
@@ -48,7 +49,7 @@ public class DebugUIRenderer {
                 for (OrderedText lineText : wrapText(mc, noLogs, maxTextWidth)) {
                     int textY = startY + LINE_HEIGHT * line;
                     if (textY >= 0 && textY + 10 <= scaledUiHeight) {
-                        context.drawTextWithShadow(mc.textRenderer, lineText, drawX, textY, 0x888888);
+                        context.drawTextWithShadow(mc.textRenderer, lineText, drawX, textY, 0xFF888888);
                     }
                     line++;
                 }
@@ -82,7 +83,7 @@ public class DebugUIRenderer {
                         for (OrderedText lineText : wrapText(mc, paramLine, maxTextWidth)) {
                             int textY = startY + LINE_HEIGHT * line;
                             if (textY >= 0 && textY + 10 <= scaledUiHeight) {
-                                context.drawTextWithShadow(mc.textRenderer, lineText, drawX, textY, 0x777777);
+                                context.drawTextWithShadow(mc.textRenderer, lineText, drawX, textY, 0xFF777777);
                             }
                             line++;
                         }
@@ -94,7 +95,7 @@ public class DebugUIRenderer {
                         for (OrderedText lineText : wrapText(mc, durationLine, maxTextWidth)) {
                             int textY = startY + LINE_HEIGHT * line;
                             if (textY >= 0 && textY + 10 <= scaledUiHeight) {
-                                context.drawTextWithShadow(mc.textRenderer, lineText, drawX, textY, 0x666666);
+                                context.drawTextWithShadow(mc.textRenderer, lineText, drawX, textY, 0xFF666666);
                             }
                             line++;
                         }
@@ -106,7 +107,7 @@ public class DebugUIRenderer {
                         for (OrderedText lineText : wrapText(mc, errorLine, maxTextWidth)) {
                             int textY = startY + LINE_HEIGHT * line;
                             if (textY >= 0 && textY + 10 <= scaledUiHeight) {
-                                context.drawTextWithShadow(mc.textRenderer, lineText, drawX, textY, 0xFF5555);
+                                context.drawTextWithShadow(mc.textRenderer, lineText, drawX, textY, 0xFFFF5555);
                             }
                             line++;
                         }
@@ -121,6 +122,7 @@ public class DebugUIRenderer {
                 ShannonUIModClient.setTabScrollOffset(state.selectedTab, 0);
             }
         } finally {
+            context.disableScissor();
             context.getMatrices().popMatrix();
         }
     }
@@ -158,17 +160,17 @@ public class DebugUIRenderer {
      */
     private static int getLogColor(String level) {
         if (level == null)
-            return 0xAAAAAA;
+            return 0xFFAAAAAA;
         switch (level.toLowerCase()) {
             case "success":
-                return 0x55FF55;
+                return 0xFF55FF55;
             case "error":
-                return 0xFF5555;
+                return 0xFFFF5555;
             case "warning":
-                return 0xFFAA55;
+                return 0xFFFFAA55;
             case "info":
             default:
-                return 0xCCCCCC;
+                return 0xFFCCCCCC;
         }
     }
 

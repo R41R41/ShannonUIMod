@@ -27,6 +27,7 @@ public class ChatUIRenderer {
 
         // チャット履歴の描画
         context.getMatrices().pushMatrix();
+        context.enableScissor(x, y, x + uiWidth, y + uiHeight);
         try {
             context.getMatrices().translate(x, y);
             context.getMatrices().scale(SCALE, SCALE);
@@ -43,7 +44,7 @@ public class ChatUIRenderer {
             if (chatState != null && chatState.messages != null && !chatState.messages.isEmpty()) {
                 for (ChatState.ChatMessage msg : chatState.messages) {
                     // 送信者によって色を変える
-                    int color = msg.sender.equals("Shannon") ? 0x55FF55 : 0xFFFFFF;
+                    int color = msg.sender.equals("Shannon") ? 0xFF55FF55 : 0xFFFFFFFF;
                     String fullText = "[" + msg.sender + "] " + msg.message;
                     for (OrderedText wrapped : wrapText(mc, fullText, maxTextWidth)) {
                         int textY = startY + line * LINE_HEIGHT;
@@ -59,7 +60,7 @@ public class ChatUIRenderer {
                 for (OrderedText wrapped : wrapText(mc, noMessages, maxTextWidth)) {
                     int textY = startY + line * LINE_HEIGHT;
                     if (textY >= 0 && textY + 10 <= scaledChatHistoryHeight) {
-                        context.drawTextWithShadow(mc.textRenderer, wrapped, drawX, textY, 0x666666);
+                        context.drawTextWithShadow(mc.textRenderer, wrapped, drawX, textY, 0xFF666666);
                     }
                     line++;
                 }
@@ -75,11 +76,13 @@ public class ChatUIRenderer {
             }
 
         } finally {
+            context.disableScissor();
             context.getMatrices().popMatrix();
         }
 
         // 入力欄の描画（スケール適用、スクロールの影響を受けない固定位置）
         context.getMatrices().pushMatrix();
+        context.enableScissor(x, y, x + uiWidth, y + uiHeight);
         try {
             context.getMatrices().translate(x, y);
             context.getMatrices().scale(SCALE, SCALE);
@@ -124,9 +127,9 @@ public class ChatUIRenderer {
             String displayText = currentInput;
             if (displayText.isEmpty()) {
                 String placeholder = isInputFocused ? "" : "メッセージを入力...";
-                context.drawText(mc.textRenderer, placeholder, textX, textY, 0x666666, false);
+                context.drawText(mc.textRenderer, placeholder, textX, textY, 0xFF666666, false);
             } else {
-                context.drawText(mc.textRenderer, displayText, textX, textY, 0xFFFFFF, false);
+                context.drawText(mc.textRenderer, displayText, textX, textY, 0xFFFFFFFF, false);
             }
 
             // カーソルの描画（フォーカス時のみ、点滅）
@@ -141,6 +144,7 @@ public class ChatUIRenderer {
             wasMousePressed = mouseClicked;
 
         } finally {
+            context.disableScissor();
             context.getMatrices().popMatrix();
         }
     }

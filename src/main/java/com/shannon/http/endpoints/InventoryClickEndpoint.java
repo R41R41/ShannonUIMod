@@ -1,6 +1,6 @@
 package com.shannon.http.endpoints;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.gson.Gson;
 import com.shannon.ShannonUIMod;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
@@ -18,7 +18,7 @@ import java.nio.charset.StandardCharsets;
  */
 public class InventoryClickEndpoint implements HttpHandler {
     private static final Logger LOGGER = LoggerFactory.getLogger(InventoryClickEndpoint.class);
-    private final ObjectMapper mapper = new ObjectMapper();
+    private final Gson gson = new Gson();
 
     @Override
     public void handle(HttpExchange exchange) throws IOException {

@@ -1,6 +1,6 @@
 package com.shannon.http.endpoints;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.gson.Gson;
 import com.shannon.ShannonUIMod;
 import com.shannon.network.packet.ChatState;
 import com.shannon.state.StateManager;
@@ -25,7 +25,7 @@ import java.nio.charset.StandardCharsets;
  */
 public class BotChatEndpoint implements HttpHandler {
     private static final Logger LOGGER = LoggerFactory.getLogger(BotChatEndpoint.class);
-    private static final ObjectMapper MAPPER = new ObjectMapper();
+    private static final Gson GSON = new Gson();
 
     @Override
     public void handle(HttpExchange exchange) throws IOException {
@@ -54,7 +54,7 @@ public class BotChatEndpoint implements HttpHandler {
             String body = new String(is.readAllBytes(), StandardCharsets.UTF_8);
 
             // JSONをパース
-            BotChatRequest request = MAPPER.readValue(body, BotChatRequest.class);
+            BotChatRequest request = GSON.fromJson(body, BotChatRequest.class);
 
             if (request.message == null || request.message.isEmpty()) {
                 String response = "{\"success\":false,\"error\":\"Message is required\"}";

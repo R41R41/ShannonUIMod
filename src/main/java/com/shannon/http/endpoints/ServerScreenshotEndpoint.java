@@ -1,6 +1,6 @@
 package com.shannon.http.endpoints;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.gson.Gson;
 import com.shannon.ShannonUIMod;
 import com.shannon.network.packet.ScreenshotRequestPacket;
 import com.shannon.network.packet.ScreenshotResultPacket;
@@ -27,7 +27,7 @@ import java.util.concurrent.TimeUnit;
  */
 public class ServerScreenshotEndpoint implements HttpHandler {
     private static final Logger LOGGER = LoggerFactory.getLogger(ServerScreenshotEndpoint.class);
-    private static final ObjectMapper MAPPER = new ObjectMapper();
+    private static final Gson GSON = new Gson();
 
     // リクエストIDとFutureのマッピング
     private static final Map<String, CompletableFuture<ScreenshotResultPacket>> pendingRequests = new ConcurrentHashMap<>();
@@ -42,7 +42,7 @@ public class ServerScreenshotEndpoint implements HttpHandler {
         try {
             // リクエストボディを読み取り
             String requestBody = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
-            ScreenshotRequest request = MAPPER.readValue(requestBody, ScreenshotRequest.class);
+            ScreenshotRequest request = GSON.fromJson(requestBody, ScreenshotRequest.class);
 
             // デフォルト値を設定
             int width = request.width > 0 ? request.width : 512;
@@ -92,7 +92,7 @@ public class ServerScreenshotEndpoint implements HttpHandler {
             response.playerRotation = new PlayerRotation(result.playerYaw(), result.playerPitch());
             response.error = result.error();
 
-            sendResponse(exchange, 200, MAPPER.writeValueAsString(response));
+            sendResponse(exchange, 200, GSON.toJson(response));
 
         } catch (java.util.concurrent.TimeoutException e) {
             LOGGER.error("Screenshot request timed out");
