@@ -3,6 +3,8 @@
     "key.shannonuimod.toggleDisplayUI": "表示⇔非表示切替",
     "key.shannonuimod.toggleHUDAndScreenUI": "表示⇔操作可能切替",
     "key.shannonuimod.tabSwitchNext": "タブ切替",
+    "key.shannonuimod.voiceModeToggle": "音声モード切替",
+    "key.shannonuimod.voicePtt": "プッシュトゥトーク",
     "tab.shannonuimod.tasktree": "取組中のタスク",
     "tab.shannonuimod.passiveskill": "常時スキル",
     "tab.shannonuimod.inventory": "インベントリ",

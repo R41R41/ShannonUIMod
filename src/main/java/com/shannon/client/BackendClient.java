@@ -8,10 +8,13 @@ import com.shannon.error.exceptions.JsonSerializationException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
+import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
 /**
@@ -105,6 +108,63 @@ public class BackendClient {
         } catch (Exception e) {
             LOGGER.error("JSON変換失敗: {}", e.getMessage());
             ModErrorHandler.handle(new JsonSerializationException("serializing request", e));
+        }
+    }
+
+    /**
+     * BackendにPOSTリクエストを送信し、レスポンスボディも取得する
+     *
+     * @param endpoint エンドポイント
+     * @param jsonBody JSON文字列
+     * @param callback (レスポンスコード, レスポンスボディ) を受け取るコールバック
+     */
+    public static void postWithBody(String endpoint, String jsonBody, BiConsumer<Integer, String> callback) {
+        try {
+            String url = ModConfig.buildBackendUrl(endpoint);
+            URI uri = URI.create(url);
+            HttpURLConnection conn = (HttpURLConnection) uri.toURL().openConnection();
+
+            conn.setRequestMethod("POST");
+            conn.setDoOutput(true);
+            conn.setRequestProperty("Content-Type", "application/json; charset=UTF-8");
+            conn.setConnectTimeout(ModConfig.CONNECTION_TIMEOUT_MS);
+            conn.setReadTimeout(ModConfig.READ_TIMEOUT_MS);
+
+            try (OutputStream os = conn.getOutputStream()) {
+                os.write(jsonBody.getBytes(StandardCharsets.UTF_8));
+            }
+
+            int responseCode = conn.getResponseCode();
+            String body = "";
+            try (BufferedReader br = new BufferedReader(
+                    new InputStreamReader(
+                            responseCode >= 400 ? conn.getErrorStream() : conn.getInputStream(),
+                            StandardCharsets.UTF_8))) {
+                StringBuilder sb = new StringBuilder();
+                String line;
+                while ((line = br.readLine()) != null) {
+                    sb.append(line);
+                }
+                body = sb.toString();
+            } catch (Exception ignored) {
+            }
+
+            if (ModConfig.LOG_HTTP) {
+                LOGGER.info("POST {} response: {} body: {}", endpoint, responseCode, body);
+            }
+
+            if (callback != null) {
+                callback.accept(responseCode, body);
+            }
+
+            conn.disconnect();
+
+        } catch (Exception e) {
+            LOGGER.error("POST {} 送信失敗: {}", endpoint, e.getMessage());
+            if (callback != null) {
+                callback.accept(-1, e.getMessage());
+            }
+            ModErrorHandler.handle(new BackendCommunicationException(endpoint, e));
         }
     }
 

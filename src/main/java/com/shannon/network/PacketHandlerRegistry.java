@@ -6,6 +6,7 @@ import com.shannon.client.BackendClient;
 import com.shannon.client.request.ChatMessageRequest;
 import com.shannon.client.request.SkillSwitchRequest;
 import com.shannon.client.request.ThrowItemRequest;
+import com.shannon.client.request.VoicePttRequest;
 import com.shannon.config.ModConfig;
 import com.shannon.error.ModErrorHandler;
 import com.shannon.error.exceptions.PacketHandlingException;
@@ -39,6 +40,8 @@ public class PacketHandlerRegistry {
         registerScreenshotResultHandler();
         registerTaskActionHandler();
         registerRequestAdvancementsHandler();
+        registerVoiceModeToggleHandler();
+        registerVoicePttHandler();
 
         LOGGER.info("✅ All C2S packet handlers registered");
     }
@@ -323,6 +326,88 @@ public class PacketHandlerRegistry {
                             LOGGER.error("[Advancements] Error processing request", e);
                             ModErrorHandler.handle(
                                     new PacketHandlingException("RequestAdvancementsPacket", e));
+                        }
+                    });
+                });
+    }
+
+    private static void registerVoiceModeToggleHandler() {
+        ServerPlayNetworking.registerGlobalReceiver(
+                VoiceModeTogglePacket.PACKET_ID,
+                (payload, context) -> {
+                    ServerPlayerEntity player = context.player();
+                    context.server().execute(() -> {
+                        try {
+                            BackendClient.postWithBody(ModConfig.ENDPOINT_VOICE_MODE, "{}", (responseCode, body) -> {
+                                if (ModConfig.LOG_PACKETS) {
+                                    LOGGER.debug("VoiceModeToggle response: {} body: {}", responseCode, body);
+                                }
+                                try {
+                                    com.google.gson.JsonObject json = com.google.gson.JsonParser.parseString(body).getAsJsonObject();
+                                    boolean success = json.has("success") && json.get("success").getAsBoolean();
+                                    String result = json.has("result") ? json.get("result").getAsString() : "";
+                                    String msg;
+                                    if (success) {
+                                        msg = "§a🎙️ ボイスモード: " + result;
+                                    } else {
+                                        msg = "§c🎙️ " + result;
+                                    }
+                                    context.server().execute(() -> player.sendMessage(
+                                            net.minecraft.text.Text.literal(msg), false));
+                                } catch (Exception e) {
+                                    if (responseCode == -1) {
+                                        context.server().execute(() -> player.sendMessage(
+                                                net.minecraft.text.Text.literal("§c🎙️ バックエンド接続失敗"), false));
+                                    }
+                                }
+                            });
+                        } catch (Exception e) {
+                            ModErrorHandler.handle(
+                                    new PacketHandlingException("VoiceModeTogglePacket", e));
+                            player.sendMessage(
+                                    net.minecraft.text.Text.literal("§c🎙️ バックエンド接続失敗"), false);
+                        }
+                    });
+                });
+    }
+
+    private static void registerVoicePttHandler() {
+        ServerPlayNetworking.registerGlobalReceiver(
+                VoicePttPacket.PACKET_ID,
+                (payload, context) -> {
+                    ServerPlayerEntity player = context.player();
+                    String mcUsername = player.getName().getString();
+                    String action = payload.pressed() ? "on" : "off";
+                    context.server().execute(() -> {
+                        try {
+                            String json = new com.google.gson.Gson().toJson(new VoicePttRequest(mcUsername, action));
+                            BackendClient.postWithBody(
+                                    ModConfig.ENDPOINT_VOICE_PTT,
+                                    json,
+                                    (responseCode, body) -> {
+                                        if (ModConfig.LOG_PACKETS) {
+                                            LOGGER.debug("VoicePtt response: {} body: {}", responseCode, body);
+                                        }
+                                        try {
+                                            com.google.gson.JsonObject resp = com.google.gson.JsonParser.parseString(body).getAsJsonObject();
+                                            boolean success = resp.has("success") && resp.get("success").getAsBoolean();
+                                            if (!success) {
+                                                String result = resp.has("result") ? resp.get("result").getAsString() : "エラー";
+                                                context.server().execute(() -> player.sendMessage(
+                                                        net.minecraft.text.Text.literal("§c🎙️ " + result), false));
+                                            }
+                                        } catch (Exception ignored) {
+                                            if (responseCode == -1) {
+                                                context.server().execute(() -> player.sendMessage(
+                                                        net.minecraft.text.Text.literal("§c🎙️ バックエンド接続失敗"), false));
+                                            }
+                                        }
+                                    });
+                        } catch (Exception e) {
+                            ModErrorHandler.handle(
+                                    new PacketHandlingException("VoicePttPacket", e));
+                            player.sendMessage(
+                                    net.minecraft.text.Text.literal("§c🎙️ バックエンド接続失敗"), false);
                         }
                     });
                 });

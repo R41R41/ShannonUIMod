@@ -69,8 +69,12 @@ public class PacketRegistry {
                                 TaskActionPacket.PACKET_CODEC);
                 PayloadTypeRegistry.playC2S().register(RequestAdvancementsPacket.PACKET_ID,
                                 RequestAdvancementsPacket.PACKET_CODEC);
+                PayloadTypeRegistry.playC2S().register(VoiceModeTogglePacket.PACKET_ID,
+                                VoiceModeTogglePacket.PACKET_CODEC);
+                PayloadTypeRegistry.playC2S().register(VoicePttPacket.PACKET_ID,
+                                VoicePttPacket.PACKET_CODEC);
 
-                LOGGER.debug("  ✓ C2S packets registered (9 types)");
+                LOGGER.debug("  ✓ C2S packets registered (11 types)");
         }
 
         private PacketRegistry() {

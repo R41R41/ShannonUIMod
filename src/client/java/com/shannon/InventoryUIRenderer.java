@@ -84,9 +84,9 @@ public class InventoryUIRenderer {
                         }
                     }
 
-                    // ラベルとアイテム名
+                    // ラベルとアイテム名（クライアント言語で表示）
                     String labelText = equipDisplayLabels[i] + ": "
-                            + (item != null ? item.displayName : "-");
+                            + getLocalizedName(item);
                     if (slotY >= 0 && slotY + 10 <= scaledUiHeight) {
                         int textColor = hovered ? 0xFFFFFF55 : (item != null ? 0xFFFFFFFF : 0xFF888888);
                         context.drawTextWithShadow(mc.textRenderer, Text.literal(labelText),
@@ -132,7 +132,7 @@ public class InventoryUIRenderer {
             // アイテムリスト（アイコン付き）
             if (inventoryState.items != null) {
                 java.util.List<InventoryState.Item> sortedItems = new java.util.ArrayList<>(inventoryState.items);
-                java.util.Collections.sort(sortedItems, (a, b) -> a.displayName.compareToIgnoreCase(b.displayName));
+                java.util.Collections.sort(sortedItems, (a, b) -> getLocalizedName(a).compareToIgnoreCase(getLocalizedName(b)));
 
                 for (InventoryState.Item item : sortedItems) {
                     int itemY = currentY;
@@ -149,8 +149,8 @@ public class InventoryUIRenderer {
                             context.drawItem(stack, drawX + 1, itemY + 1);
                         }
 
-                        // テキスト
-                        String itemText = item.displayName + ": " + item.count;
+                        // テキスト（クライアント言語で表示）
+                        String itemText = getLocalizedName(item) + ": " + item.count;
                         if (itemY >= 0 && itemY + 10 <= scaledUiHeight) {
                             if (hovered) {
                                 context.fill(drawX + SLOT_SIZE + 2, itemY,
@@ -182,6 +182,18 @@ public class InventoryUIRenderer {
             context.disableScissor();
             context.getMatrices().popMatrix();
         }
+    }
+
+    /**
+     * クライアント側の言語設定でアイテム表示名を取得
+     */
+    private static String getLocalizedName(InventoryState.Item item) {
+        if (item == null) return "-";
+        ItemStack stack = getItemStack(item.name);
+        if (!stack.isEmpty()) {
+            return stack.getName().getString();
+        }
+        return item.displayName;
     }
 
     /**

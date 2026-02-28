@@ -26,7 +26,7 @@ public class ModConfig {
     public static final String BACKEND_HOST = "localhost";
 
     /** Backend（Minebot）のポート */
-    public static final int BACKEND_PORT = 8082;
+    public static final int BACKEND_PORT = 8092;
 
     /** BackendのベースURL */
     public static final String BACKEND_BASE_URL = "http://" + BACKEND_HOST + ":" + BACKEND_PORT;
@@ -95,6 +95,12 @@ public class ModConfig {
 
     /** タスクリスト取得エンドポイント */
     public static final String ENDPOINT_TASK_LIST = "/task_list";
+
+    /** 音声モード切替エンドポイント */
+    public static final String ENDPOINT_VOICE_MODE = "/voice_mode";
+
+    /** 音声PTTエンドポイント */
+    public static final String ENDPOINT_VOICE_PTT = "/voice_ptt";
 
     // ===== ターゲットプレイヤー設定 =====
 

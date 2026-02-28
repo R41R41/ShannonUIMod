@@ -170,7 +170,7 @@ public class SettingsUIRenderer {
 
         String eventName = getEventDisplayName(reaction.eventType);
         int nameX = checkX + CHECKBOX_SIZE + 4;
-        int nameColor = reaction.enabled ? 0xFFFFFF : 0x888888;
+        int nameColor = reaction.enabled ? 0xFFFFFFFF : 0xFF888888;
         context.drawTextWithShadow(mc.textRenderer, Text.literal(eventName), nameX, textY, nameColor);
 
         line++;
@@ -213,13 +213,13 @@ public class SettingsUIRenderer {
 
                 String displayVal = editingValue + "_";
                 context.drawTextWithShadow(mc.textRenderer, Text.literal(displayVal),
-                        percentX, sliderY - 1, 0xFFFFFF);
+                        percentX, sliderY - 1, 0xFFFFFFFF);
             } else {
                 // 通常表示: クリックで入力モードに
                 String percentText = reaction.probability + "%";
                 boolean overPercent = mouseX >= percentX && mouseX <= percentX + 30
                         && mouseY >= sliderY - 2 && mouseY <= sliderY + SLIDER_HEIGHT + 4;
-                int percentColor = overPercent ? 0xFF5599FF : ((overSlider || isDragging) ? 0xFFFFFF : 0xAAAAAA);
+                int percentColor = overPercent ? 0xFF5599FF : ((overSlider || isDragging) ? 0xFFFFFFFF : 0xFFAAAAAA);
                 context.drawTextWithShadow(mc.textRenderer, Text.literal(percentText),
                         percentX, sliderY - 1, percentColor);
 

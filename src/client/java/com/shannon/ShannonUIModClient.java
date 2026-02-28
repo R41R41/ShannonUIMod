@@ -33,6 +33,8 @@ import com.shannon.network.packet.TaskListStatePacket;
 import com.shannon.network.packet.AdvancementsState;
 import com.shannon.network.packet.AdvancementsStatePacket;
 import com.shannon.network.packet.RequestAdvancementsPacket;
+import com.shannon.network.packet.VoiceModeTogglePacket;
+import com.shannon.network.packet.VoicePttPacket;
 import com.shannon.util.ScreenshotUtil;
 import com.shannon.http.endpoints.ScreenshotEndpoint;
 import com.shannon.state.StateManager;
@@ -42,6 +44,11 @@ public class ShannonUIModClient implements ClientModInitializer {
     private static KeyBinding toggleDisplayUIKey;
     private static KeyBinding toggleHUDAndScreenUIKey;
     private static KeyBinding tabSwitchNextKey;
+    private static KeyBinding voiceModeToggleKey;
+    private static KeyBinding voicePttKey;
+    private static long lastVoiceModeToggleMs = 0;
+    private static final long KEY_COOLDOWN_MS = 1000;
+    private static boolean pttActive = false;
     private TaskTreeState taskTreeState;
     private TaskListStatePacket.TaskListState taskListState;
     private InventoryState inventoryState;
@@ -213,6 +220,16 @@ public class ShannonUIModClient implements ClientModInitializer {
                 InputUtil.Type.KEYSYM,
                 GLFW.GLFW_KEY_N,
                 shannonCategory));
+        voiceModeToggleKey = KeyBindingHelper.registerKeyBinding(new KeyBinding(
+                "key.shannonuimod.voiceModeToggle",
+                InputUtil.Type.KEYSYM,
+                GLFW.GLFW_KEY_V,
+                shannonCategory));
+        voicePttKey = KeyBindingHelper.registerKeyBinding(new KeyBinding(
+                "key.shannonuimod.voicePtt",
+                InputUtil.Type.KEYSYM,
+                GLFW.GLFW_KEY_P,
+                shannonCategory));
 
         // キーイベントの監視（execute外で登録）
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
@@ -223,6 +240,23 @@ public class ShannonUIModClient implements ClientModInitializer {
             // Iキー: Screen型UIの表示/非表示 or HUD→Screen
             if (toggleHUDAndScreenUIKey.wasPressed()) {
                 updateUIMode(false, client);
+            }
+            // Vキー: voice_mode トグル（Chat ↔ Minebot）
+            if (voiceModeToggleKey.wasPressed()) {
+                long now = System.currentTimeMillis();
+                if (now - lastVoiceModeToggleMs >= KEY_COOLDOWN_MS) {
+                    lastVoiceModeToggleMs = now;
+                    ClientPlayNetworking.send(new VoiceModeTogglePacket());
+                }
+            }
+            // Pキー: Push-to-Talk（押してる間ON、離したらOFF）
+            boolean pttPressed = voicePttKey.isPressed();
+            if (pttPressed && !pttActive) {
+                pttActive = true;
+                ClientPlayNetworking.send(new VoicePttPacket(true));
+            } else if (!pttPressed && pttActive) {
+                pttActive = false;
+                ClientPlayNetworking.send(new VoicePttPacket(false));
             }
 
             // スクリーンショット処理（フレーム待機後の撮影）
