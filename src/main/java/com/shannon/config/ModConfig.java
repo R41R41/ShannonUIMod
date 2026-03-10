@@ -25,8 +25,10 @@ public class ModConfig {
     /** Backend（Minebot）のホスト */
     public static final String BACKEND_HOST = "localhost";
 
-    /** Backend（Minebot）のポート */
-    public static final int BACKEND_PORT = 8092;
+    /**
+     * Backend（Minebot）のポート (デフォルト値、config/shannonuimod.json の backendPort で上書き可能)
+     */
+    public static final int BACKEND_PORT = loadBackendPort();
 
     /** BackendのベースURL */
     public static final String BACKEND_BASE_URL = "http://" + BACKEND_HOST + ":" + BACKEND_PORT;
@@ -42,26 +44,40 @@ public class ModConfig {
     /** クライアントサイドHTTPサーバーのポート（スクリーンショット等） */
     public static final int CLIENT_HTTP_SERVER_PORT = 8083;
 
+    private static final int BACKEND_PORT_DEFAULT = 8092;
+
+    /**
+     * config/shannonuimod.json から backendPort を読み込む
+     * ファイルが存在しない場合はデフォルト値 (8092) を使用
+     */
+    private static int loadBackendPort() {
+        return loadIntFromConfig("backendPort", BACKEND_PORT_DEFAULT);
+    }
+
     /**
      * config/shannonuimod.json からHTTPサーバーポートを読み込む
      * ファイルが存在しない場合はデフォルト値 (8081) を使用
      */
     private static int loadHttpServerPort() {
+        return loadIntFromConfig("httpServerPort", HTTP_SERVER_PORT_DEFAULT);
+    }
+
+    private static int loadIntFromConfig(String key, int defaultValue) {
         Path configPath = Paths.get("config", "shannonuimod.json");
         if (Files.exists(configPath)) {
             try (Reader reader = Files.newBufferedReader(configPath)) {
                 Gson gson = new Gson();
                 JsonObject json = gson.fromJson(reader, JsonObject.class);
-                if (json != null && json.has("httpServerPort")) {
-                    int port = json.get("httpServerPort").getAsInt();
-                    LOGGER.info("📋 config/shannonuimod.json からHTTPポートを読み込みました: {}", port);
-                    return port;
+                if (json != null && json.has(key)) {
+                    int value = json.get(key).getAsInt();
+                    LOGGER.info("📋 config/shannonuimod.json から {} を読み込みました: {}", key, value);
+                    return value;
                 }
             } catch (IOException e) {
-                LOGGER.warn("config/shannonuimod.json の読み込みに失敗しました。デフォルトポートを使用します。", e);
+                LOGGER.warn("config/shannonuimod.json の読み込みに失敗しました。デフォルト値を使用します: {} = {}", key, defaultValue, e);
             }
         }
-        return HTTP_SERVER_PORT_DEFAULT;
+        return defaultValue;
     }
 
     /** HTTPサーバーのスレッドプールサイズ */

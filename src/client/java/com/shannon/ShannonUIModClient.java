@@ -144,11 +144,18 @@ public class ShannonUIModClient implements ClientModInitializer {
         });
 
         ClientPlayNetworking.registerGlobalReceiver(DetailedLogsStatePacket.PACKET_ID, (payload, context) -> {
-            context.client().execute(() -> {
+            try {
                 DetailedLogsState state = payload.state();
-                detailedLogsState = state;
-                System.out.println("DetailedLogsState received: " + state);
-            });
+                context.client().execute(() -> {
+                    try {
+                        detailedLogsState = state;
+                    } catch (Exception e) {
+                        com.shannon.ShannonUIMod.LOGGER.warn("[DetailedLogs] Apply state failed: {}", e.getMessage());
+                    }
+                });
+            } catch (Exception e) {
+                com.shannon.ShannonUIMod.LOGGER.warn("[DetailedLogs] Decode or handle failed: {}", e.getMessage());
+            }
         });
 
         ClientPlayNetworking.registerGlobalReceiver(AdvancementsStatePacket.PACKET_ID, (payload, context) -> {
@@ -424,7 +431,8 @@ public class ShannonUIModClient implements ClientModInitializer {
      * 進捗データをサーバーにリクエスト（タブ切り替え時に呼ぶ）
      */
     public static void requestAdvancements() {
-        if (INSTANCE == null) return;
+        if (INSTANCE == null)
+            return;
         try {
             ClientPlayNetworking.send(new RequestAdvancementsPacket(""));
             INSTANCE.advancementsRequested = true;

@@ -7,6 +7,7 @@ public class TaskTreeState {
     public String strategy;
     public String status;
     public String error;
+    public String currentThinking;
 
     // 階層的サブタスク（新形式）
     public List<HierarchicalSubTask> hierarchicalSubTasks;

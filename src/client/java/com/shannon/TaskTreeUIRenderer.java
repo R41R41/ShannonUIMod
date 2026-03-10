@@ -262,6 +262,24 @@ public class TaskTreeUIRenderer {
             }
         }
 
+        // 思考表示
+        if (taskTreeState.currentThinking != null && !taskTreeState.currentThinking.isEmpty()) {
+            currentY += LINE_HEIGHT / 2;
+            String thinkingLabel = "💭 思考:";
+            for (OrderedText lineText : RenderUtils.wrapText(mc, thinkingLabel, maxTextWidth)) {
+                if (currentY >= 0 && currentY + 10 <= scaledUiHeight) {
+                    context.drawTextWithShadow(mc.textRenderer, lineText, drawX, currentY, 0xFF88CCFF);
+                }
+                currentY += LINE_HEIGHT;
+            }
+            for (OrderedText lineText : RenderUtils.wrapText(mc, "  " + taskTreeState.currentThinking, maxTextWidth)) {
+                if (currentY >= 0 && currentY + 10 <= scaledUiHeight) {
+                    context.drawTextWithShadow(mc.textRenderer, lineText, drawX, currentY, 0xFFAADDFF);
+                }
+                currentY += LINE_HEIGHT;
+            }
+        }
+
         // エラー表示
         if (taskTreeState.error != null && !taskTreeState.error.isEmpty()) {
             currentY += LINE_HEIGHT / 2;

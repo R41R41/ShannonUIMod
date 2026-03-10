@@ -19,6 +19,14 @@ public class StateManager {
     private static final Logger LOGGER = LoggerFactory.getLogger(StateManager.class);
     private static StateManager instance;
 
+    /** 詳細ログのブロードキャストを最大この間隔(ms)に1回に制限（クライアント切断防止） */
+    private static final long LOGS_BROADCAST_INTERVAL_MS = 1_000L;
+    /** 1パケットに含めるログ件数の上限（custom payload サイズ制限対策） */
+    private static final int LOGS_PACKET_MAX_ENTRIES = 25;
+
+    private long lastLogsBroadcastTime = 0;
+    private boolean logsBroadcastDirty = false;
+
     // 状態
     private TaskTreeState taskTreeState = new TaskTreeState();
     private TaskListStatePacket.TaskListState taskListState = new TaskListStatePacket.TaskListState();
@@ -139,6 +147,7 @@ public class StateManager {
         }
 
         notifyListeners(StateType.LOGS);
+        logsBroadcastDirty = true;
         broadcastLogsState();
     }
 
@@ -149,6 +158,8 @@ public class StateManager {
         this.logsState = new DetailedLogsState();
         LOGGER.info("DetailedLogsState cleared");
         notifyListeners(StateType.LOGS);
+        lastLogsBroadcastTime = 0;
+        logsBroadcastDirty = true;
         broadcastLogsState();
     }
 
@@ -228,10 +239,34 @@ public class StateManager {
         if (logsState == null || server == null) {
             return;
         }
+        if (!logsBroadcastDirty) {
+            return;
+        }
+        long now = System.currentTimeMillis();
+        if (now - lastLogsBroadcastTime < LOGS_BROADCAST_INTERVAL_MS) {
+            return;
+        }
+        lastLogsBroadcastTime = now;
+        logsBroadcastDirty = false;
+
+        // パケットサイズ制限・クライアント切断防止のため直近 N 件だけ送る
+        List<DetailedLogsState.LogEntry> logs = logsState.logs;
+        if (logs == null || logs.isEmpty()) {
+            return;
+        }
+        int fromIndex = Math.max(0, logs.size() - LOGS_PACKET_MAX_ENTRIES);
+        List<DetailedLogsState.LogEntry> toSend = logs.subList(fromIndex, logs.size());
+
+        DetailedLogsState trimmedState = new DetailedLogsState();
+        trimmedState.logs = new ArrayList<>(toSend);
 
         for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
             if (ServerPlayNetworking.canSend(player, DetailedLogsStatePacket.PACKET_ID)) {
-                ServerPlayNetworking.send(player, new DetailedLogsStatePacket(logsState));
+                try {
+                    ServerPlayNetworking.send(player, new DetailedLogsStatePacket(trimmedState));
+                } catch (Exception e) {
+                    LOGGER.warn("Failed to send DetailedLogsState to {}: {}", player.getName().getString(), e.getMessage());
+                }
             }
         }
     }
