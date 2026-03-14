@@ -45,22 +45,20 @@ public class SettingsUIRenderer {
             int line = 0;
             int drawX = (int) (4 / SCALE);
             int yOff = (int) (-scrollOffset / SCALE);
-            int maxTextWidth = scaledUiWidth - 8;
+            int rightEdge = scaledUiWidth - 16;
+            int maxTextWidth = rightEdge - drawX;
             int startY = (int) (4 / SCALE) + yOff;
 
             // ヘッダー
-            String header = "設定";
-            for (OrderedText lineText : RenderUtils.wrapText(mc, header, maxTextWidth)) {
-                int textY = startY + LINE_HEIGHT * line;
-                if (textY >= 0 && textY + 10 <= scaledUiHeight) {
-                    context.drawTextWithShadow(mc.textRenderer, lineText, drawX, textY, RenderUtils.COLOR_HEADER);
-                }
-                line++;
+            int headerY = startY + LINE_HEIGHT * line;
+            if (headerY >= 0 && headerY + RenderUtils.SECTION_HEADER_HEIGHT <= scaledUiHeight) {
+                RenderUtils.drawSectionHeader(context, mc, "設定",
+                        drawX - 2, headerY, maxTextWidth + 2, RenderUtils.COLOR_HEADER);
             }
-            line++;
+            line += 2; // SECTION_HEADER_HEIGHT分
 
             // リセットボタン
-            int resetBtnX = scaledUiWidth - 65;
+            int resetBtnX = rightEdge - 50;
             int resetBtnY = startY + LINE_HEIGHT;
             boolean resetClicked = RenderUtils.drawButton(context, mc, "リセット",
                     resetBtnX, resetBtnY, 50, 12,
@@ -75,19 +73,25 @@ public class SettingsUIRenderer {
 
             // === 反応イベント設定 ===
             line++;
-            String reactionsHeader = "反応イベント";
-            for (OrderedText lineText : RenderUtils.wrapText(mc, reactionsHeader, maxTextWidth)) {
-                int textY = startY + LINE_HEIGHT * line;
-                if (textY >= 0 && textY + 10 <= scaledUiHeight) {
-                    context.drawTextWithShadow(mc.textRenderer, lineText, drawX, textY, RenderUtils.COLOR_CATEGORY);
-                }
-                line++;
+            int reactHeaderY = startY + LINE_HEIGHT * line;
+            if (reactHeaderY >= 0 && reactHeaderY + RenderUtils.SECTION_HEADER_HEIGHT <= scaledUiHeight) {
+                RenderUtils.drawSectionHeader(context, mc, "反応イベント",
+                        drawX - 2, reactHeaderY, maxTextWidth + 2, RenderUtils.COLOR_CATEGORY);
             }
+            line += 2;
 
             if (settingsState != null && settingsState.reactions != null) {
+                int reactionIdx = 0;
                 for (ReactionSettingsState.ReactionConfig reaction : settingsState.reactions) {
+                    // 交互背景色
+                    if (reactionIdx % 2 == 1) {
+                        int bgY = startY + LINE_HEIGHT * line;
+                        int bgH = reaction.enabled ? LINE_HEIGHT * 2 + 2 : LINE_HEIGHT + 2;
+                        context.fill(drawX - 2, bgY - 1, rightEdge, bgY + bgH, 0x11FFFFFF);
+                    }
                     line = renderReactionSetting(context, mc, drawX, startY, line, scaledUiWidth, scaledUiHeight,
                             reaction, scaledMouseX, scaledMouseY, mouseClicked);
+                    reactionIdx++;
                 }
             } else {
                 String noData = "  読み込み中...";
@@ -181,7 +185,7 @@ public class SettingsUIRenderer {
             int sliderY = textY + 1;
 
             boolean overSlider = mouseX >= sliderX && mouseX <= sliderX + SLIDER_WIDTH
-                    && mouseY >= sliderY && mouseY <= sliderY + SLIDER_HEIGHT + 4;
+                    && mouseY >= sliderY - 4 && mouseY <= sliderY + SLIDER_HEIGHT + 8;
             boolean isDragging = reaction.eventType.equals(draggingSlider);
 
             // スライダー背景
@@ -218,7 +222,7 @@ public class SettingsUIRenderer {
                 // 通常表示: クリックで入力モードに
                 String percentText = reaction.probability + "%";
                 boolean overPercent = mouseX >= percentX && mouseX <= percentX + 30
-                        && mouseY >= sliderY - 2 && mouseY <= sliderY + SLIDER_HEIGHT + 4;
+                        && mouseY >= sliderY - 4 && mouseY <= sliderY + SLIDER_HEIGHT + 8;
                 int percentColor = overPercent ? 0xFF5599FF : ((overSlider || isDragging) ? 0xFFFFFFFF : 0xFFAAAAAA);
                 context.drawTextWithShadow(mc.textRenderer, Text.literal(percentText),
                         percentX, sliderY - 1, percentColor);

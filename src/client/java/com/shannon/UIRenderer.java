@@ -225,12 +225,10 @@ public class UIRenderer {
         state.prevMousePressed = mousePressed;
 
         switch (state.selectedTab) {
-            case 0:
+            case 0: // タスクツリー
                 com.shannon.network.packet.DetailedLogsState logsState = ShannonUIModClient.getDetailedLogsState();
                 com.shannon.network.packet.LogToggleState logToggleState = ShannonUIModClient.getLogToggleState();
-                // ホバー処理
                 TaskTreeUIRenderer.handleHover(innerX, innerY, uiWidth, uiHeight - 2, mouseX, mouseY);
-                // クリック処理
                 if (mouseJustClicked) {
                     TaskTreeUIRenderer.handleClick(innerX, innerY, uiWidth, uiHeight - 2, mouseX, mouseY);
                 }
@@ -239,31 +237,31 @@ public class UIRenderer {
                         taskTreeState, state.scrollOffset, state, logsState, logToggleState,
                         relMouseX, relMouseY, mouseJustClicked);
                 break;
-            case 1:
-                ConstantSkillsUIRenderer.renderConstantSkills(context, mc, innerX, innerY, uiWidth, uiHeight - 2,
-                        state, constantSkillsState, relMouseX, relMouseY, mouseJustClicked);
-                break;
-            case 2:
+            case 1: // インベントリ
                 InventoryUIRenderer.renderInventory(context, mc, innerX, innerY, uiWidth, uiHeight - 2, state,
                         state.scrollOffset, inventoryState, relMouseX, relMouseY, mouseJustClicked);
                 break;
-            case 3:
-                ChatUIRenderer.renderChat(context, mc, innerX, innerY, uiWidth, uiHeight - 2, state,
-                        state.scrollOffset, chatState, relMouseX, relMouseY, mouseJustClicked);
+            case 2: // 常時スキル
+                ConstantSkillsUIRenderer.renderConstantSkills(context, mc, innerX, innerY, uiWidth, uiHeight - 2,
+                        state, constantSkillsState, relMouseX, relMouseY, mouseJustClicked);
                 break;
-            case 4:
-                DebugUIRenderer.renderDebug(context, mc, innerX, innerY, uiWidth, uiHeight - 2, state,
-                        state.scrollOffset);
-                break;
-            case 5:
-                SettingsUIRenderer.renderSettings(context, mc, innerX, innerY, uiWidth, uiHeight - 2, state,
-                        state.scrollOffset, relMouseX, relMouseY, mouseJustClicked);
-                break;
-            case 6:
+            case 3: // 進捗
                 com.shannon.network.packet.AdvancementsState advancementsState = ShannonUIModClient
                         .getAdvancementsState();
                 AdvancementsUIRenderer.renderAdvancements(context, mc, innerX, innerY, uiWidth, uiHeight - 2, state,
                         state.scrollOffset, advancementsState, relMouseX, relMouseY, mouseJustClicked);
+                break;
+            case 4: // チャット
+                ChatUIRenderer.renderChat(context, mc, innerX, innerY, uiWidth, uiHeight - 2, state,
+                        state.scrollOffset, chatState, relMouseX, relMouseY, mouseJustClicked);
+                break;
+            case 5: // デバッグログ
+                DebugUIRenderer.renderDebug(context, mc, innerX, innerY, uiWidth, uiHeight - 2, state,
+                        state.scrollOffset, relMouseX, relMouseY, mouseJustClicked);
+                break;
+            case 6: // 設定
+                SettingsUIRenderer.renderSettings(context, mc, innerX, innerY, uiWidth, uiHeight - 2, state,
+                        state.scrollOffset, relMouseX, relMouseY, mouseJustClicked);
                 break;
         }
         // スクロールバー描画
@@ -321,6 +319,21 @@ public class UIRenderer {
         int borderColor1 = 0xff838383;
         int borderColor2 = 0xff4d4d4d;
         int borderColor3 = 0xff000000;
+
+        // 感情状態によるボーダー色の微妙なティント
+        TaskTreeState tts = ShannonUIModClient.getTaskTreeState();
+        if (tts != null && tts.emotionState != null) {
+            int tint = tts.emotionState.getEmotionTint();
+            // border1 を感情色に向かって20%ブレンド
+            int r1 = 0x83, g1 = 0x83, b1 = 0x83;
+            int tr = (tint >> 16) & 0xFF;
+            int tg = (tint >> 8) & 0xFF;
+            int tb = tint & 0xFF;
+            int br = (r1 * 4 + tr) / 5;
+            int bg2 = (g1 * 4 + tg) / 5;
+            int bb = (b1 * 4 + tb) / 5;
+            borderColor1 = 0xff000000 | (br << 16) | (bg2 << 8) | bb;
+        }
         context.fill(state.lastPanelX + 1, state.lastPanelY + 1, state.lastPanelX + state.lastUiWidth,
                 state.lastPanelY + state.lastUiHeight, bgColor);
 
@@ -381,10 +394,10 @@ public class UIRenderer {
         int borderColor3 = 0xff000000;
         boolean mouseClicked = GLFW.glfwGetMouseButton(mc.getWindow().getHandle(),
                 GLFW.GLFW_MOUSE_BUTTON_1) == GLFW.GLFW_PRESS;
-        Identifier[] icon = { TASK_TREE, PASSIVE_SKILL, INVENTORY, CHAT, DEBUG, SETTINGS, ADVANCEMENTS };
-        String[] tabDescriptionKeys = { "tab.shannonuimod.tasktree", "tab.shannonuimod.passiveskill",
-                "tab.shannonuimod.inventory", "tab.shannonuimod.chat", "tab.shannonuimod.debug",
-                "tab.shannonuimod.settings", "tab.shannonuimod.advancements" };
+        Identifier[] icon = { TASK_TREE, INVENTORY, PASSIVE_SKILL, ADVANCEMENTS, CHAT, DEBUG, SETTINGS };
+        String[] tabDescriptionKeys = { "tab.shannonuimod.tasktree", "tab.shannonuimod.inventory",
+                "tab.shannonuimod.passiveskill", "tab.shannonuimod.advancements", "tab.shannonuimod.chat",
+                "tab.shannonuimod.debug", "tab.shannonuimod.settings" };
         int hoveredTab = -1;
         for (int i = 0; i < 7; i++) {
             int tabX = x - tabWidth - 2;
@@ -406,6 +419,14 @@ public class UIRenderer {
                     0, 0,
                     tabWidth, tabHeight,
                     tabWidth, tabHeight);
+            // 通知バッジ
+            if (i == 4) { // チャットタブ
+                int count = ShannonUIModClient.getUnreadChatCount();
+                if (count > 0) drawTabBadge(context, mc, tabX, tabY, count);
+            }
+            if (i == 5 && ShannonUIModClient.hasNewErrorLog()) { // デバッグタブ
+                drawTabErrorDot(context, tabX, tabY);
+            }
             // クリック判定（タブ切替時にスクロール位置の保存・復元も行う）
             if (mouseClicked && mouseX >= tabX && mouseX <= tabX + tabWidth && mouseY >= tabY
                     && mouseY <= tabY + tabHeight) {
@@ -414,6 +435,8 @@ public class UIRenderer {
                     state.selectedTab = i;
                     ShannonUIModClient.setSelectedTab(i);
                     state.scrollOffset = ShannonUIModClient.getTabScrollOffset(i);
+                    if (i == 4) ShannonUIModClient.markChatRead();
+                    if (i == 5) ShannonUIModClient.markErrorLogRead();
                 }
             }
             // ホバー判定
@@ -435,6 +458,23 @@ public class UIRenderer {
             context.drawTextWithShadow(mc.textRenderer, desc, tooltipX, tooltipY + 4, 0xFFFFFFFF);
             context.disableScissor();
         }
+    }
+
+    /** 未読チャット数バッジをタブ上部に描画 */
+    private static void drawTabBadge(DrawContext context, MinecraftClient mc, int tabX, int tabY, int count) {
+        String label = count > 9 ? "9+" : String.valueOf(count);
+        int w = mc.textRenderer.getWidth(label) + 4;
+        int bx = tabX + 10;
+        int by = tabY - 4;
+        context.fill(bx - 1, by - 1, bx + w + 1, by + 8, 0xFF000000);
+        context.fill(bx, by, bx + w, by + 7, 0xFFCC2222);
+        context.drawText(mc.textRenderer, label, bx + 2, by, 0xFFFFFFFF, false);
+    }
+
+    /** エラーログ発生ドットをタブ右上に描画 */
+    private static void drawTabErrorDot(DrawContext context, int tabX, int tabY) {
+        context.fill(tabX + 13, tabY - 3, tabX + 18, tabY + 2, 0xFF000000);
+        context.fill(tabX + 14, tabY - 2, tabX + 17, tabY + 1, 0xFFFF4444);
     }
 
     public static boolean isMouseOverPanel(MinecraftClient mc, boolean isUIVisible, int lastPanelX, int lastPanelY,

@@ -7,6 +7,7 @@ import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.util.Identifier;
 
 import com.shannon.network.packet.PlayerStatusState;
+import com.shannon.network.packet.TaskTreeState;
 
 public class PlayerStatusRenderer {
     private static final Identifier HEART_CONTAINER = Identifier.of("minecraft",
@@ -121,6 +122,53 @@ public class PlayerStatusRenderer {
                             0, 0,
                             textureSize, textureSize,
                             textureSize, textureSize);
+                }
+            }
+
+            // === 座標・バイオーム表示 ===
+            if (botPlayer != null && mc.world != null) {
+                int bx = (int) botPlayer.getX();
+                int by2 = (int) botPlayer.getY();
+                int bz = (int) botPlayer.getZ();
+                String posText = "X:" + bx + " Y:" + by2 + " Z:" + bz;
+
+                // バイオーム名取得
+                String biomeText = "";
+                try {
+                    var biomeEntry = mc.world.getBiome(botPlayer.getBlockPos());
+                    biomeText = biomeEntry.getKey()
+                            .map(k -> k.getValue().getPath().replace('_', ' '))
+                            .orElse("");
+                } catch (Exception ignored) {}
+
+                int textX = screenWidth - windowWidth - 10;
+                int textY = screenHeight - windowHeight - 10 - 10;
+
+                // 座標テキスト背景と描画
+                int posWidth = mc.textRenderer.getWidth(posText);
+                context.fill(textX - 2, textY - 1, textX + posWidth + 2, textY + 9, 0x88000000);
+                context.drawText(mc.textRenderer, posText, textX, textY, 0xFFAAAAAA, false);
+
+                // バイオーム表示
+                if (!biomeText.isEmpty()) {
+                    int biomeY = textY - 11;
+                    int biomeWidth = mc.textRenderer.getWidth(biomeText);
+                    context.fill(textX - 2, biomeY - 1, textX + biomeWidth + 2, biomeY + 9, 0x88000000);
+                    context.drawText(mc.textRenderer, biomeText, textX, biomeY, 0xFF88AACC, false);
+                }
+
+                // currentThinking（1行HUD表示）
+                TaskTreeState taskTreeState = ShannonUIModClient.getTaskTreeState();
+                if (taskTreeState != null && taskTreeState.currentThinking != null
+                        && !taskTreeState.currentThinking.isEmpty()) {
+                    String raw = taskTreeState.currentThinking;
+                    // 最大50文字に切り詰め
+                    String thinking = raw.length() > 50 ? raw.substring(0, 48) + "..." : raw;
+                    String thinkLine = "💭 " + thinking;
+                    int thinkY = textY - 22;
+                    int thinkWidth = mc.textRenderer.getWidth(thinkLine);
+                    context.fill(textX - 2, thinkY - 1, textX + thinkWidth + 2, thinkY + 9, 0xAA000011);
+                    context.drawText(mc.textRenderer, thinkLine, textX, thinkY, 0xFF88CCFF, false);
                 }
             }
         } finally {

@@ -8,6 +8,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
+import java.util.ConcurrentModificationException;
 import java.util.List;
 import java.util.function.Consumer;
 
@@ -126,24 +127,26 @@ public class StateManager {
     public void updateLogsState(DetailedLogsState newState) {
         // 新しいログを既存のログリストにマージ（上書きではなく追加）
         if (newState != null && newState.logs != null && !newState.logs.isEmpty()) {
-            if (this.logsState == null) {
-                this.logsState = new DetailedLogsState();
-            }
-            if (this.logsState.logs == null) {
-                this.logsState.logs = new ArrayList<>();
-            }
+            synchronized (this) {
+                if (this.logsState == null) {
+                    this.logsState = new DetailedLogsState();
+                }
+                if (this.logsState.logs == null) {
+                    this.logsState.logs = new ArrayList<>();
+                }
 
-            // 新しいログを追加
-            this.logsState.logs.addAll(newState.logs);
+                // 新しいログを追加
+                this.logsState.logs.addAll(newState.logs);
 
-            // 最大100件に制限（古いログを削除）
-            final int MAX_LOGS = 100;
-            while (this.logsState.logs.size() > MAX_LOGS) {
-                this.logsState.logs.remove(0);
+                // 最大100件に制限（古いログを削除）
+                final int MAX_LOGS = 100;
+                while (this.logsState.logs.size() > MAX_LOGS) {
+                    this.logsState.logs.remove(0);
+                }
+
+                LOGGER.debug("DetailedLogsState merged: added {} logs, total {} logs",
+                        newState.logs.size(), this.logsState.logs.size());
             }
-
-            LOGGER.debug("DetailedLogsState merged: added {} logs, total {} logs",
-                    newState.logs.size(), this.logsState.logs.size());
         }
 
         notifyListeners(StateType.LOGS);
@@ -250,15 +253,21 @@ public class StateManager {
         logsBroadcastDirty = false;
 
         // パケットサイズ制限・クライアント切断防止のため直近 N 件だけ送る
-        List<DetailedLogsState.LogEntry> logs = logsState.logs;
-        if (logs == null || logs.isEmpty()) {
+        List<DetailedLogsState.LogEntry> snapshot;
+        try {
+            snapshot = logsState.logs != null ? new ArrayList<>(logsState.logs) : List.of();
+        } catch (ConcurrentModificationException e) {
+            LOGGER.debug("Skipping logs broadcast due to concurrent modification");
+            logsBroadcastDirty = true;
             return;
         }
-        int fromIndex = Math.max(0, logs.size() - LOGS_PACKET_MAX_ENTRIES);
-        List<DetailedLogsState.LogEntry> toSend = logs.subList(fromIndex, logs.size());
+        if (snapshot.isEmpty()) {
+            return;
+        }
+        int fromIndex = Math.max(0, snapshot.size() - LOGS_PACKET_MAX_ENTRIES);
 
         DetailedLogsState trimmedState = new DetailedLogsState();
-        trimmedState.logs = new ArrayList<>(toSend);
+        trimmedState.logs = new ArrayList<>(snapshot.subList(fromIndex, snapshot.size()));
 
         for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
             if (ServerPlayNetworking.canSend(player, DetailedLogsStatePacket.PACKET_ID)) {

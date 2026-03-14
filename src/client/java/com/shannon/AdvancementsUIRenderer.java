@@ -70,7 +70,8 @@ public class AdvancementsUIRenderer {
 
             int drawX = (int) (4 / SCALE);
             int yOffset = (int) (-scrollOffset / SCALE);
-            int maxWidth = scaledWidth - 8;
+            int rightEdge = scaledWidth - 16;
+            int maxWidth = rightEdge - drawX;
             int drawY = (int) (4 / SCALE) + yOffset;
 
             boolean justClicked = mouseClicked && !wasMousePressed;
@@ -95,13 +96,13 @@ public class AdvancementsUIRenderer {
             context.drawTextWithShadow(mc.textRenderer, headerText, drawX, drawY, 0xFFFFFFFF);
 
             // Refreshボタン
-            String refreshText = "[更新]";
-            int refreshWidth = mc.textRenderer.getWidth(refreshText);
-            int refreshX = drawX + maxWidth - refreshWidth;
-            context.drawTextWithShadow(mc.textRenderer, refreshText, refreshX, drawY, COLOR_REFRESH);
-
-            if (justClicked && scaledMX >= refreshX && scaledMX <= refreshX + refreshWidth
-                    && clickMY >= drawY && clickMY <= drawY + LINE_HEIGHT) {
+            int refreshBtnW = 40;
+            int refreshBtnH = 12;
+            int refreshX = drawX + maxWidth - refreshBtnW;
+            boolean refreshClicked = RenderUtils.drawButton(context, mc, "更新",
+                    refreshX, drawY - 2, refreshBtnW, refreshBtnH,
+                    scaledMX, clickMY, mouseClicked, wasMousePressed);
+            if (refreshClicked) {
                 ShannonUIModClient.requestAdvancements();
             }
 
@@ -117,7 +118,7 @@ public class AdvancementsUIRenderer {
             }
 
             RenderUtils.drawProgressBar(context, drawX, drawY, maxWidth, 8, totalCompleted, totalAll);
-            drawY += 11;
+            drawY += 13;
             String stats = totalCompleted + "/" + totalAll + " 達成済み";
             context.drawTextWithShadow(mc.textRenderer, stats, drawX, drawY, COLOR_PROGRESS);
             drawY += LINE_HEIGHT + 4;
@@ -129,20 +130,20 @@ public class AdvancementsUIRenderer {
             int btnY = drawY;
 
             // 全て ボタン
-            boolean allClicked = drawFilterButton(context, mc, "全て", drawX, btnY, btnW, btnH,
-                    filterMode == FilterMode.ALL, scaledMX, clickMY, justClicked);
+            boolean allClicked = RenderUtils.drawButton(context, mc, "全て", drawX, btnY, btnW, btnH,
+                    scaledMX, clickMY, mouseClicked, wasMousePressed, filterMode == FilterMode.ALL);
             if (allClicked)
                 filterMode = FilterMode.ALL;
 
             // 未達成 ボタン
-            boolean incClicked = drawFilterButton(context, mc, "未達成", drawX + btnW + btnGap, btnY, btnW, btnH,
-                    filterMode == FilterMode.INCOMPLETE, scaledMX, clickMY, justClicked);
+            boolean incClicked = RenderUtils.drawButton(context, mc, "未達成", drawX + btnW + btnGap, btnY, btnW, btnH,
+                    scaledMX, clickMY, mouseClicked, wasMousePressed, filterMode == FilterMode.INCOMPLETE);
             if (incClicked)
                 filterMode = FilterMode.INCOMPLETE;
 
             // 達成済 ボタン
-            boolean compClicked = drawFilterButton(context, mc, "達成済", drawX + (btnW + btnGap) * 2, btnY, btnW, btnH,
-                    filterMode == FilterMode.COMPLETE, scaledMX, clickMY, justClicked);
+            boolean compClicked = RenderUtils.drawButton(context, mc, "達成済", drawX + (btnW + btnGap) * 2, btnY, btnW, btnH,
+                    scaledMX, clickMY, mouseClicked, wasMousePressed, filterMode == FilterMode.COMPLETE);
             if (compClicked)
                 filterMode = FilterMode.COMPLETE;
 
@@ -159,19 +160,16 @@ public class AdvancementsUIRenderer {
                     boolean isCollapsed = collapsedCategories.contains(cat.categoryId);
                     boolean allDone = cat.completed == cat.total && cat.total > 0;
 
-                    // カテゴリヘッダー背景
-                    int headerBg = allDone ? COLOR_HEADER_COMPLETE_BG : COLOR_HEADER_BG;
-                    context.fill(drawX - 2, drawY - 2, drawX + maxWidth, drawY + LINE_HEIGHT + 2, headerBg);
-
-                    // 折りたたみアイコン + カテゴリ名
+                    // カテゴリヘッダー（drawSectionHeader使用）
                     String collapseIcon = isCollapsed ? "> " : "v ";
                     String catHeader = collapseIcon + cat.displayName + " (" + cat.completed + "/" + cat.total + ")";
-                    int catColor = allDone ? COLOR_DONE : COLOR_CATEGORY_TEXT;
-                    context.drawTextWithShadow(mc.textRenderer, catHeader, drawX, drawY, catColor);
+                    int accentColor = allDone ? COLOR_DONE : COLOR_CATEGORY_TEXT;
+                    RenderUtils.drawSectionHeader(context, mc, catHeader,
+                            drawX - 2, drawY, maxWidth + 2, accentColor);
 
                     // カテゴリヘッダークリック
                     if (justClicked && scaledMX >= drawX - 2 && scaledMX <= drawX + maxWidth
-                            && clickMY >= drawY - 2 && clickMY <= drawY + LINE_HEIGHT + 2) {
+                            && clickMY >= drawY && clickMY <= drawY + RenderUtils.SECTION_HEADER_HEIGHT) {
                         if (isCollapsed) {
                             collapsedCategories.remove(cat.categoryId);
                         } else {
@@ -179,7 +177,7 @@ public class AdvancementsUIRenderer {
                         }
                     }
 
-                    drawY += LINE_HEIGHT + 4;
+                    drawY += RenderUtils.SECTION_HEADER_HEIGHT + 2;
 
                     // ミニプログレスバー
                     RenderUtils.drawProgressBar(context, drawX, drawY, maxWidth, 4, cat.completed, cat.total);
@@ -243,9 +241,9 @@ public class AdvancementsUIRenderer {
                     }
 
                     // セパレーター
-                    drawY += 3;
+                    drawY += 2;
                     context.fill(drawX, drawY, drawX + maxWidth, drawY + 1, RenderUtils.COLOR_SEPARATOR);
-                    drawY += 5;
+                    drawY += 4;
                 }
             }
 
@@ -287,33 +285,6 @@ public class AdvancementsUIRenderer {
             }
         }
         return filtered;
-    }
-
-    /**
-     * フィルタボタンを描画。選択中はハイライト。
-     */
-    private static boolean drawFilterButton(DrawContext context, MinecraftClient mc,
-            String text, int x, int y, int w, int h, boolean selected,
-            int mouseX, int mouseY, boolean justClicked) {
-
-        boolean hover = mouseX >= x && mouseX <= x + w && mouseY >= y && mouseY <= y + h;
-        int bg = selected ? 0xFF336699 : (hover ? RenderUtils.BG_BUTTON_HOVER : RenderUtils.BG_BUTTON);
-        context.fill(x, y, x + w, y + h, bg);
-
-        // 枠線
-        int topColor = selected ? 0xFF5599CC : (hover ? 0xFF888888 : 0xFF666666);
-        context.fill(x, y, x + w, y + 1, topColor);
-        context.fill(x, y, x + 1, y + h, topColor);
-        context.fill(x, y + h - 1, x + w, y + h, 0xFF222222);
-        context.fill(x + w - 1, y, x + w, y + h, 0xFF222222);
-
-        // テキスト
-        int tw = mc.textRenderer.getWidth(text);
-        int textColor = selected ? 0xFFFFFF : (hover ? 0xFFFFFF : 0xCCCCCC);
-        context.drawTextWithShadow(mc.textRenderer, Text.literal(text),
-                x + (w - tw) / 2, y + (h - 8) / 2, textColor);
-
-        return justClicked && hover;
     }
 
     /**

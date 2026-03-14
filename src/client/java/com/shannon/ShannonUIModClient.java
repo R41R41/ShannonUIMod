@@ -65,6 +65,9 @@ public class ShannonUIModClient implements ClientModInitializer {
     private int[] tabScrollOffsets = new int[7]; // 7タブ分
     private int selectedTab = 0;
     private static String selectedTaskId = null;
+    // 通知バッジ
+    private static volatile int unreadChatCount = 0;
+    private static volatile boolean hasNewErrorLog = false;
 
     public enum UIMode {
         HIDDEN,
@@ -139,6 +142,14 @@ public class ShannonUIModClient implements ClientModInitializer {
         ClientPlayNetworking.registerGlobalReceiver(ChatStatePacket.PACKET_ID, (payload, context) -> {
             context.client().execute(() -> {
                 ChatState state = payload.state();
+                // 未読カウント更新（チャットタブを表示中でない場合のみ）
+                if (state != null && state.messages != null) {
+                    int newCount = state.messages.size();
+                    int oldCount = (chatState != null && chatState.messages != null) ? chatState.messages.size() : 0;
+                    if (newCount > oldCount && INSTANCE != null && INSTANCE.selectedTab != 3) {
+                        unreadChatCount += newCount - oldCount;
+                    }
+                }
                 chatState = state;
             });
         });
@@ -148,6 +159,15 @@ public class ShannonUIModClient implements ClientModInitializer {
                 DetailedLogsState state = payload.state();
                 context.client().execute(() -> {
                     try {
+                        // エラーログ検出（デバッグタブ表示中でない場合のみ）
+                        if (state != null && state.logs != null && (INSTANCE == null || INSTANCE.selectedTab != 4)) {
+                            for (DetailedLogsState.LogEntry log : state.logs) {
+                                if ("error".equals(log.level)) {
+                                    hasNewErrorLog = true;
+                                    break;
+                                }
+                            }
+                        }
                         detailedLogsState = state;
                     } catch (Exception e) {
                         com.shannon.ShannonUIMod.LOGGER.warn("[DetailedLogs] Apply state failed: {}", e.getMessage());
@@ -426,6 +446,12 @@ public class ShannonUIModClient implements ClientModInitializer {
     public static AdvancementsState getAdvancementsState() {
         return INSTANCE != null ? INSTANCE.advancementsState : null;
     }
+
+    // === 通知バッジ ===
+    public static int getUnreadChatCount() { return unreadChatCount; }
+    public static void markChatRead() { unreadChatCount = 0; }
+    public static boolean hasNewErrorLog() { return hasNewErrorLog; }
+    public static void markErrorLogRead() { hasNewErrorLog = false; }
 
     /**
      * 進捗データをサーバーにリクエスト（タブ切り替え時に呼ぶ）

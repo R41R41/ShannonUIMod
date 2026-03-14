@@ -2,13 +2,11 @@ package com.shannon;
 
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.gl.RenderPipelines;
 import net.minecraft.text.OrderedText;
 import net.minecraft.text.Text;
 import com.shannon.network.packet.ConstantSkillsState;
 import com.shannon.network.packet.ConstantSkillClickPacket;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
-import net.minecraft.util.Identifier;
 
 import java.util.*;
 
@@ -19,12 +17,14 @@ import java.util.*;
 public class ConstantSkillsUIRenderer {
     private static final float SCALE = RenderUtils.SCALE;
     private static final int LINE_HEIGHT = 10;
-    private static final Identifier STATUS_TRUE = Identifier.of("shannonuimod", "textures/status_true.png");
-    private static final Identifier STATUS_FALSE = Identifier.of("shannonuimod", "textures/status_false.png");
     private static boolean wasMousePressed = false;
 
     // 折りたたまれたカテゴリ
     private static final Set<String> collapsedCategories = new HashSet<>();
+
+    // フラッシュアニメーション: スキル名 → フラッシュ終了時刻(ms)
+    private static final java.util.HashMap<String, Long> flashTimers = new java.util.HashMap<>();
+    private static final long FLASH_DURATION_MS = 300;
 
     // カテゴリ定義（表示順序を保持）
     private static final String[] CATEGORY_ORDER = {
@@ -82,7 +82,8 @@ public class ConstantSkillsUIRenderer {
             int drawX = (int) (4 / SCALE);
             int drawY = (int) (4 / SCALE);
             int yOffset = (int) (-state.scrollOffset / SCALE);
-            int maxTextWidth = scaledUiWidth - 24;
+            int rightEdge = scaledUiWidth - 16;
+            int maxTextWidth = rightEdge - drawX;
             int startY = drawY + yOffset;
 
             // ツールチップ用
@@ -115,21 +116,27 @@ public class ConstantSkillsUIRenderer {
                 String categoryText = collapseIcon + category + " (" + onCount + "/" + skills.size() + ")";
 
                 int catY = startY + line * LINE_HEIGHT;
-
-                // カテゴリヘッダー背景
-                if (catY >= 0 && catY + LINE_HEIGHT <= scaledUiHeight) {
-                    int headerBg = onCount == skills.size() ? 0xFF2A4A2A : 0xFF3A3A3A;
-                    context.fill(drawX - 2, catY - 2, scaledUiWidth - 8, catY + LINE_HEIGHT, headerBg);
-                    context.drawTextWithShadow(mc.textRenderer, Text.literal(categoryText), drawX, catY,
-                            RenderUtils.COLOR_CATEGORY);
-                }
-
-                // カテゴリヘッダーのクリック判定
                 int catRectY1 = catY - 2 - yOffset;
                 int catRectY2 = catRectY1 + LINE_HEIGHT + 2;
-                if (mouseClicked && !wasMousePressed
-                        && scaledMouseX >= drawX - 2 && scaledMouseX <= scaledUiWidth - 8
-                        && scaledMouseY >= catRectY1 && scaledMouseY <= catRectY2) {
+                boolean catHovered = scaledMouseX >= drawX - 2 && scaledMouseX <= rightEdge
+                        && scaledMouseY >= catRectY1 && scaledMouseY <= catRectY2;
+
+                // カテゴリヘッダー背景（アクセントバー＋ミニプログレスバー付き）
+                if (catY >= 0 && catY + LINE_HEIGHT <= scaledUiHeight) {
+                    int headerBg = catHovered
+                            ? (onCount == skills.size() ? 0xFF3A6A3A : 0xFF4A4A4A)
+                            : (onCount == skills.size() ? 0xFF2A4A2A : 0xFF3A3A3A);
+                    context.fill(drawX - 2, catY - 2, rightEdge, catY + LINE_HEIGHT, headerBg);
+                    // 左アクセントバー
+                    int accentColor = onCount == skills.size() ? 0xFF44CC44 : (onCount > 0 ? 0xFFCC8844 : 0xFF555555);
+                    context.fill(drawX - 2, catY - 2, drawX + 1, catY + LINE_HEIGHT, accentColor);
+                    // テキスト
+                    int catTextColor = catHovered ? 0xFFFFFFFF : RenderUtils.COLOR_CATEGORY;
+                    context.drawTextWithShadow(mc.textRenderer, Text.literal(categoryText), drawX + 4, catY, catTextColor);
+                }
+
+                // カテゴリヘッダーのクリック判定（折りたたみ/展開）
+                if (mouseClicked && !wasMousePressed && catHovered) {
                     if (isCollapsed) {
                         collapsedCategories.remove(category);
                     } else {
@@ -139,60 +146,57 @@ public class ConstantSkillsUIRenderer {
 
                 line++;
 
-                // 展開時のみスキルを表示
+                // 展開時のみスキルを表示（トグルスイッチ付き）
                 if (!isCollapsed) {
                     for (ConstantSkillsState.ConstantSkill skill : skills) {
-                        String lineText = skill.skillName;
-                        int statusY = startY + line * LINE_HEIGHT;
+                        int statusY = startY + line * LINE_HEIGHT + 2;
+                        int rowY1 = statusY - 2 - yOffset;
+                        int rowY2 = rowY1 + LINE_HEIGHT;
+                        boolean rowHovered = scaledMouseX >= drawX && scaledMouseX <= rightEdge
+                                && scaledMouseY >= rowY1 && scaledMouseY <= rowY2;
 
-                        // ステータスアイコン
                         if (statusY >= 0 && statusY + 10 <= scaledUiHeight) {
-                            Identifier statusIcon = skill.status ? STATUS_TRUE : STATUS_FALSE;
-                            context.drawTexture(RenderPipelines.GUI_TEXTURED, statusIcon,
-                                    drawX + 8, statusY, 0, 0, 8, 8, 8, 8);
-                        }
-
-                        for (OrderedText wrapped : RenderUtils.wrapText(mc, lineText, maxTextWidth - 12)) {
-                            int textY = startY + line * LINE_HEIGHT;
-                            int rectX1 = drawX + 20;
-                            int rectY1 = textY - 2 - yOffset;
-                            int rectX2 = rectX1 + scaledUiWidth - 48;
-                            int rectY2 = rectY1 + LINE_HEIGHT;
-                            boolean hovered = (scaledMouseX >= rectX1 && scaledMouseX <= rectX2
-                                    && scaledMouseY >= rectY1 && scaledMouseY <= rectY2);
-
-                            if (textY >= 0 && textY + 10 <= scaledUiHeight) {
-                                if (hovered) {
-                                    context.fill(rectX1 - 1, rectY1 + yOffset, scaledUiWidth - 8,
-                                            rectY2 + yOffset, 0xFFFFFFFF);
-                                    context.drawText(mc.textRenderer, wrapped, drawX + 20, textY, 0xFF000000, false);
-
-                                    if (mouseClicked && !wasMousePressed) {
-                                        ClientPlayNetworking
-                                                .send(new ConstantSkillClickPacket(skill.skillName, !skill.status));
-                                    }
-
-                                    // ツールチップ情報を保存
-                                    if (skill.description != null && !skill.description.isEmpty()) {
-                                        tooltipDesc = skill.description;
-                                        tooltipX = rectX1;
-                                        tooltipY = textY + 12;
-                                        tooltipLines = RenderUtils.wrapText(mc, skill.description, scaledUiWidth - 32);
-                                    }
-                                } else {
-                                    context.drawText(mc.textRenderer, wrapped, drawX + 20, textY, 0xFFFFFFFF, false);
-                                }
+                            // ホバー背景
+                            if (rowHovered) {
+                                context.fill(drawX - 2, statusY - 2, rightEdge,
+                                        statusY + LINE_HEIGHT - 2, 0x33FFFFFF);
                             }
-                            line++;
+
+                            // フラッシュエフェクト
+                            long flashEnd = flashTimers.getOrDefault(skill.skillName, 0L);
+                            if (System.currentTimeMillis() < flashEnd) {
+                                context.fill(drawX + 2, statusY - 1, drawX + 24, statusY + 9, 0x66FFFFFF);
+                            }
+
+                            // トグルスイッチ
+                            RenderUtils.drawToggleSwitch(context, drawX + 4, statusY, skill.status, rowHovered);
+
+                            // スキル名
+                            int textColor = rowHovered ? 0xFFFFFF55 : 0xFFFFFFFF;
+                            context.drawTextWithShadow(mc.textRenderer, Text.literal(skill.skillName),
+                                    drawX + 28, statusY, textColor);
+
+                            // クリック処理
+                            if (rowHovered && mouseClicked && !wasMousePressed) {
+                                ClientPlayNetworking
+                                        .send(new ConstantSkillClickPacket(skill.skillName, !skill.status));
+                                flashTimers.put(skill.skillName,
+                                        System.currentTimeMillis() + FLASH_DURATION_MS);
+                            }
+
+                            // ツールチップ
+                            if (rowHovered && skill.description != null && !skill.description.isEmpty()) {
+                                tooltipDesc = skill.description;
+                                tooltipX = drawX + 28;
+                                tooltipY = statusY + 12;
+                                tooltipLines = RenderUtils.wrapText(mc, skill.description, maxTextWidth);
+                            }
                         }
+                        line++;
                     }
                 }
 
-                // カテゴリ間のセパレーター
-                int sepY = startY + line * LINE_HEIGHT - 2;
-                if (sepY >= 0 && sepY <= scaledUiHeight) {
-                    context.fill(drawX, sepY, scaledUiWidth - 8, sepY + 1, RenderUtils.COLOR_SEPARATOR);
-                }
+                // カテゴリ間の余白
                 line++;
             }
 
@@ -205,7 +209,7 @@ public class ConstantSkillsUIRenderer {
             // ツールチップを最前面に描画
             if (tooltipDesc != null && tooltipLines != null) {
                 int tooltipH = tooltipLines.size() * 12 + 6;
-                context.fill(tooltipX - 1, tooltipY - 3, scaledUiWidth - 8, tooltipY + tooltipH - 6, 0xF0000000);
+                context.fill(tooltipX - 1, tooltipY - 3, rightEdge, tooltipY + tooltipH - 6, 0xF0000000);
                 int descY = tooltipY;
                 for (OrderedText descLine : tooltipLines) {
                     context.drawTextWithShadow(mc.textRenderer, descLine, tooltipX, descY, 0xFFFFFFFF);

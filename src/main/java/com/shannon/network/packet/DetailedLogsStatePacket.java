@@ -16,30 +16,27 @@ public record DetailedLogsStatePacket(DetailedLogsState state) implements Custom
 
     public static final PacketCodec<RegistryByteBuf, DetailedLogsStatePacket> PACKET_CODEC = PacketCodec.of(
             (value, buf) -> {
-                // logs配列のサイズを書き込み
-                buf.writeInt(value.state.logs != null ? value.state.logs.size() : 0);
+                List<LogEntry> snapshot = value.state.logs != null
+                        ? new ArrayList<>(value.state.logs) : List.of();
+                buf.writeInt(snapshot.size());
 
-                if (value.state.logs != null) {
-                    for (LogEntry log : value.state.logs) {
-                        // 各フィールドを書き込み
-                        buf.writeString(log.timestamp != null ? log.timestamp : "");
-                        buf.writeString(log.phase != null ? log.phase : "");
-                        buf.writeString(log.level != null ? log.level : "");
-                        buf.writeString(log.source != null ? log.source : "");
-                        buf.writeString(log.content != null ? log.content : "");
+                for (LogEntry log : snapshot) {
+                    buf.writeString(log.timestamp != null ? log.timestamp : "");
+                    buf.writeString(log.phase != null ? log.phase : "");
+                    buf.writeString(log.level != null ? log.level : "");
+                    buf.writeString(log.source != null ? log.source : "");
+                    buf.writeString(log.content != null ? log.content : "");
 
-                        // metadata（nullの場合もある）
-                        boolean hasMetadata = log.metadata != null;
-                        buf.writeBoolean(hasMetadata);
+                    boolean hasMetadata = log.metadata != null;
+                    buf.writeBoolean(hasMetadata);
 
-                        if (hasMetadata) {
-                            buf.writeString(log.metadata.skillName != null ? log.metadata.skillName : "");
-                            buf.writeString(log.metadata.toolName != null ? log.metadata.toolName : "");
-                            buf.writeString(log.metadata.parameters != null ? log.metadata.parameters : "");
-                            buf.writeString(log.metadata.result != null ? log.metadata.result : "");
-                            buf.writeInt(log.metadata.duration != null ? log.metadata.duration : -1);
-                            buf.writeString(log.metadata.error != null ? log.metadata.error : "");
-                        }
+                    if (hasMetadata) {
+                        buf.writeString(log.metadata.skillName != null ? log.metadata.skillName : "");
+                        buf.writeString(log.metadata.toolName != null ? log.metadata.toolName : "");
+                        buf.writeString(log.metadata.parameters != null ? log.metadata.parameters : "");
+                        buf.writeString(log.metadata.result != null ? log.metadata.result : "");
+                        buf.writeInt(log.metadata.duration != null ? log.metadata.duration : -1);
+                        buf.writeString(log.metadata.error != null ? log.metadata.error : "");
                     }
                 }
             },

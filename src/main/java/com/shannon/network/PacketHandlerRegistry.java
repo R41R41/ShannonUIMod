@@ -75,14 +75,15 @@ public class PacketHandlerRegistry {
                 InventoryItemClickPacket.PACKET_ID,
                 (payload, context) -> {
                     String itemName = payload.itemName();
+                    int throwCount = payload.count();
                     context.server().execute(() -> {
                         try {
                             BackendClient.postJson(
                                     ModConfig.ENDPOINT_THROW_ITEM,
-                                    new ThrowItemRequest(itemName));
+                                    new ThrowItemRequest(itemName, throwCount));
 
                             if (ModConfig.LOG_PACKETS) {
-                                LOGGER.debug("InventoryItemClickPacket: {}", itemName);
+                                LOGGER.debug("InventoryItemClickPacket: {} x{}", itemName, throwCount);
                             }
                         } catch (Exception e) {
                             ModErrorHandler.handle(

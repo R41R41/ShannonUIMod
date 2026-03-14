@@ -55,12 +55,17 @@ public class ShannonUIScreen extends Screen {
         char chr = (char) charInput.codepoint();
         int modifiers = charInput.modifiers();
         // チャットタブ
-        if (uiState.selectedTab == 3) {
+        if (uiState.selectedTab == 4) {
             ChatUIRenderer.handleCharTyped(chr, modifiers);
             return true;
         }
+        // デバッグタブ（検索フォーカス中）
+        if (uiState.selectedTab == 5 && DebugUIRenderer.isSearchFocused()) {
+            DebugUIRenderer.handleCharTyped(chr, modifiers);
+            return true;
+        }
         // 設定タブ（数値入力中）
-        if (uiState.selectedTab == 5 && SettingsUIRenderer.isEditing()) {
+        if (uiState.selectedTab == 6 && SettingsUIRenderer.isEditing()) {
             SettingsUIRenderer.handleCharTyped(chr, modifiers);
             return true;
         }
@@ -97,13 +102,19 @@ public class ShannonUIScreen extends Screen {
         }
 
         // チャットタブでのキー入力処理（特殊キー処理後）
-        if (uiState.selectedTab == 3) {
+        if (uiState.selectedTab == 4) {
             ChatUIRenderer.handleKeyPress(keyInput.key(), keyInput.scancode(), keyInput.modifiers());
             return true;
         }
 
+        // デバッグタブ（検索フォーカス中）
+        if (uiState.selectedTab == 5 && DebugUIRenderer.isSearchFocused()) {
+            DebugUIRenderer.handleKeyPress(keyInput.key(), keyInput.scancode(), keyInput.modifiers());
+            return true;
+        }
+
         // 設定タブ（数値入力中）
-        if (uiState.selectedTab == 5 && SettingsUIRenderer.isEditing()) {
+        if (uiState.selectedTab == 6 && SettingsUIRenderer.isEditing()) {
             SettingsUIRenderer.handleKeyPress(keyInput.key(), keyInput.scancode(), keyInput.modifiers());
             return true;
         }

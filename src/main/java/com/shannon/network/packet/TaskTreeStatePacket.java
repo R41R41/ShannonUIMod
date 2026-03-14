@@ -62,6 +62,38 @@ public record TaskTreeStatePacket(TaskTreeState state) implements CustomPayload 
                 } else {
                     buf.writeInt(0);
                 }
+
+                // metaState
+                buf.writeBoolean(value.state.metaState != null);
+                if (value.state.metaState != null) {
+                    TaskTreeState.MetaStateData meta = value.state.metaState;
+                    buf.writeString(safeString(meta.assessment));
+                    buf.writeBoolean(meta.suggestion != null);
+                    if (meta.suggestion != null) buf.writeString(safeString(meta.suggestion));
+                    buf.writeBoolean(meta.modelAction != null);
+                    if (meta.modelAction != null) buf.writeString(safeString(meta.modelAction));
+                    buf.writeInt(meta.consecutiveSuccesses);
+                    buf.writeInt(meta.consecutiveFailures);
+                }
+
+                // emotionState
+                buf.writeBoolean(value.state.emotionState != null);
+                if (value.state.emotionState != null) {
+                    TaskTreeState.EmotionData emo = value.state.emotionState;
+                    buf.writeString(safeString(emo.emotion));
+                    boolean hasParams = emo.parameters != null;
+                    buf.writeBoolean(hasParams);
+                    if (hasParams) {
+                        buf.writeInt(emo.parameters.joy);
+                        buf.writeInt(emo.parameters.trust);
+                        buf.writeInt(emo.parameters.fear);
+                        buf.writeInt(emo.parameters.surprise);
+                        buf.writeInt(emo.parameters.sadness);
+                        buf.writeInt(emo.parameters.disgust);
+                        buf.writeInt(emo.parameters.anger);
+                        buf.writeInt(emo.parameters.anticipation);
+                    }
+                }
             },
             buf -> {
                 TaskTreeState state = new TaskTreeState();
@@ -96,6 +128,35 @@ public record TaskTreeStatePacket(TaskTreeState state) implements CustomPayload 
                         sub.subTaskResult = buf.readBoolean() ? buf.readString() : null;
                         state.subTasks.add(sub);
                     }
+                }
+
+                // metaState
+                if (buf.readBoolean()) {
+                    TaskTreeState.MetaStateData meta = new TaskTreeState.MetaStateData();
+                    meta.assessment = buf.readString();
+                    meta.suggestion = buf.readBoolean() ? buf.readString() : null;
+                    meta.modelAction = buf.readBoolean() ? buf.readString() : null;
+                    meta.consecutiveSuccesses = buf.readInt();
+                    meta.consecutiveFailures = buf.readInt();
+                    state.metaState = meta;
+                }
+
+                // emotionState
+                if (buf.readBoolean()) {
+                    TaskTreeState.EmotionData emo = new TaskTreeState.EmotionData();
+                    emo.emotion = buf.readString();
+                    if (buf.readBoolean()) {
+                        emo.parameters = new TaskTreeState.EmotionData.EmotionParameters();
+                        emo.parameters.joy = buf.readInt();
+                        emo.parameters.trust = buf.readInt();
+                        emo.parameters.fear = buf.readInt();
+                        emo.parameters.surprise = buf.readInt();
+                        emo.parameters.sadness = buf.readInt();
+                        emo.parameters.disgust = buf.readInt();
+                        emo.parameters.anger = buf.readInt();
+                        emo.parameters.anticipation = buf.readInt();
+                    }
+                    state.emotionState = emo;
                 }
 
                 return new TaskTreeStatePacket(state);

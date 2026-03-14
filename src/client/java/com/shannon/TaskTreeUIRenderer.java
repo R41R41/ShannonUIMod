@@ -11,6 +11,7 @@ import com.shannon.network.packet.TaskActionPacket;
 import com.shannon.network.packet.DetailedLogsState;
 
 import java.util.HashSet;
+import org.lwjgl.glfw.GLFW;
 import java.util.List;
 import java.util.Set;
 
@@ -50,9 +51,11 @@ public class TaskTreeUIRenderer {
             int drawX = (int) (4 / SCALE);
             int drawY = (int) (4 / SCALE);
             int yOffset = (int) (-scrollOffset / SCALE);
-            int maxTextWidth = (int) ((uiWidth - 8) / SCALE);
-            int startY = drawY + yOffset;
+            int scaledUiWidth = (int) (uiWidth / SCALE);
             int scaledUiHeight = (int) (uiHeight / SCALE);
+            int rightEdge = scaledUiWidth - 16;
+            int maxTextWidth = rightEdge - drawX;
+            int startY = drawY + yOffset;
             int currentY = startY;
 
             // マウス座標をスケーリング
@@ -65,13 +68,38 @@ public class TaskTreeUIRenderer {
             TaskListStatePacket.TaskListState taskListState = ShannonUIModClient.getTaskListState();
             String selectedTaskId = ShannonUIModClient.getSelectedTaskId();
 
-            // === タスクリストセクション ===
-            String header = "== タスク一覧 ==";
-            if (currentY >= 0 && currentY + 10 <= scaledUiHeight) {
-                context.drawTextWithShadow(mc.textRenderer, Text.literal(header), drawX, currentY,
-                        RenderUtils.COLOR_HEADER);
+            // === 感情・メタ状態サマリー（ヘッダー横）===
+            if (taskTreeState != null && taskTreeState.emotionState != null) {
+                TaskTreeState.EmotionData emo = taskTreeState.emotionState;
+                int emotionTint = emo.getEmotionTint();
+                String emotionLabel = emo.emotion != null ? emo.emotion : "?";
+                // 感情バー: 短い1行サマリー
+                String emotionLine = "感情: " + emotionLabel;
+                if (emo.parameters != null) {
+                    // 最大パラメータを探す
+                    int max = Math.max(emo.parameters.joy,
+                            Math.max(emo.parameters.trust,
+                            Math.max(emo.parameters.anticipation,
+                            Math.max(emo.parameters.fear,
+                            Math.max(emo.parameters.sadness,
+                            Math.max(emo.parameters.anger,
+                            Math.max(emo.parameters.disgust, emo.parameters.surprise)))))));
+                    emotionLine += " (" + max + "%)";
+                }
+                if (currentY >= 0 && currentY + 10 <= scaledUiHeight) {
+                    int emotionBg = (emotionTint & 0x00FFFFFF) | 0x22000000;
+                    context.fill(drawX - 2, currentY - 1, drawX + maxTextWidth, currentY + LINE_HEIGHT, emotionBg);
+                    context.drawTextWithShadow(mc.textRenderer, Text.literal(emotionLine), drawX, currentY, emotionTint);
+                }
+                currentY += LINE_HEIGHT + 2;
             }
-            currentY += LINE_HEIGHT + 4;
+
+            // === タスクリストセクション ===
+            if (currentY >= 0 && currentY + RenderUtils.SECTION_HEADER_HEIGHT <= scaledUiHeight) {
+                RenderUtils.drawSectionHeader(context, mc, "タスク一覧",
+                        drawX - 2, currentY, maxTextWidth + 2, RenderUtils.COLOR_HEADER);
+            }
+            currentY += RenderUtils.SECTION_HEADER_HEIGHT + 4;
 
             // タスクがない場合
             if (taskListState == null || (taskListState.tasks == null || taskListState.tasks.isEmpty())
@@ -105,12 +133,11 @@ public class TaskTreeUIRenderer {
             currentY += LINE_HEIGHT;
 
             // === 選択されたタスクの詳細セクション ===
-            String detailHeader = "== タスク詳細 ==";
-            if (currentY >= 0 && currentY + 10 <= scaledUiHeight) {
-                context.drawTextWithShadow(mc.textRenderer, Text.literal(detailHeader), drawX, currentY,
-                        RenderUtils.COLOR_HEADER);
+            if (currentY >= 0 && currentY + RenderUtils.SECTION_HEADER_HEIGHT <= scaledUiHeight) {
+                RenderUtils.drawSectionHeader(context, mc, "タスク詳細",
+                        drawX - 2, currentY, maxTextWidth + 2, 0xFF55CCFF);
             }
-            currentY += LINE_HEIGHT + 4;
+            currentY += RenderUtils.SECTION_HEADER_HEIGHT + 4;
 
             // 選択されたタスクがあれば詳細を表示
             if (taskTreeState != null && taskTreeState.goal != null && !taskTreeState.goal.isEmpty()) {
@@ -155,21 +182,16 @@ public class TaskTreeUIRenderer {
         }
 
         boolean isHovered = hoveredTaskId != null && hoveredTaskId.equals(taskId);
-        int bgColor;
-        if (isSelected) {
-            bgColor = isHovered ? 0x55AACCFF : 0x4488AAFF;
-        } else if (isHovered) {
-            bgColor = 0x44FFFFFF;
-        } else {
-            bgColor = 0x22FFFFFF;
-        }
-        context.fill(drawX - 2, currentY - 2, drawX + maxTextWidth, currentY + TASK_ITEM_HEIGHT - 2, bgColor);
 
-        if (isHovered) {
-            int borderColor = 0x88FFFFFF;
-            context.fill(drawX - 2, currentY - 2, drawX + maxTextWidth, currentY - 1, borderColor);
-            context.fill(drawX - 2, currentY + TASK_ITEM_HEIGHT - 3, drawX + maxTextWidth,
-                    currentY + TASK_ITEM_HEIGHT - 2, borderColor);
+        // カード背景（ステータス色のアクセントバー付き）
+        int accentColor = isEmergency ? RenderUtils.COLOR_ERROR : getStatusAccentColor(status);
+        RenderUtils.drawCard(context, drawX - 2, currentY - 2, maxTextWidth + 2, TASK_ITEM_HEIGHT,
+                accentColor, isHovered);
+
+        // 選択状態のハイライト
+        if (isSelected) {
+            int selectOverlay = isHovered ? 0x3388AAFF : 0x2288AAFF;
+            context.fill(drawX - 2, currentY - 2, drawX + maxTextWidth, currentY + TASK_ITEM_HEIGHT - 2, selectOverlay);
         }
 
         String icon;
@@ -194,11 +216,22 @@ public class TaskTreeUIRenderer {
             }
         }
 
-        String shortGoal = goal.length() > 25 ? goal.substring(0, 22) + "..." : goal;
-        String taskText = icon + " " + shortGoal;
-        context.drawTextWithShadow(mc.textRenderer, Text.literal(taskText), drawX, currentY, textColor);
-
         int buttonX = drawX + maxTextWidth - BUTTON_SIZE * 2 - 8;
+        int textStartX = drawX + 6;
+        int textMaxWidth = buttonX - textStartX - 4; // ボタンとの間に4pxギャップ
+        String taskText = icon + " " + goal;
+        // ピクセル幅でトリミング
+        if (mc.textRenderer.getWidth(taskText) > textMaxWidth) {
+            String ellipsis = "...";
+            int ellipsisW = mc.textRenderer.getWidth(ellipsis);
+            String trimmed = taskText;
+            while (trimmed.length() > 0 && mc.textRenderer.getWidth(trimmed) + ellipsisW > textMaxWidth) {
+                trimmed = trimmed.substring(0, trimmed.length() - 1);
+            }
+            taskText = trimmed + ellipsis;
+        }
+        int textY = currentY + (TASK_ITEM_HEIGHT - 8) / 2 - 2; // カード内で縦中央（フォント高8px）
+        context.drawTextWithShadow(mc.textRenderer, Text.literal(taskText), textStartX, textY, textColor);
 
         boolean playHovered = isHovered && "play".equals(hoveredButton);
         int playBgColor = playHovered ? 0xFF55CC55 : 0xFF444444;
@@ -207,17 +240,34 @@ public class TaskTreeUIRenderer {
             context.fill(buttonX, currentY, buttonX + BUTTON_SIZE, currentY + 1, 0xFF88FF88);
         }
         context.drawTextWithShadow(mc.textRenderer, Text.literal(">"), buttonX + 4, currentY + 3,
-                playHovered ? 0xFFFFFF : RenderUtils.COLOR_SUCCESS);
+                playHovered ? 0xFFFFFFFF : RenderUtils.COLOR_SUCCESS);
 
         boolean deleteHovered = isHovered && "delete".equals(hoveredButton);
-        int deleteBgColor = deleteHovered ? 0xFFCC5555 : 0xFF444444;
+        boolean deleteCtrlHeld = false;
+        if (deleteHovered) {
+            MinecraftClient client = MinecraftClient.getInstance();
+            deleteCtrlHeld = GLFW.glfwGetKey(client.getWindow().getHandle(), GLFW.GLFW_KEY_LEFT_CONTROL) == GLFW.GLFW_PRESS
+                    || GLFW.glfwGetKey(client.getWindow().getHandle(), GLFW.GLFW_KEY_RIGHT_CONTROL) == GLFW.GLFW_PRESS;
+        }
+        int deleteBgColor = deleteHovered ? (deleteCtrlHeld ? 0xFFCC5555 : 0xFF775533) : 0xFF444444;
         context.fill(buttonX + BUTTON_SIZE + 4, currentY, buttonX + BUTTON_SIZE * 2 + 4, currentY + BUTTON_SIZE,
                 deleteBgColor);
         if (deleteHovered) {
-            context.fill(buttonX + BUTTON_SIZE + 4, currentY, buttonX + BUTTON_SIZE * 2 + 4, currentY + 1, 0xFFFF8888);
+            context.fill(buttonX + BUTTON_SIZE + 4, currentY, buttonX + BUTTON_SIZE * 2 + 4, currentY + 1,
+                    deleteCtrlHeld ? 0xFFFF8888 : 0xFFFF9955);
         }
         context.drawTextWithShadow(mc.textRenderer, Text.literal("x"), buttonX + BUTTON_SIZE + 8, currentY + 3,
-                deleteHovered ? 0xFFFFFF : RenderUtils.COLOR_ERROR);
+                deleteHovered ? (deleteCtrlHeld ? 0xFFFFAAAA : 0xFFFF9944) : RenderUtils.COLOR_ERROR);
+
+        // Ctrl+Click ヒント表示（ホバー中 & Ctrl 未押下時）
+        if (deleteHovered && !deleteCtrlHeld) {
+            String hint = "Ctrl+Click";
+            int hintW = mc.textRenderer.getWidth(hint);
+            int hintX = buttonX + BUTTON_SIZE + 4 + BUTTON_SIZE / 2 - hintW / 2;
+            int hintY = currentY + BUTTON_SIZE + 2;
+            context.fill(hintX - 2, hintY - 1, hintX + hintW + 2, hintY + LINE_HEIGHT, 0xDD000000);
+            context.drawTextWithShadow(mc.textRenderer, Text.literal(hint), hintX, hintY, 0xFFFFAA55);
+        }
 
         return currentY + TASK_ITEM_HEIGHT + 2;
     }
@@ -228,6 +278,53 @@ public class TaskTreeUIRenderer {
     private static int renderTaskDetails(DrawContext context, MinecraftClient mc,
             TaskTreeState taskTreeState, int drawX, int currentY, int maxTextWidth, int scaledUiHeight,
             int mouseX, int mouseY, boolean mouseJustClicked) {
+
+        // === メタ認知状態バナー ===
+        if (taskTreeState.metaState != null) {
+            TaskTreeState.MetaStateData meta = taskTreeState.metaState;
+            int assessmentColor = meta.getAssessmentColor();
+            String icon = meta.getAssessmentIcon();
+
+            // 提案テキストも含めたカード高さを先に計算
+            int metaCardH = LINE_HEIGHT + 4;
+            String shortSuggestion = null;
+            java.util.List<OrderedText> suggestionLines = null;
+            if (meta.suggestion != null && !meta.suggestion.isEmpty() &&
+                    !"on_track".equals(meta.assessment)) {
+                shortSuggestion = meta.suggestion.length() > 80
+                        ? meta.suggestion.substring(0, 78) + "..."
+                        : meta.suggestion;
+                suggestionLines = RenderUtils.wrapText(mc, "> " + shortSuggestion, maxTextWidth - 8);
+                metaCardH += 2 + suggestionLines.size() * LINE_HEIGHT;
+            }
+
+            // カード背景（アセスメント色のアクセントバー付き）
+            RenderUtils.drawCard(context, drawX - 2, currentY - 2, maxTextWidth + 2, metaCardH,
+                    assessmentColor, false);
+
+            // アセスメント行: [OK] on_track  成功:3 失敗:0
+            String statsText = icon + " " + (meta.assessment != null ? meta.assessment : "?") +
+                    "  成功:" + meta.consecutiveSuccesses + " 失敗:" + meta.consecutiveFailures;
+            if (meta.modelAction != null && !"hold".equals(meta.modelAction)) {
+                statsText += "  [" + meta.modelAction + "]";
+            }
+            if (currentY >= 0 && currentY + 10 <= scaledUiHeight) {
+                context.drawTextWithShadow(mc.textRenderer, Text.literal(statsText), drawX + 6, currentY, assessmentColor);
+            }
+            currentY += LINE_HEIGHT;
+
+            // 提案テキスト（struggling/stuck/wrong_approach 時のみ）
+            if (suggestionLines != null) {
+                currentY += 2;
+                for (OrderedText lineText : suggestionLines) {
+                    if (currentY >= 0 && currentY + 10 <= scaledUiHeight) {
+                        context.drawTextWithShadow(mc.textRenderer, lineText, drawX + 6, currentY, 0xFFDDCC88);
+                    }
+                    currentY += LINE_HEIGHT;
+                }
+            }
+            currentY += 4;
+        }
 
         // ゴール
         String goalLine = "目標:";
@@ -264,7 +361,7 @@ public class TaskTreeUIRenderer {
 
         // 思考表示
         if (taskTreeState.currentThinking != null && !taskTreeState.currentThinking.isEmpty()) {
-            currentY += LINE_HEIGHT / 2;
+            currentY += 2;
             String thinkingLabel = "💭 思考:";
             for (OrderedText lineText : RenderUtils.wrapText(mc, thinkingLabel, maxTextWidth)) {
                 if (currentY >= 0 && currentY + 10 <= scaledUiHeight) {
@@ -282,7 +379,7 @@ public class TaskTreeUIRenderer {
 
         // エラー表示
         if (taskTreeState.error != null && !taskTreeState.error.isEmpty()) {
-            currentY += LINE_HEIGHT / 2;
+            currentY += 2;
             String errorLine = "[エラー] " + taskTreeState.error;
             for (OrderedText lineText : RenderUtils.wrapText(mc, errorLine, maxTextWidth)) {
                 if (currentY >= 0 && currentY + 10 <= scaledUiHeight) {
@@ -294,12 +391,25 @@ public class TaskTreeUIRenderer {
 
         // 階層的サブタスク（折りたたみ対応）
         if (taskTreeState.hierarchicalSubTasks != null && !taskTreeState.hierarchicalSubTasks.isEmpty()) {
-            currentY += LINE_HEIGHT / 2;
-            if (currentY >= 0 && currentY + 10 <= scaledUiHeight) {
-                context.drawTextWithShadow(mc.textRenderer, Text.literal("サブタスク:"), drawX, currentY,
-                        RenderUtils.COLOR_HEADER);
+            currentY += 2;
+
+            // サブタスクの完了数を集計してプログレスバー付きヘッダー
+            int totalSubs = taskTreeState.hierarchicalSubTasks.size();
+            int completedSubs = (int) taskTreeState.hierarchicalSubTasks.stream()
+                    .filter(s -> "completed".equals(s.status)).count();
+            String subHeader = "サブタスク (" + completedSubs + "/" + totalSubs + ")";
+            if (currentY >= 0 && currentY + RenderUtils.SECTION_HEADER_HEIGHT <= scaledUiHeight) {
+                RenderUtils.drawSectionHeader(context, mc, subHeader,
+                        drawX - 2, currentY, maxTextWidth + 2, RenderUtils.COLOR_SUCCESS);
             }
-            currentY += LINE_HEIGHT;
+            currentY += RenderUtils.SECTION_HEADER_HEIGHT;
+            // プログレスバー（ヘッダーの直下に独立配置）
+            if (currentY >= 0 && currentY + 3 <= scaledUiHeight) {
+                int barColor = completedSubs == totalSubs ? 0xFF44CC44 : 0xFF4488CC;
+                RenderUtils.drawMiniProgressBar(context, drawX - 2, currentY,
+                        maxTextWidth + 2, completedSubs, totalSubs, barColor);
+            }
+            currentY += 5;
 
             for (TaskTreeState.HierarchicalSubTask sub : taskTreeState.hierarchicalSubTasks) {
                 currentY = renderHierarchicalSubTask(context, mc, sub, drawX, currentY, maxTextWidth, scaledUiHeight,
@@ -354,7 +464,7 @@ public class TaskTreeUIRenderer {
         // 結果（完了の場合）
         if (sub.result != null && !sub.result.isEmpty() && "completed".equals(sub.status)) {
             String shortResult = sub.result.length() > 40 ? sub.result.substring(0, 40) + "..." : sub.result;
-            String resultLine = indent + "    => " + shortResult;
+            String resultLine = indent + "  => " + shortResult;
             for (OrderedText lineText : RenderUtils.wrapText(mc, resultLine, maxTextWidth)) {
                 if (currentY >= 0 && currentY + 10 <= scaledUiHeight) {
                     context.drawTextWithShadow(mc.textRenderer, lineText, drawX, currentY, 0xFF88FF88);
@@ -365,15 +475,11 @@ public class TaskTreeUIRenderer {
 
         // 失敗理由（エラーの場合）
         if (sub.failureReason != null && !sub.failureReason.isEmpty()) {
-            String failureLine = indent + "    [x] 結果: 失敗 詳細:";
+            String shortFailure = sub.failureReason.length() > 50
+                    ? sub.failureReason.substring(0, 48) + "..."
+                    : sub.failureReason;
+            String failureLine = indent + "  [x] " + shortFailure;
             for (OrderedText lineText : RenderUtils.wrapText(mc, failureLine, maxTextWidth)) {
-                if (currentY >= 0 && currentY + 10 <= scaledUiHeight) {
-                    context.drawTextWithShadow(mc.textRenderer, lineText, drawX, currentY, RenderUtils.COLOR_ERROR);
-                }
-                currentY += LINE_HEIGHT;
-            }
-            for (OrderedText lineText : RenderUtils.wrapText(mc, indent + "      " + sub.failureReason,
-                    maxTextWidth)) {
                 if (currentY >= 0 && currentY + 10 <= scaledUiHeight) {
                     context.drawTextWithShadow(mc.textRenderer, lineText, drawX, currentY, RenderUtils.COLOR_ERROR);
                 }
@@ -404,15 +510,26 @@ public class TaskTreeUIRenderer {
 
     public static boolean handleClick(int uiX, int uiY, int uiWidth, int uiHeight, double mouseX, double mouseY) {
         double scaledX = (mouseX - uiX) / SCALE;
-        double scaledY = (mouseY - uiY) / SCALE;
+        // スクロールオフセットを加算してコンテンツ座標系に変換
+        double scaledY = (mouseY - uiY + lastScrollOffset) / SCALE;
 
         TaskListStatePacket.TaskListState taskListState = ShannonUIModClient.getTaskListState();
         if (taskListState == null)
             return false;
 
         int drawX = (int) (4 / SCALE);
-        int currentY = (int) (4 / SCALE) + LINE_HEIGHT + 4;
-        int maxTextWidth = (int) ((uiWidth - 8) / SCALE);
+        int currentY = (int) (4 / SCALE);
+        int scaledUiWidth = (int) (uiWidth / SCALE);
+        int maxTextWidth = scaledUiWidth - 16 - drawX;
+
+        // 感情バーがある場合のオフセット
+        TaskTreeState taskTreeState = ShannonUIModClient.getTaskTreeState();
+        if (taskTreeState != null && taskTreeState.emotionState != null) {
+            currentY += LINE_HEIGHT + 2;
+        }
+
+        // ヘッダー（SECTION_HEADER_HEIGHT + gap）
+        currentY += RenderUtils.SECTION_HEADER_HEIGHT + 4;
 
         if (taskListState.tasks != null) {
             for (TaskListStatePacket.TaskListState.TaskInfo task : taskListState.tasks) {
@@ -422,7 +539,10 @@ public class TaskTreeUIRenderer {
                         sendTaskAction(TaskActionPacket.ACTION_PRIORITIZE, task.id);
                         return true;
                     } else if (scaledX >= buttonX + BUTTON_SIZE + 4 && scaledX < buttonX + BUTTON_SIZE * 2 + 4) {
-                        sendTaskAction(TaskActionPacket.ACTION_DELETE, task.id);
+                        MinecraftClient mc = MinecraftClient.getInstance();
+                        boolean ctrl = GLFW.glfwGetKey(mc.getWindow().getHandle(), GLFW.GLFW_KEY_LEFT_CONTROL) == GLFW.GLFW_PRESS
+                                || GLFW.glfwGetKey(mc.getWindow().getHandle(), GLFW.GLFW_KEY_RIGHT_CONTROL) == GLFW.GLFW_PRESS;
+                        if (ctrl) sendTaskAction(TaskActionPacket.ACTION_DELETE, task.id);
                         return true;
                     } else {
                         ShannonUIModClient.setSelectedTaskId(task.id);
@@ -437,7 +557,10 @@ public class TaskTreeUIRenderer {
             if (scaledY >= currentY && scaledY < currentY + TASK_ITEM_HEIGHT) {
                 int buttonX = drawX + maxTextWidth - BUTTON_SIZE * 2 - 8;
                 if (scaledX >= buttonX + BUTTON_SIZE + 4 && scaledX < buttonX + BUTTON_SIZE * 2 + 4) {
-                    sendTaskAction(TaskActionPacket.ACTION_DELETE, taskListState.emergencyTask.id);
+                    MinecraftClient mc = MinecraftClient.getInstance();
+                    boolean ctrl = GLFW.glfwGetKey(mc.getWindow().getHandle(), GLFW.GLFW_KEY_LEFT_CONTROL) == GLFW.GLFW_PRESS
+                            || GLFW.glfwGetKey(mc.getWindow().getHandle(), GLFW.GLFW_KEY_RIGHT_CONTROL) == GLFW.GLFW_PRESS;
+                    if (ctrl) sendTaskAction(TaskActionPacket.ACTION_DELETE, taskListState.emergencyTask.id);
                     return true;
                 } else {
                     ShannonUIModClient.setSelectedTaskId(taskListState.emergencyTask.id);
@@ -451,7 +574,8 @@ public class TaskTreeUIRenderer {
 
     public static void handleHover(int uiX, int uiY, int uiWidth, int uiHeight, double mouseX, double mouseY) {
         double scaledX = (mouseX - uiX) / SCALE;
-        double scaledY = (mouseY - uiY) / SCALE;
+        // スクロールオフセットを加算してコンテンツ座標系に変換
+        double scaledY = (mouseY - uiY + lastScrollOffset) / SCALE;
 
         TaskListStatePacket.TaskListState taskListState = ShannonUIModClient.getTaskListState();
         if (taskListState == null) {
@@ -461,8 +585,18 @@ public class TaskTreeUIRenderer {
         }
 
         int drawX = (int) (4 / SCALE);
-        int currentY = (int) (4 / SCALE) + LINE_HEIGHT + 4;
-        int maxTextWidth = (int) ((uiWidth - 8) / SCALE);
+        int currentY = (int) (4 / SCALE);
+        int scaledUiWidth = (int) (uiWidth / SCALE);
+        int maxTextWidth = scaledUiWidth - 16 - drawX;
+
+        // 感情バーがある場合のオフセット
+        TaskTreeState taskTreeState = ShannonUIModClient.getTaskTreeState();
+        if (taskTreeState != null && taskTreeState.emotionState != null) {
+            currentY += LINE_HEIGHT + 2;
+        }
+
+        // ヘッダー（SECTION_HEADER_HEIGHT + gap）
+        currentY += RenderUtils.SECTION_HEADER_HEIGHT + 4;
 
         hoveredTaskId = null;
         hoveredButton = null;
@@ -496,6 +630,15 @@ public class TaskTreeUIRenderer {
 
     private static void sendTaskAction(String action, String taskId) {
         ClientPlayNetworking.send(new TaskActionPacket(action, taskId));
+    }
+
+    private static int getStatusAccentColor(String status) {
+        if (status == null) return 0xFF555555;
+        switch (status) {
+            case "executing": return RenderUtils.COLOR_IN_PROGRESS;
+            case "paused": return RenderUtils.COLOR_WARNING;
+            default: return 0xFF555555;
+        }
     }
 
     private static int getTaskStatusColor(String status) {

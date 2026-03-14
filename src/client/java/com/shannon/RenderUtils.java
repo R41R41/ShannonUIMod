@@ -63,18 +63,29 @@ public final class RenderUtils {
      */
     public static boolean drawButton(DrawContext ctx, MinecraftClient mc, String text,
             int x, int y, int w, int h, int mouseX, int mouseY, boolean mouseDown, boolean wasDown) {
+        return drawButton(ctx, mc, text, x, y, w, h, mouseX, mouseY, mouseDown, wasDown, false);
+    }
+
+    /**
+     * Minecraft風ボタンを描画（selected状態対応）。クリックされた場合trueを返す。
+     */
+    public static boolean drawButton(DrawContext ctx, MinecraftClient mc, String text,
+            int x, int y, int w, int h, int mouseX, int mouseY, boolean mouseDown, boolean wasDown,
+            boolean selected) {
         boolean hover = mouseX >= x && mouseX <= x + w && mouseY >= y && mouseY <= y + h;
-        int bg = hover ? BG_BUTTON_HOVER : BG_BUTTON;
+        int bg = selected ? 0xFF335588 : (hover ? BG_BUTTON_HOVER : BG_BUTTON);
         ctx.fill(x, y, x + w, y + h, bg);
         // 立体枠線
-        ctx.fill(x, y, x + w, y + 1, hover ? 0xFF888888 : 0xFF666666);
-        ctx.fill(x, y, x + 1, y + h, hover ? 0xFF888888 : 0xFF666666);
+        int topColor = selected ? 0xFF5599FF : (hover ? 0xFF888888 : 0xFF666666);
+        ctx.fill(x, y, x + w, y + 1, topColor);
+        ctx.fill(x, y, x + 1, y + h, topColor);
         ctx.fill(x, y + h - 1, x + w, y + h, 0xFF222222);
         ctx.fill(x + w - 1, y, x + w, y + h, 0xFF222222);
         // 中央テキスト
         int tw = mc.textRenderer.getWidth(text);
+        int textColor = selected ? 0xFF88CCFF : (hover ? COLOR_TEXT : 0xFFCCCCCC);
         ctx.drawTextWithShadow(mc.textRenderer, Text.literal(text),
-                x + (w - tw) / 2, y + (h - 8) / 2, hover ? COLOR_TEXT : 0xFFCCCCCC);
+                x + (w - tw) / 2, y + (h - 8) / 2, textColor);
         return mouseDown && !wasDown && hover;
     }
 
@@ -158,6 +169,77 @@ public final class RenderUtils {
         ctx.fill(x, y, x + 1, y + size, 0xFF373737);
         ctx.fill(x, y + size - 1, x + size, y + size, 0xFF8B8B8B);
         ctx.fill(x + size - 1, y, x + size, y + size, 0xFF8B8B8B);
+    }
+
+    // === セクションヘッダー ===
+
+    public static final int SECTION_HEADER_HEIGHT = 14;
+
+    /**
+     * ベベル付きセクションヘッダーを描画（左アクセントバー付き）
+     */
+    public static void drawSectionHeader(DrawContext ctx, MinecraftClient mc, String text,
+            int x, int y, int width, int accentColor) {
+        int h = SECTION_HEADER_HEIGHT;
+        ctx.fill(x, y, x + width, y + h, 0xFF2A2A2E);
+        ctx.fill(x, y, x + width, y + 1, 0xFF3A3A3E);
+        ctx.fill(x, y + h - 1, x + width, y + h, 0xFF1A1A1E);
+        ctx.fill(x, y, x + 3, y + h, accentColor);
+        ctx.drawTextWithShadow(mc.textRenderer, Text.literal(text), x + 8, y + 3, COLOR_TEXT);
+    }
+
+    // === カード背景 ===
+
+    /**
+     * ベベル付きカード背景を描画（左アクセントバー付き）
+     */
+    public static void drawCard(DrawContext ctx, int x, int y, int w, int h,
+            int accentColor, boolean hovered) {
+        int bg = hovered ? 0xFF363640 : 0xFF2C2C32;
+        ctx.fill(x, y, x + w, y + h, bg);
+        ctx.fill(x, y, x + w, y + 1, hovered ? 0xFF464650 : 0xFF3C3C42);
+        ctx.fill(x, y + h - 1, x + w, y + h, 0xFF1A1A1E);
+        ctx.fill(x + w - 1, y, x + w, y + h, 0xFF1A1A1E); // 右枠線
+        if (accentColor != 0) {
+            ctx.fill(x, y, x + 3, y + h, accentColor);
+        }
+    }
+
+    // === トグルスイッチ ===
+
+    /**
+     * ON/OFFトグルスイッチを描画（18x8ピクセル）
+     */
+    public static void drawToggleSwitch(DrawContext ctx, int x, int y, boolean on, boolean hovered) {
+        int w = 20, h = 8;
+        int knobW = 8;
+        // トラック（明るめの枠線で視認性確保）
+        int trackColor = on ? 0xFF2D6A2D : 0xFF383838;
+        ctx.fill(x, y, x + w, y + h, trackColor);
+        ctx.fill(x, y, x + w, y + 1, on ? 0xFF4A8A4A : 0xFF4A4A4A);
+        ctx.fill(x, y + h - 1, x + w, y + h, on ? 0xFF1A3A1A : 0xFF222222);
+        ctx.fill(x, y, x + 1, y + h, on ? 0xFF4A8A4A : 0xFF4A4A4A);
+        ctx.fill(x + w - 1, y, x + w, y + h, on ? 0xFF1A3A1A : 0xFF222222);
+        // ノブ
+        int knobX = on ? x + w - knobW : x;
+        int knobColor = on ? (hovered ? 0xFF66FF66 : 0xFF44CC44) : (hovered ? 0xFFBBBBBB : 0xFF888888);
+        ctx.fill(knobX, y, knobX + knobW, y + h, knobColor);
+        ctx.fill(knobX, y, knobX + knobW, y + 1, on ? 0xFF88FF88 : 0xFFAAAAAA);
+        ctx.fill(knobX, y + h - 1, knobX + knobW, y + h, on ? 0xFF228822 : 0xFF555555);
+    }
+
+    // === ミニプログレスバー ===
+
+    /**
+     * 3px高のミニプログレスバーを描画
+     */
+    public static void drawMiniProgressBar(DrawContext ctx, int x, int y, int w,
+            int current, int total, int fillColor) {
+        ctx.fill(x, y, x + w, y + 3, 0xFF1A1A1A);
+        if (total > 0 && current > 0) {
+            int fillW = Math.max((int) ((float) current / total * w), 1);
+            ctx.fill(x, y, x + fillW, y + 3, fillColor);
+        }
     }
 
     // === スケーリングコンテキスト ===
