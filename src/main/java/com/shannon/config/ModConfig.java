@@ -1,7 +1,9 @@
 package com.shannon.config;
 
-import com.google.gson.Gson;
+import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
+import net.fabricmc.loader.api.FabricLoader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -9,186 +11,119 @@ import java.io.IOException;
 import java.io.Reader;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 
 /**
- * ShannonUIModの設定を一元管理するクラス
- * 全ての設定値をここで定義し、変更を容易にする
- * config/shannonuimod.json ファイルで各サーバーごとの設定を上書き可能
+ * Server-side settings, read once from {@code config/shannonuimod.json}.
+ *
+ * <p>Every key is optional:
+ * <pre>{@code
+ * {
+ *   "backendHost": "localhost",
+ *   "backendPort": 8092,
+ *   "backendToken": "the MINEBOT_API_TOKEN of the bot backend",
+ *   "httpServerPort": 8081,
+ *   "botPlayerName": "I_am_Shannon"
+ * }
+ * }</pre>
+ * The token can also come from the {@code MINEBOT_API_TOKEN} environment variable.
  */
-public class ModConfig {
-
+public final class ModConfig {
     private static final Logger LOGGER = LoggerFactory.getLogger(ModConfig.class);
+    private static final JsonObject FILE = readConfigFile();
 
-    // ===== Backend接続設定 =====
+    // ===== Bot backend =====
 
-    /** Backend（Minebot）のホスト */
-    public static final String BACKEND_HOST = "localhost";
-
-    /**
-     * Backend（Minebot）のポート (デフォルト値、config/shannonuimod.json の backendPort で上書き可能)
-     */
-    public static final int BACKEND_PORT = loadBackendPort();
-
-    /** BackendのベースURL */
+    public static final String BACKEND_HOST = string("backendHost", "localhost");
+    public static final int BACKEND_PORT = integer("backendPort", 8092);
     public static final String BACKEND_BASE_URL = "http://" + BACKEND_HOST + ":" + BACKEND_PORT;
+    /** Bearer token the backend requires; empty when none is configured. */
+    public static final String BACKEND_TOKEN = string("backendToken",
+            System.getenv().getOrDefault("MINEBOT_API_TOKEN", ""));
 
-    // ===== HTTPサーバー設定 =====
+    // ===== HTTP servers that receive the backend's pushes =====
 
-    /** HTTPサーバーのポート（デフォルト値、config/shannonuimod.json で上書き可能） */
-    private static final int HTTP_SERVER_PORT_DEFAULT = 8081;
-
-    /** HTTPサーバーのポート（Backendからのリクエストを受信） */
-    public static final int HTTP_SERVER_PORT = loadHttpServerPort();
-
-    /** クライアントサイドHTTPサーバーのポート（スクリーンショット等） */
-    public static final int CLIENT_HTTP_SERVER_PORT = 8083;
-
-    private static final int BACKEND_PORT_DEFAULT = 8092;
-
-    /**
-     * config/shannonuimod.json から backendPort を読み込む
-     * ファイルが存在しない場合はデフォルト値 (8092) を使用
-     */
-    private static int loadBackendPort() {
-        return loadIntFromConfig("backendPort", BACKEND_PORT_DEFAULT);
-    }
-
-    /**
-     * config/shannonuimod.json からHTTPサーバーポートを読み込む
-     * ファイルが存在しない場合はデフォルト値 (8081) を使用
-     */
-    private static int loadHttpServerPort() {
-        return loadIntFromConfig("httpServerPort", HTTP_SERVER_PORT_DEFAULT);
-    }
-
-    private static int loadIntFromConfig(String key, int defaultValue) {
-        Path configPath = Paths.get("config", "shannonuimod.json");
-        if (Files.exists(configPath)) {
-            try (Reader reader = Files.newBufferedReader(configPath)) {
-                Gson gson = new Gson();
-                JsonObject json = gson.fromJson(reader, JsonObject.class);
-                if (json != null && json.has(key)) {
-                    int value = json.get(key).getAsInt();
-                    LOGGER.info("📋 config/shannonuimod.json から {} を読み込みました: {}", key, value);
-                    return value;
-                }
-            } catch (IOException e) {
-                LOGGER.warn("config/shannonuimod.json の読み込みに失敗しました。デフォルト値を使用します: {} = {}", key, defaultValue, e);
-            }
-        }
-        return defaultValue;
-    }
-
-    /** HTTPサーバーのスレッドプールサイズ */
+    public static final int HTTP_SERVER_PORT = integer("httpServerPort", 8081);
+    /** Address the push server listens on. Loopback by default, since the backend runs on the same machine. */
+    public static final String HTTP_SERVER_BIND_ADDRESS = string("httpServerBindAddress", "127.0.0.1");
+    public static final int CLIENT_HTTP_SERVER_PORT = integer("clientHttpServerPort", 8083);
     public static final int HTTP_THREAD_POOL_SIZE = 4;
+    public static final int CONNECTION_TIMEOUT_MS = 5_000;
+    public static final int READ_TIMEOUT_MS = 10_000;
 
-    /** HTTPタイムアウト（秒） */
-    public static final int HTTP_TIMEOUT_SECONDS = 10;
+    // ===== Backend endpoints =====
 
-    // ===== エンドポイント定義 =====
-
-    /** アイテム投げ捨てエンドポイント */
     public static final String ENDPOINT_THROW_ITEM = "/throw_item";
-
-    /** スキル切り替えエンドポイント */
     public static final String ENDPOINT_SKILL_SWITCH = "/constant_skill_switch";
-
-    /** チャットメッセージエンドポイント */
     public static final String ENDPOINT_CHAT_MESSAGE = "/chat_message";
-
-    /** 反応設定更新エンドポイント */
     public static final String ENDPOINT_REACTION_SETTING_UPDATE = "/reaction_setting_update";
-
-    /** 反応設定リセットエンドポイント */
     public static final String ENDPOINT_REACTION_SETTINGS_RESET = "/reaction_settings_reset";
-
-    /** タスク削除エンドポイント */
     public static final String ENDPOINT_TASK_DELETE = "/task_delete";
-
-    /** タスク優先実行エンドポイント */
     public static final String ENDPOINT_TASK_PRIORITIZE = "/task_prioritize";
-
-    /** タスクリスト取得エンドポイント */
+    public static final String ENDPOINT_TASK_CONTINUE = "/task_continue";
     public static final String ENDPOINT_TASK_LIST = "/task_list";
-
-    /** 音声モード切替エンドポイント */
     public static final String ENDPOINT_VOICE_MODE = "/voice_mode";
-
-    /** 音声PTTエンドポイント */
     public static final String ENDPOINT_VOICE_PTT = "/voice_ptt";
 
-    // ===== ターゲットプレイヤー設定 =====
+    // ===== The bot =====
 
-    /** ボット操作の対象プレイヤー名 */
-    public static final String TARGET_PLAYER_NAME = "I_am_Shannon";
-    // public static final String TARGET_PLAYER_NAME = "Player"; // デバッグ用
+    /** Exact player name of the bot on the server. */
+    public static final String TARGET_PLAYER_NAME = string("botPlayerName", "I_am_Shannon");
+    /** The backend id of the always-on skill that makes the bot follow the nearest player. */
+    public static final String FOLLOW_SKILL_NAME = "auto-follow";
 
-    // ===== UI設定 =====
+    // ===== Logging =====
 
-    /** UIの外側マージン */
-    public static final int UI_MARGIN = 10;
+    public static final boolean DEBUG_MODE = bool("debug", false);
+    public static final boolean LOG_PACKETS = DEBUG_MODE;
+    public static final boolean LOG_HTTP = DEBUG_MODE;
 
-    /** UIの内側パディング */
-    public static final int UI_PADDING = 5;
+    private ModConfig() {
+    }
 
-    /** UI行の高さ */
-    public static final int UI_LINE_HEIGHT = 12;
-
-    /** UIの背景色透過度 (0-255) */
-    public static final int UI_BACKGROUND_ALPHA = 200;
-
-    // ===== ログ設定 =====
-
-    /** ログの最大保持数 */
-    public static final int MAX_LOG_ENTRIES = 100;
-
-    /** チャット履歴の最大保持数 */
-    public static final int MAX_CHAT_HISTORY = 50;
-
-    // ===== 接続タイムアウト設定 =====
-
-    /** HTTP接続タイムアウト（ミリ秒） */
-    public static final int CONNECTION_TIMEOUT_MS = 5000;
-
-    /** HTTP読み取りタイムアウト（ミリ秒） */
-    public static final int READ_TIMEOUT_MS = 10000;
-
-    // ===== デバッグ設定 =====
-
-    /** デバッグモード（詳細ログ出力） */
-    public static final boolean DEBUG_MODE = false;
-
-    /** パケット送受信のログ出力 */
-    public static final boolean LOG_PACKETS = false;
-
-    /** HTTP通信のログ出力 */
-    public static final boolean LOG_HTTP = true;
-
-    // ===== ヘルパーメソッド =====
-
-    /**
-     * BackendのフルURLを構築
-     * 
-     * @param endpoint エンドポイント (例: "/throw_item")
-     * @return フルURL (例: "http://localhost:8082/throw_item")
-     */
     public static String buildBackendUrl(String endpoint) {
         return BACKEND_BASE_URL + endpoint;
     }
 
-    /**
-     * 設定のサマリーをログ出力
-     */
     public static void logConfiguration() {
-        System.out.println("📋 ShannonUIMod Configuration:");
-        System.out.println("  Backend: " + BACKEND_BASE_URL);
-        System.out.println("  HTTP Server Port: " + HTTP_SERVER_PORT);
-        System.out.println("  Target Player: " + TARGET_PLAYER_NAME);
-        System.out.println("  Debug Mode: " + DEBUG_MODE);
+        LOGGER.info("ShannonUIMod: backend={}, token={}, httpServerPort={}, bot={}",
+                BACKEND_BASE_URL, BACKEND_TOKEN.isEmpty() ? "none" : "set", HTTP_SERVER_PORT, TARGET_PLAYER_NAME);
     }
 
-    private ModConfig() {
-        // ユーティリティクラスなのでインスタンス化を防ぐ
+    private static JsonObject readConfigFile() {
+        Path path = FabricLoader.getInstance().getConfigDir().resolve("shannonuimod.json");
+        if (!Files.exists(path)) {
+            return new JsonObject();
+        }
+        try (Reader reader = Files.newBufferedReader(path)) {
+            JsonElement element = JsonParser.parseReader(reader);
+            return element.isJsonObject() ? element.getAsJsonObject() : new JsonObject();
+        } catch (IOException | RuntimeException e) {
+            LOGGER.warn("Could not read {}; using defaults", path, e);
+            return new JsonObject();
+        }
+    }
+
+    private static String string(String key, String fallback) {
+        try {
+            return FILE.has(key) ? FILE.get(key).getAsString() : fallback;
+        } catch (RuntimeException e) {
+            return fallback;
+        }
+    }
+
+    private static int integer(String key, int fallback) {
+        try {
+            return FILE.has(key) ? FILE.get(key).getAsInt() : fallback;
+        } catch (RuntimeException e) {
+            return fallback;
+        }
+    }
+
+    private static boolean bool(String key, boolean fallback) {
+        try {
+            return FILE.has(key) ? FILE.get(key).getAsBoolean() : fallback;
+        } catch (RuntimeException e) {
+            return fallback;
+        }
     }
 }

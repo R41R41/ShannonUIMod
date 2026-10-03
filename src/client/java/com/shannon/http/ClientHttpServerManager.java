@@ -30,7 +30,7 @@ public class ClientHttpServerManager {
 
         new Thread(() -> {
             try {
-                server = HttpServer.create(new InetSocketAddress(ModConfig.CLIENT_HTTP_SERVER_PORT), 0);
+                server = HttpServer.create(new InetSocketAddress(java.net.InetAddress.getLoopbackAddress(), ModConfig.CLIENT_HTTP_SERVER_PORT), 0);
 
                 // エンドポイントを登録
                 registerEndpoints();

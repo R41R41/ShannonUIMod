@@ -1,186 +1,123 @@
 package com.shannon.util;
 
-import com.shannon.network.packet.AdvancementsState;
+import com.shannon.model.AdvancementsState;
 import net.minecraft.advancement.AdvancementDisplay;
 import net.minecraft.advancement.AdvancementEntry;
 import net.minecraft.advancement.AdvancementProgress;
+import net.minecraft.advancement.PlacedAdvancement;
 import net.minecraft.advancement.PlayerAdvancementTracker;
+import net.minecraft.registry.Registries;
 import net.minecraft.server.MinecraftServer;
-import net.minecraft.server.ServerAdvancementLoader;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.text.Text;
 import net.minecraft.text.TranslatableTextContent;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
-import java.util.*;
+import java.util.ArrayDeque;
+import java.util.Deque;
+import java.util.Optional;
 
 /**
- * 進捗データ収集ユーティリティ
- * サーバースレッドで実行すること
+ * Reads a player's advancements as the trees vanilla shows, one category per root.
+ *
+ * <p>Tabs added by data packs and other mods are included the same way as vanilla ones. Call on
+ * the server thread.
  */
-public class AdvancementCollector {
-    private static final Logger LOGGER = LoggerFactory.getLogger(AdvancementCollector.class);
-
-    // バニラカテゴリの表示名マッピング
-    private static final Map<String, String> CATEGORY_DISPLAY_NAMES = new LinkedHashMap<>();
-    static {
-        CATEGORY_DISPLAY_NAMES.put("minecraft:story", "Minecraft（ストーリー）");
-        CATEGORY_DISPLAY_NAMES.put("minecraft:adventure", "冒険");
-        CATEGORY_DISPLAY_NAMES.put("minecraft:husbandry", "農業");
-        CATEGORY_DISPLAY_NAMES.put("minecraft:nether", "ネザー");
-        CATEGORY_DISPLAY_NAMES.put("minecraft:end", "ジ・エンド");
+public final class AdvancementCollector {
+    private AdvancementCollector() {
     }
 
-    /**
-     * 指定プレイヤーの全進捗データを収集（カテゴリ別に整理済み）
-     * サーバースレッドで実行すること
-     */
     public static AdvancementsState collect(MinecraftServer server, String playerName) {
         AdvancementsState state = new AdvancementsState();
         state.updatedAt = System.currentTimeMillis();
-
-        // プレイヤーを検索
-        ServerPlayerEntity targetPlayer = null;
-        for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
-            String name = player.getName().getString();
-            if (name.equals(playerName) || name.contains(playerName)) {
-                targetPlayer = player;
-                break;
-            }
-        }
-
-        if (targetPlayer == null) {
-            state.playerName = playerName + " (not found)";
+        ServerPlayerEntity player = server.getPlayerManager().getPlayer(playerName);
+        if (player == null) {
+            state.playerName = playerName;
             return state;
         }
+        state.playerName = player.getName().getString();
+        PlayerAdvancementTracker tracker = player.getAdvancementTracker();
 
-        state.playerName = targetPlayer.getName().getString();
-        PlayerAdvancementTracker tracker = targetPlayer.getAdvancementTracker();
-        ServerAdvancementLoader advancementLoader = server.getAdvancementLoader();
-        Collection<AdvancementEntry> allAdvancements = advancementLoader.getAdvancements();
-        int logCount = 0; // デバッグ用: 最初の数件だけログ出力
-
-        // カテゴリ別に仮データを収集
-        Map<String, List<AdvancementsState.Advancement>> categoryMap = new LinkedHashMap<>();
-        Map<String, int[]> categoryCounts = new LinkedHashMap<>(); // [completed, total]
-
-        for (AdvancementEntry entry : allAdvancements) {
-            String advancementId = entry.id().toString();
-
-            // レシピ進捗をスキップ
-            if (isRecipeAdvancement(advancementId)) continue;
-
-            // 表示がない進捗をスキップ
-            Optional<AdvancementDisplay> display = entry.value().display();
-            if (display.isEmpty()) continue;
-
-            // カテゴリを取得
-            String categoryId = getCategory(advancementId);
-            if (categoryId == null) continue;
-
-            // 進捗状況
-            AdvancementProgress progress = tracker.getProgress(entry);
-            boolean done = progress != null && progress.isDone();
-
-            int obtainedCount = 0;
-            int totalCount = 0;
-            if (progress != null) {
-                for (String ignored : progress.getObtainedCriteria()) obtainedCount++;
-                totalCount = obtainedCount;
-                for (String ignored : progress.getUnobtainedCriteria()) totalCount++;
+        for (PlacedAdvancement root : server.getAdvancementLoader().getManager().getRoots()) {
+            Optional<AdvancementDisplay> rootDisplay = root.getAdvancement().display();
+            if (rootDisplay.isEmpty()) {
+                continue; // Recipe unlocks and other invisible trees.
             }
+            AdvancementsState.Category category = new AdvancementsState.Category();
+            category.rootId = root.getAdvancementEntry().id().toString();
+            setTitle(rootDisplay.get().getTitle(), text -> category.title = text, key -> category.titleKey = key);
+            category.icon = Registries.ITEM.getId(rootDisplay.get().getIcon().getItem()).toString();
 
-            // Advancement データ作成（TextをJSON形式で保存→クライアント側で言語に合わせて表示）
-            AdvancementsState.Advancement adv = new AdvancementsState.Advancement();
-            AdvancementDisplay d = display.get();
-            adv.title = serializeText(d.getTitle(), server);
-            adv.description = serializeText(d.getDescription(), server);
-            if (logCount < 3) {
-                LOGGER.info("[Advancements] {} -> title='{}', contentType={}",
-                        advancementId, adv.title,
-                        d.getTitle().getContent().getClass().getSimpleName());
-                logCount++;
+            Deque<PlacedAdvancement> pending = new ArrayDeque<>();
+            pending.add(root);
+            while (!pending.isEmpty()) {
+                PlacedAdvancement placed = pending.poll();
+                for (PlacedAdvancement child : placed.getChildren()) {
+                    pending.add(child);
+                }
+                AdvancementsState.Advancement advancement = read(placed, tracker);
+                if (advancement == null) {
+                    continue;
+                }
+                category.total++;
+                if (advancement.done) {
+                    category.completed++;
+                }
+                category.advancements.add(advancement);
             }
-            adv.done = done;
-            adv.progress = (totalCount > 1 && !done) ? obtainedCount + "/" + totalCount : "";
-
-            categoryMap.computeIfAbsent(categoryId, k -> new ArrayList<>()).add(adv);
-            int[] counts = categoryCounts.computeIfAbsent(categoryId, k -> new int[]{0, 0});
-            if (done) counts[0]++;
-            counts[1]++;
+            state.categories.add(category);
         }
-
-        // カテゴリをソート（バニラ優先、データパックはアルファベット順）
-        List<String> sortedCategories = new ArrayList<>(categoryMap.keySet());
-        sortedCategories.sort((a, b) -> {
-            boolean aVanilla = CATEGORY_DISPLAY_NAMES.containsKey(a);
-            boolean bVanilla = CATEGORY_DISPLAY_NAMES.containsKey(b);
-            if (aVanilla && !bVanilla) return -1;
-            if (!aVanilla && bVanilla) return 1;
-            if (aVanilla) {
-                // バニラ同士は定義順
-                List<String> order = new ArrayList<>(CATEGORY_DISPLAY_NAMES.keySet());
-                return Integer.compare(order.indexOf(a), order.indexOf(b));
-            }
-            return a.compareTo(b);
-        });
-
-        // カテゴリデータを構築
-        state.categories = new ArrayList<>();
-        for (String categoryId : sortedCategories) {
-            AdvancementsState.Category cat = new AdvancementsState.Category();
-            cat.categoryId = categoryId;
-            cat.displayName = CATEGORY_DISPLAY_NAMES.getOrDefault(categoryId, categoryId);
-            int[] counts = categoryCounts.getOrDefault(categoryId, new int[]{0, 0});
-            cat.completed = counts[0];
-            cat.total = counts[1];
-            // 完了済みを先に、未完了を後に
-            List<AdvancementsState.Advancement> advs = categoryMap.get(categoryId);
-            advs.sort((a, b) -> Boolean.compare(b.done, a.done));
-            cat.advancements = advs;
-            state.categories.add(cat);
-        }
-
         return state;
     }
 
-    /**
-     * TextをJSON形式またはプレーンテキストの文字列に変換
-     * バニラ進捗（"advancements."で始まるキー）はクライアント側で言語解決させる
-     * データパック/MODの進捗はサーバー側で解決済みテキストを送る（クライアントに翻訳がないため）
-     */
-    private static String serializeText(Text text, MinecraftServer server) {
-        if (text.getContent() instanceof TranslatableTextContent translatable) {
-            String key = translatable.getKey();
-            // バニラの進捗キーはクライアント側の言語ファイルに存在する
-            if (key.startsWith("advancements.")) {
-                return "{\"translate\":\"" + key + "\"}";
+    private static AdvancementsState.Advancement read(PlacedAdvancement placed, PlayerAdvancementTracker tracker) {
+        AdvancementEntry entry = placed.getAdvancementEntry();
+        Optional<AdvancementDisplay> maybeDisplay = entry.value().display();
+        if (maybeDisplay.isEmpty()) {
+            return null;
+        }
+        AdvancementDisplay display = maybeDisplay.get();
+        AdvancementProgress progress = tracker.getProgress(entry);
+        boolean done = progress != null && progress.isDone();
+        if (display.isHidden() && !done) {
+            return null;
+        }
+        AdvancementsState.Advancement advancement = new AdvancementsState.Advancement();
+        advancement.id = entry.id().toString();
+        PlacedAdvancement parent = placed.getParent();
+        advancement.parentId = parent != null ? parent.getAdvancementEntry().id().toString() : null;
+        setTitle(display.getTitle(), text -> advancement.title = text, key -> advancement.titleKey = key);
+        setTitle(display.getDescription(), text -> advancement.description = text,
+                key -> advancement.descriptionKey = key);
+        advancement.icon = Registries.ITEM.getId(display.getIcon().getItem()).toString();
+        advancement.frame = display.getFrame().asString();
+        advancement.done = done;
+        advancement.x = display.getX();
+        advancement.y = display.getY();
+        if (progress != null && !done) {
+            int obtained = 0;
+            int total = 0;
+            for (String ignored : progress.getObtainedCriteria()) {
+                obtained++;
+                total++;
             }
-            // データパック/MODのキーはサーバー側で解決（クライアントに翻訳がない）
-            return text.getString();
+            for (String ignored : progress.getUnobtainedCriteria()) {
+                total++;
+            }
+            advancement.progress = total > 1 ? obtained + "/" + total : "";
         }
-
-        // リテラルテキスト等はそのまま文字列化
-        return text.getString();
+        return advancement;
     }
 
-    private static boolean isRecipeAdvancement(String advancementId) {
-        int colonIndex = advancementId.indexOf(':');
-        if (colonIndex < 0) return false;
-        String path = advancementId.substring(colonIndex + 1);
-        return path.startsWith("recipes/");
-    }
-
-    private static String getCategory(String advancementId) {
-        int colonIndex = advancementId.indexOf(':');
-        if (colonIndex < 0) return null;
-        String namespace = advancementId.substring(0, colonIndex);
-        String path = advancementId.substring(colonIndex + 1);
-        int slashIndex = path.indexOf('/');
-        if (slashIndex > 0) {
-            return namespace + ":" + path.substring(0, slashIndex);
+    /**
+     * Sends a vanilla translation key when there is one, so the client shows it in the player's
+     * language, and the resolved text otherwise.
+     */
+    private static void setTitle(Text text, java.util.function.Consumer<String> plain,
+                                 java.util.function.Consumer<String> key) {
+        plain.accept(text.getString());
+        if (text.getContent() instanceof TranslatableTextContent translatable
+                && translatable.getKey().startsWith("advancements.")) {
+            key.accept(translatable.getKey());
         }
-        return namespace;
     }
 }

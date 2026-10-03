@@ -1,55 +1,18 @@
 package com.shannon.http.endpoints;
 
-import com.google.gson.Gson;
-import com.shannon.ShannonUIMod;
-import com.shannon.network.packet.TaskTreeState;
-import com.sun.net.httpserver.HttpExchange;
-import com.sun.net.httpserver.HttpHandler;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.shannon.http.JsonPostEndpoint;
+import com.shannon.model.TaskTreeState;
+import com.shannon.state.StateManager;
+import com.shannon.sync.SyncJson;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.nio.charset.StandardCharsets;
-
-/**
- * /task エンドポイント
- * タスクツリーの状態を受信
- */
-public class TaskEndpoint implements HttpHandler {
-    private static final Logger LOGGER = LoggerFactory.getLogger(TaskEndpoint.class);
-    private final Gson gson = new Gson();
-
+/** {@code POST /task}: the task the bot is working on. */
+public class TaskEndpoint extends JsonPostEndpoint {
     @Override
-    public void handle(HttpExchange exchange) throws IOException {
-        if (!"POST".equals(exchange.getRequestMethod())) {
-            exchange.sendResponseHeaders(405, -1);
-            return;
+    protected void accept(String body) {
+        TaskTreeState state = SyncJson.GSON.fromJson(body, TaskTreeState.class);
+        if (state == null) {
+            throw new IllegalArgumentException("empty task");
         }
-
-        try {
-            InputStream is = exchange.getRequestBody();
-            String json = new String(is.readAllBytes(), StandardCharsets.UTF_8);
-            TaskTreeState newState = gson.fromJson(json, TaskTreeState.class);
-            LOGGER.info("受信: task goal={}, status={}, subTasks={}",
-                    newState.goal,
-                    newState.status,
-                    newState.hierarchicalSubTasks != null ? newState.hierarchicalSubTasks.size() : 0);
-            LOGGER.debug("受信したJSON (task): {}", json);
-
-            // StateManager経由で更新
-            ShannonUIMod.getStateManager().updateTaskTreeState(newState);
-
-            String response = "OK";
-            exchange.sendResponseHeaders(200, response.length());
-            OutputStream os = exchange.getResponseBody();
-            os.write(response.getBytes(StandardCharsets.UTF_8));
-            os.close();
-        } catch (Exception e) {
-            LOGGER.error("TaskEndpointでエラーが発生しました", e);
-            exchange.sendResponseHeaders(500, 0);
-            exchange.getResponseBody().close();
-        }
+        StateManager.getInstance().updateTaskTree(state);
     }
 }

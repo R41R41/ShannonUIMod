@@ -1,73 +1,56 @@
 package com.shannon.state;
 
-import com.shannon.network.packet.*;
-import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
+import com.shannon.model.ChatState;
+import com.shannon.model.DetailedLogsState;
+import com.shannon.model.TaskTreeState;
+import com.shannon.server.ServerSync;
+import com.shannon.sync.StateChannels;
+import com.shannon.sync.SyncChannel;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.network.ServerPlayerEntity;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
-import java.util.ConcurrentModificationException;
 import java.util.List;
-import java.util.function.Consumer;
+import java.util.Map;
+import java.util.Objects;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * 状態管理の中央クラス
- * 全ての状態を一元管理し、変更通知を提供
+ * The server's copy of every synced state.
+ *
+ * <p>The HTTP endpoints publish from their own threads; broadcasting always happens on the server
+ * thread. A player who joins receives the latest copy of every state.
  */
-public class StateManager {
-    private static final Logger LOGGER = LoggerFactory.getLogger(StateManager.class);
-    private static StateManager instance;
+public final class StateManager {
+    private static final StateManager INSTANCE = new StateManager();
 
-    /** 詳細ログのブロードキャストを最大この間隔(ms)に1回に制限（クライアント切断防止） */
-    private static final long LOGS_BROADCAST_INTERVAL_MS = 1_000L;
-    /** 1パケットに含めるログ件数の上限（custom payload サイズ制限対策） */
-    private static final int LOGS_PACKET_MAX_ENTRIES = 25;
+    private static final int MAX_CHAT_MESSAGES = 100;
+    private static final int MAX_LOG_ENTRIES = 100;
+    /** Log lines in one sync; the newest are kept. */
+    private static final int LOGS_PER_SYNC = 25;
+    private static final long LOGS_SYNC_INTERVAL_MS = 1_000;
 
-    private long lastLogsBroadcastTime = 0;
-    private boolean logsBroadcastDirty = false;
+    private final Map<SyncChannel<?>, Object> latest = new ConcurrentHashMap<>();
+    private volatile MinecraftServer server;
 
-    // 状態
-    private TaskTreeState taskTreeState = new TaskTreeState();
-    private TaskListStatePacket.TaskListState taskListState = new TaskListStatePacket.TaskListState();
-    private DetailedLogsState logsState = new DetailedLogsState();
-    private ConstantSkillsState skillsState = new ConstantSkillsState();
-    private InventoryState inventoryState = new InventoryState();
-    private ChatState chatState = new ChatState();
-    private ReactionSettingsState reactionSettingsState = new ReactionSettingsState();
+    private final Object chatLock = new Object();
+    private final List<ChatState.Message> chat = new ArrayList<>();
 
-    // 選択中のタスクID
-    private String selectedTaskId = null;
+    private final Object logsLock = new Object();
+    private final List<DetailedLogsState.LogEntry> logs = new ArrayList<>();
+    private boolean logsDirty;
+    private long lastLogsSync;
 
-    // サーバーインスタンス
-    private MinecraftServer server;
-
-    // リスナー（将来的にリアクティブな更新に使用）
-    private List<Consumer<StateType>> listeners = new ArrayList<>();
-
-    public enum StateType {
-        TASK_TREE,
-        TASK_LIST,
-        LOGS,
-        SKILLS,
-        INVENTORY,
-        CHAT,
-        REACTION_SETTINGS
-    }
+    /** What the last task-tree update looked like, to tell when a task starts or ends. */
+    private String lastGoal;
+    private String lastOutcome;
 
     private StateManager() {
-        // シングルトン
     }
 
     public static StateManager getInstance() {
-        if (instance == null) {
-            instance = new StateManager();
-        }
-        return instance;
+        return INSTANCE;
     }
-
-    // ===== Setters =====
 
     public void setServer(MinecraftServer server) {
         this.server = server;
@@ -77,298 +60,138 @@ public class StateManager {
         return server;
     }
 
-    public void updateTaskTreeState(TaskTreeState newState) {
-        this.taskTreeState = newState;
-        LOGGER.info("TaskTreeState updated: goal='{}', status={}, subTasks={}",
-                newState.goal,
-                newState.status,
-                newState.hierarchicalSubTasks != null ? newState.hierarchicalSubTasks.size() : 0);
-        notifyListeners(StateType.TASK_TREE);
-        broadcastTaskTreeState();
-    }
+    // ===== Generic publish / read =====
 
-    public void updateTaskListState(TaskListStatePacket.TaskListState newState) {
-        this.taskListState = newState;
-        String emergencyInfo = (newState != null && newState.emergencyTask != null)
-                ? newState.emergencyTask.goal
-                : "null";
-        LOGGER.info("TaskListState updated: {} tasks, emergencyTask={}",
-                (newState != null && newState.tasks != null ? newState.tasks.size() : 0),
-                emergencyInfo);
-        notifyListeners(StateType.TASK_LIST);
-        broadcastTaskListState();
-    }
-
-    public TaskListStatePacket.TaskListState getTaskListState() {
-        return taskListState;
-    }
-
-    public String getSelectedTaskId() {
-        return selectedTaskId;
-    }
-
-    public void setSelectedTaskId(String taskId) {
-        this.selectedTaskId = taskId;
-    }
-
-    private void broadcastTaskListState() {
-        if (taskListState == null || server == null) {
+    /** Stores {@code state} and sends it to every client. Safe from any thread. */
+    public <T> void publish(SyncChannel<T> channel, T state) {
+        if (state == null) {
             return;
         }
-        LOGGER.debug("📤 Broadcasting TaskListState: {} tasks",
-                taskListState.tasks != null ? taskListState.tasks.size() : 0);
-        for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
-            if (ServerPlayNetworking.canSend(player, TaskListStatePacket.PACKET_ID)) {
-                ServerPlayNetworking.send(player, new TaskListStatePacket(taskListState));
+        latest.put(channel, state);
+        MinecraftServer current = server;
+        if (current != null) {
+            current.execute(() -> ServerSync.broadcast(current, channel, state));
+        }
+    }
+
+    public <T> T get(SyncChannel<T> channel) {
+        return channel.type().cast(latest.get(channel));
+    }
+
+    /** Sends every stored state to one player. Call on the server thread. */
+    public void sendAllTo(ServerPlayerEntity player) {
+        for (SyncChannel<?> channel : StateChannels.ALL) {
+            sendStored(player, channel);
+        }
+    }
+
+    private <T> void sendStored(ServerPlayerEntity player, SyncChannel<T> channel) {
+        T state = get(channel);
+        if (state != null) {
+            ServerSync.send(player, channel, state);
+        }
+    }
+
+    // ===== Task tree, with task events in the conversation =====
+
+    public void updateTaskTree(TaskTreeState state) {
+        if (state == null) {
+            return;
+        }
+        publish(StateChannels.TASK_TREE, state);
+        recordTaskEvent(state);
+    }
+
+    private synchronized void recordTaskEvent(TaskTreeState state) {
+        String goal = state.goal;
+        if (goal == null || goal.isBlank()) {
+            return;
+        }
+        if (!goal.equals(lastGoal)) {
+            lastGoal = goal;
+            lastOutcome = null;
+            addChat(new ChatState.Message(ChatState.Kind.TASK_STARTED, null, goal, System.currentTimeMillis()));
+        }
+        String status = state.status == null ? "" : state.status;
+        ChatState.Kind outcome = switch (status) {
+            case "completed" -> ChatState.Kind.TASK_DONE;
+            case "error", "failed", "aborted" -> ChatState.Kind.TASK_ERROR;
+            default -> null;
+        };
+        if (outcome != null && !Objects.equals(lastOutcome, outcome.name())) {
+            lastOutcome = outcome.name();
+            String text = outcome == ChatState.Kind.TASK_ERROR && state.error != null && !state.error.isBlank()
+                    ? state.error
+                    : goal;
+            addChat(new ChatState.Message(outcome, null, text, System.currentTimeMillis()));
+        }
+    }
+
+    // ===== Conversation =====
+
+    public void addChat(ChatState.Message message) {
+        ChatState snapshot = new ChatState();
+        synchronized (chatLock) {
+            chat.add(message);
+            while (chat.size() > MAX_CHAT_MESSAGES) {
+                chat.remove(0);
+            }
+            snapshot.messages = new ArrayList<>(chat);
+        }
+        publish(StateChannels.CHAT, snapshot);
+    }
+
+    public void replaceChat(List<ChatState.Message> messages) {
+        ChatState snapshot = new ChatState();
+        synchronized (chatLock) {
+            chat.clear();
+            chat.addAll(messages);
+            while (chat.size() > MAX_CHAT_MESSAGES) {
+                chat.remove(0);
+            }
+            snapshot.messages = new ArrayList<>(chat);
+        }
+        publish(StateChannels.CHAT, snapshot);
+    }
+
+    // ===== Developer logs, throttled =====
+
+    public void appendLogs(List<DetailedLogsState.LogEntry> entries) {
+        if (entries == null || entries.isEmpty()) {
+            return;
+        }
+        synchronized (logsLock) {
+            logs.addAll(entries);
+            while (logs.size() > MAX_LOG_ENTRIES) {
+                logs.remove(0);
+            }
+            logsDirty = true;
+        }
+    }
+
+    public void clearLogs() {
+        synchronized (logsLock) {
+            logs.clear();
+            logsDirty = true;
+            lastLogsSync = 0;
+        }
+    }
+
+    /** Called every server tick. Sends the newest log lines at most once a second. */
+    public void tick() {
+        DetailedLogsState snapshot = null;
+        synchronized (logsLock) {
+            long now = System.currentTimeMillis();
+            if (logsDirty && now - lastLogsSync >= LOGS_SYNC_INTERVAL_MS) {
+                logsDirty = false;
+                lastLogsSync = now;
+                snapshot = new DetailedLogsState();
+                int from = Math.max(0, logs.size() - LOGS_PER_SYNC);
+                snapshot.logs = new ArrayList<>(logs.subList(from, logs.size()));
             }
         }
-    }
-
-    public void updateLogsState(DetailedLogsState newState) {
-        // 新しいログを既存のログリストにマージ（上書きではなく追加）
-        if (newState != null && newState.logs != null && !newState.logs.isEmpty()) {
-            synchronized (this) {
-                if (this.logsState == null) {
-                    this.logsState = new DetailedLogsState();
-                }
-                if (this.logsState.logs == null) {
-                    this.logsState.logs = new ArrayList<>();
-                }
-
-                // 新しいログを追加
-                this.logsState.logs.addAll(newState.logs);
-
-                // 最大100件に制限（古いログを削除）
-                final int MAX_LOGS = 100;
-                while (this.logsState.logs.size() > MAX_LOGS) {
-                    this.logsState.logs.remove(0);
-                }
-
-                LOGGER.debug("DetailedLogsState merged: added {} logs, total {} logs",
-                        newState.logs.size(), this.logsState.logs.size());
-            }
+        if (snapshot != null) {
+            publish(StateChannels.LOGS, snapshot);
         }
-
-        notifyListeners(StateType.LOGS);
-        logsBroadcastDirty = true;
-        broadcastLogsState();
-    }
-
-    /**
-     * ログをクリア
-     */
-    public void clearLogsState() {
-        this.logsState = new DetailedLogsState();
-        LOGGER.info("DetailedLogsState cleared");
-        notifyListeners(StateType.LOGS);
-        lastLogsBroadcastTime = 0;
-        logsBroadcastDirty = true;
-        broadcastLogsState();
-    }
-
-    public void updateSkillsState(ConstantSkillsState newState) {
-        this.skillsState = newState;
-        LOGGER.info("ConstantSkillsState updated: " + newState);
-        notifyListeners(StateType.SKILLS);
-        broadcastSkillsState();
-    }
-
-    public void updateInventoryState(InventoryState newState) {
-        this.inventoryState = newState;
-        notifyListeners(StateType.INVENTORY);
-        broadcastInventoryState();
-    }
-
-    public void updateChatState(ChatState newState) {
-        this.chatState = newState;
-        LOGGER.info("ChatState updated: " + newState);
-        notifyListeners(StateType.CHAT);
-        broadcastChatState();
-    }
-
-    // ===== Getters =====
-
-    public TaskTreeState getTaskTreeState() {
-        return taskTreeState;
-    }
-
-    public DetailedLogsState getLogsState() {
-        return logsState;
-    }
-
-    public ConstantSkillsState getSkillsState() {
-        return skillsState;
-    }
-
-    public InventoryState getInventoryState() {
-        return inventoryState;
-    }
-
-    public ChatState getChatState() {
-        return chatState;
-    }
-
-    /**
-     * ターゲットプレイヤーを取得（最初に接続しているプレイヤー）
-     */
-    public ServerPlayerEntity getTargetPlayer() {
-        if (server == null) {
-            return null;
-        }
-        var players = server.getPlayerManager().getPlayerList();
-        return players.isEmpty() ? null : players.get(0);
-    }
-
-    // ===== Broadcasting =====
-
-    private void broadcastTaskTreeState() {
-        if (taskTreeState == null || taskTreeState.goal == null || server == null) {
-            return;
-        }
-
-        for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
-            if (ServerPlayNetworking.canSend(player, TaskTreeStatePacket.PACKET_ID)) {
-                try {
-                    ServerPlayNetworking.send(player, new TaskTreeStatePacket(taskTreeState));
-                } catch (Exception e) {
-                    LOGGER.error("Failed to send TaskTreeState packet to player {}: {}", player.getName().getString(),
-                            e.getMessage());
-                }
-            }
-        }
-    }
-
-    private void broadcastLogsState() {
-        if (logsState == null || server == null) {
-            return;
-        }
-        if (!logsBroadcastDirty) {
-            return;
-        }
-        long now = System.currentTimeMillis();
-        if (now - lastLogsBroadcastTime < LOGS_BROADCAST_INTERVAL_MS) {
-            return;
-        }
-        lastLogsBroadcastTime = now;
-        logsBroadcastDirty = false;
-
-        // パケットサイズ制限・クライアント切断防止のため直近 N 件だけ送る
-        List<DetailedLogsState.LogEntry> snapshot;
-        try {
-            snapshot = logsState.logs != null ? new ArrayList<>(logsState.logs) : List.of();
-        } catch (ConcurrentModificationException e) {
-            LOGGER.debug("Skipping logs broadcast due to concurrent modification");
-            logsBroadcastDirty = true;
-            return;
-        }
-        if (snapshot.isEmpty()) {
-            return;
-        }
-        int fromIndex = Math.max(0, snapshot.size() - LOGS_PACKET_MAX_ENTRIES);
-
-        DetailedLogsState trimmedState = new DetailedLogsState();
-        trimmedState.logs = new ArrayList<>(snapshot.subList(fromIndex, snapshot.size()));
-
-        for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
-            if (ServerPlayNetworking.canSend(player, DetailedLogsStatePacket.PACKET_ID)) {
-                try {
-                    ServerPlayNetworking.send(player, new DetailedLogsStatePacket(trimmedState));
-                } catch (Exception e) {
-                    LOGGER.warn("Failed to send DetailedLogsState to {}: {}", player.getName().getString(), e.getMessage());
-                }
-            }
-        }
-    }
-
-    private void broadcastSkillsState() {
-        if (skillsState == null || skillsState.skills == null || server == null) {
-            return;
-        }
-
-        for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
-            if (ServerPlayNetworking.canSend(player, ConstantSkillsStatePacket.PACKET_ID)) {
-                ServerPlayNetworking.send(player, new ConstantSkillsStatePacket(skillsState));
-            }
-        }
-    }
-
-    private void broadcastInventoryState() {
-        if (inventoryState == null || server == null) {
-            return;
-        }
-
-        for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
-            if (ServerPlayNetworking.canSend(player, InventoryStatePacket.PACKET_ID)) {
-                ServerPlayNetworking.send(player, new InventoryStatePacket(inventoryState));
-            }
-        }
-    }
-
-    private void broadcastChatState() {
-        if (chatState == null || server == null) {
-            return;
-        }
-
-        for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
-            if (ServerPlayNetworking.canSend(player, ChatStatePacket.PACKET_ID)) {
-                ServerPlayNetworking.send(player, new ChatStatePacket(chatState));
-            }
-        }
-    }
-
-    // ===== ReactionSettings =====
-
-    public void updateReactionSettingsState(ReactionSettingsState newState) {
-        this.reactionSettingsState = newState;
-        LOGGER.info("ReactionSettingsState updated: {} reactions",
-                newState.reactions != null ? newState.reactions.size() : 0);
-        notifyListeners(StateType.REACTION_SETTINGS);
-        broadcastReactionSettingsState();
-    }
-
-    public ReactionSettingsState getReactionSettingsState() {
-        return reactionSettingsState;
-    }
-
-    private void broadcastReactionSettingsState() {
-        if (reactionSettingsState == null || server == null) {
-            return;
-        }
-
-        for (ServerPlayerEntity player : server.getPlayerManager().getPlayerList()) {
-            if (ServerPlayNetworking.canSend(player, ReactionSettingsStatePacket.PACKET_ID)) {
-                ServerPlayNetworking.send(player, new ReactionSettingsStatePacket(reactionSettingsState));
-            }
-        }
-    }
-
-    // ===== Listeners (将来的な拡張用) =====
-
-    public void addListener(Consumer<StateType> listener) {
-        listeners.add(listener);
-    }
-
-    public void removeListener(Consumer<StateType> listener) {
-        listeners.remove(listener);
-    }
-
-    private void notifyListeners(StateType type) {
-        for (Consumer<StateType> listener : listeners) {
-            listener.accept(type);
-        }
-    }
-
-    // ===== Utility Methods =====
-
-    /**
-     * 全ての状態をクリア
-     */
-    public void clearAll() {
-        taskTreeState = new TaskTreeState();
-        logsState = new DetailedLogsState();
-        skillsState = new ConstantSkillsState();
-        inventoryState = new InventoryState();
-        chatState = new ChatState();
-        LOGGER.info("All states cleared");
     }
 }

@@ -1,33 +1,27 @@
 {
-	"schemaVersion": 1,
-	"id": "shannonuimod",
-	"version": "${version}",
-	"name": "ShannonUIMod",
-	"description": "Minebot「シャノン」の状態表示などをサポートするMOD",
-	"authors": [
-		"R41R41"
-	],
-	"license": "CC0-1.0",
-	"icon": "assets/shannonuimod/icon.png",
-	"environment": "*",
-	"entrypoints": {
-		"main": [
-			"com.shannon.ShannonUIMod"
-		],
-		"client": [
-			"com.shannon.ShannonUIModClient"
-		]
-	},
-	"depends": {
-		"fabricloader": ">=0.18.1",
-		"minecraft": ">=1.21.11 <1.22",
-		"java": ">=21",
-		"fabric-api": "*"
-	},
-	"suggests": {
-		"another-mod": "*"
-	},
-	"mixins": [
-		"shannonuimod.mixin.json"
-	]
+  "schemaVersion": 1,
+  "id": "shannonuimod",
+  "version": "${version}",
+  "name": "ShannonUIMod",
+  "description": "Minebot「シャノン」と一緒に遊ぶための状況表示・会話・指示UI",
+  "authors": [
+    "R41R41"
+  ],
+  "license": "CC0-1.0",
+  "icon": "assets/shannonuimod/icon.png",
+  "environment": "*",
+  "entrypoints": {
+    "main": [
+      "com.shannon.ShannonUIMod"
+    ],
+    "client": [
+      "com.shannon.ShannonUIModClient"
+    ]
+  },
+  "depends": {
+    "fabricloader": ">=0.18.1",
+    "minecraft": ">=1.21.11 <1.22",
+    "java": ">=21",
+    "fabric-api": "*"
+  }
 }

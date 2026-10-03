@@ -1,88 +1,77 @@
 package com.shannon.http;
 
 import com.shannon.config.ModConfig;
-import com.shannon.http.endpoints.*;
+import com.shannon.http.endpoints.AdvancementsEndpoint;
+import com.shannon.http.endpoints.BotChatEndpoint;
+import com.shannon.http.endpoints.ChatEndpoint;
+import com.shannon.http.endpoints.ConstantSkillsEndpoint;
+import com.shannon.http.endpoints.ReactionSettingsEndpoint;
+import com.shannon.http.endpoints.ServerScreenshotEndpoint;
+import com.shannon.http.endpoints.TaskEndpoint;
+import com.shannon.http.endpoints.TaskListEndpoint;
+import com.shannon.http.endpoints.TaskLogsEndpoint;
 import com.sun.net.httpserver.HttpServer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 /**
- * HTTPサーバーの管理クラス
- * エンドポイントの登録と起動を一元管理
+ * The HTTP server the bot backend pushes state to.
+ *
+ * <p>It listens on the loopback address only, since the backend runs on the same machine, unless
+ * {@code httpServerBindAddress} in the config says otherwise.
  */
-public class HttpServerManager {
+public final class HttpServerManager {
     private static final Logger LOGGER = LoggerFactory.getLogger(HttpServerManager.class);
     private static HttpServer server;
+    private static ExecutorService executor;
 
-    /**
-     * HTTPサーバーを起動
-     */
-    public static void startServer() {
-        new Thread(() -> {
-            try {
-                server = HttpServer.create(new InetSocketAddress(ModConfig.HTTP_SERVER_PORT), 0);
-
-                // エンドポイントを登録
-                registerEndpoints();
-
-                // スレッドプールを設定
-                server.setExecutor(Executors.newFixedThreadPool(ModConfig.HTTP_THREAD_POOL_SIZE));
-
-                // サーバー起動
-                server.start();
-                LOGGER.info("HTTPサーバーをポート{}で起動しました", ModConfig.HTTP_SERVER_PORT);
-            } catch (IOException e) {
-                LOGGER.error("HTTPサーバーの起動に失敗しました", e);
-            }
-        }, "HTTP-Server-Thread").start();
+    private HttpServerManager() {
     }
 
-    /**
-     * エンドポイントを登録
-     */
-    private static void registerEndpoints() {
-        if (server == null) {
-            LOGGER.error("サーバーが初期化されていません");
+    public static synchronized void startServer() {
+        if (server != null) {
             return;
         }
-
-        // 各エンドポイントを登録
-        server.createContext("/task", new TaskEndpoint());
-        server.createContext("/task_logs", new TaskLogsEndpoint());
-        server.createContext("/task_list", new TaskListEndpoint());
-        server.createContext("/constant_skills", new ConstantSkillsEndpoint());
-        server.createContext("/chat", new ChatEndpoint());
-        server.createContext("/inventory_click", new InventoryClickEndpoint());
-        server.createContext("/constant_skill_click", new ConstantSkillClickEndpoint());
-        server.createContext("/chat_message", new ChatMessageEndpoint());
-        server.createContext("/reaction_settings", new ReactionSettingsEndpoint());
-        server.createContext("/bot_chat", new BotChatEndpoint());
-        server.createContext("/screenshot", new ServerScreenshotEndpoint());
-        server.createContext("/task_delete", new TaskDeleteEndpoint());
-        server.createContext("/task_prioritize", new TaskPrioritizeEndpoint());
-        server.createContext("/advancements", new AdvancementsEndpoint());
-
-        LOGGER.info("全エンドポイントの登録が完了しました");
-    }
-
-    /**
-     * HTTPサーバーを停止
-     */
-    public static void stopServer() {
-        if (server != null) {
-            server.stop(0);
-            LOGGER.info("HTTPサーバーを停止しました");
+        try {
+            InetAddress address = InetAddress.getByName(ModConfig.HTTP_SERVER_BIND_ADDRESS);
+            HttpServer created = HttpServer.create(new InetSocketAddress(address, ModConfig.HTTP_SERVER_PORT), 0);
+            created.createContext("/task", new TaskEndpoint());
+            created.createContext("/task_logs", new TaskLogsEndpoint());
+            created.createContext("/task_list", new TaskListEndpoint());
+            created.createContext("/constant_skills", new ConstantSkillsEndpoint());
+            created.createContext("/chat", new ChatEndpoint());
+            created.createContext("/bot_chat", new BotChatEndpoint());
+            created.createContext("/reaction_settings", new ReactionSettingsEndpoint());
+            created.createContext("/screenshot", new ServerScreenshotEndpoint());
+            created.createContext("/advancements", new AdvancementsEndpoint());
+            executor = Executors.newFixedThreadPool(ModConfig.HTTP_THREAD_POOL_SIZE, runnable -> {
+                Thread thread = new Thread(runnable, "ShannonUIMod-HTTP");
+                thread.setDaemon(true);
+                return thread;
+            });
+            created.setExecutor(executor);
+            created.start();
+            server = created;
+            LOGGER.info("Listening for the bot backend on {}:{}", address.getHostAddress(), ModConfig.HTTP_SERVER_PORT);
+        } catch (IOException e) {
+            LOGGER.error("Could not start the HTTP server on port {}", ModConfig.HTTP_SERVER_PORT, e);
         }
     }
 
-    /**
-     * サーバーインスタンスを取得
-     */
-    public static HttpServer getServer() {
-        return server;
+    public static synchronized void stopServer() {
+        if (server != null) {
+            server.stop(0);
+            server = null;
+        }
+        if (executor != null) {
+            executor.shutdownNow();
+            executor = null;
+        }
     }
 }

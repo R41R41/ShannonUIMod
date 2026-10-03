@@ -1,6 +1,6 @@
 package com.shannon.http.endpoints;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.gson.Gson;
 import com.shannon.util.ScreenshotUtil;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
@@ -32,7 +32,7 @@ import java.util.concurrent.TimeUnit;
  */
 public class ScreenshotEndpoint implements HttpHandler {
     private static final Logger LOGGER = LoggerFactory.getLogger(ScreenshotEndpoint.class);
-    private static final ObjectMapper MAPPER = new ObjectMapper();
+    private static final Gson MAPPER = new Gson();
 
     @Override
     public void handle(HttpExchange exchange) throws IOException {
@@ -55,7 +55,7 @@ public class ScreenshotEndpoint implements HttpHandler {
                     InputStream is = exchange.getRequestBody();
                     String body = new String(is.readAllBytes(), StandardCharsets.UTF_8);
                     if (!body.isEmpty()) {
-                        options = MAPPER.readValue(body, ScreenshotOptions.class);
+                        options = MAPPER.fromJson(body, ScreenshotOptions.class);
                     }
                 } catch (Exception e) {
                     LOGGER.warn("リクエストボディのパースに失敗: {}", e.getMessage());
@@ -100,7 +100,7 @@ public class ScreenshotEndpoint implements HttpHandler {
             response.playerPosition = result.playerPosition;
             response.playerRotation = result.playerRotation;
 
-            String jsonResponse = MAPPER.writeValueAsString(response);
+            String jsonResponse = MAPPER.toJson(response);
             byte[] responseBytes = jsonResponse.getBytes(StandardCharsets.UTF_8);
 
             exchange.sendResponseHeaders(200, responseBytes.length);
