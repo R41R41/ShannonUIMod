@@ -10,6 +10,7 @@ import com.shannon.http.endpoints.ServerScreenshotEndpoint;
 import com.shannon.http.endpoints.TaskEndpoint;
 import com.shannon.http.endpoints.TaskListEndpoint;
 import com.shannon.http.endpoints.TaskLogsEndpoint;
+import com.shannon.http.endpoints.VoiceTranscriptEndpoint;
 import com.sun.net.httpserver.HttpServer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -50,6 +51,7 @@ public final class HttpServerManager {
             created.createContext("/reaction_settings", new ReactionSettingsEndpoint());
             created.createContext("/screenshot", new ServerScreenshotEndpoint());
             created.createContext("/advancements", new AdvancementsEndpoint());
+            created.createContext("/voice_transcript", new VoiceTranscriptEndpoint());
             executor = Executors.newFixedThreadPool(ModConfig.HTTP_THREAD_POOL_SIZE, runnable -> {
                 Thread thread = new Thread(runnable, "ShannonUIMod-HTTP");
                 thread.setDaemon(true);

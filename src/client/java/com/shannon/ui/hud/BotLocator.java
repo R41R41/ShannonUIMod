@@ -46,7 +46,8 @@ public record BotLocator(double distance, float relativeYaw) {
         return new BotLocator(distance, relative);
     }
 
-    private static PlayerEntity findEntity(MinecraftClient client, String botName) {
+    /** The bot's player entity when the client has it loaded, or {@code null}. */
+    static PlayerEntity findEntity(MinecraftClient client, String botName) {
         for (PlayerEntity player : client.world.getPlayers()) {
             if (player.getName().getString().equals(botName)) {
                 return player;

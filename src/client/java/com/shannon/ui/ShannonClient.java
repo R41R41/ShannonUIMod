@@ -8,7 +8,11 @@ import com.shannon.ui.hud.Notifier;
 import com.shannon.ui.hud.ShannonHud;
 import com.shannon.ui.input.KeyBindings;
 import com.shannon.ui.net.ClientSync;
+import com.shannon.ui.state.Attention;
 import com.shannon.ui.state.ClientStore;
+import com.shannon.ui.state.DangerWatch;
+import com.shannon.ui.state.TaskHistory;
+import com.shannon.ui.state.VoiceStatus;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 
 /**
@@ -23,6 +27,10 @@ public final class ShannonClient {
     private final ClientStore store = new ClientStore();
     private final ClientConfig config = ClientConfig.load();
     private final KeyBindings keys = new KeyBindings();
+    private final DangerWatch danger = new DangerWatch(store);
+    private final Attention attention = new Attention(store, danger);
+    private final TaskHistory history = new TaskHistory(store, danger);
+    private final VoiceStatus voice = new VoiceStatus(store);
 
     private ShannonClient() {
     }
@@ -59,6 +67,22 @@ public final class ShannonClient {
 
     public KeyBindings keys() {
         return keys;
+    }
+
+    public DangerWatch danger() {
+        return danger;
+    }
+
+    public Attention attention() {
+        return attention;
+    }
+
+    public TaskHistory history() {
+        return history;
+    }
+
+    public VoiceStatus voice() {
+        return voice;
     }
 
     /** The bot's player name, from the server when known. */

@@ -7,6 +7,8 @@ import com.shannon.ui.gfx.Icons;
 import com.shannon.ui.gfx.Palette;
 import com.shannon.ui.gfx.PixelIcon;
 import com.shannon.ui.input.KeyBindings;
+import com.shannon.ui.input.PointTarget;
+import com.shannon.ui.net.BotPhrases;
 import com.shannon.ui.net.ClientActions;
 import com.shannon.ui.screen.tab.InventoryTab;
 import com.shannon.ui.state.BotStatus;
@@ -17,6 +19,7 @@ import net.minecraft.client.option.KeyBinding;
 import net.minecraft.text.Text;
 import org.lwjgl.glfw.GLFW;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -24,6 +27,9 @@ import java.util.List;
  *
  * <p>Hold the key, point at an order and let go; or tap the key and click. The arrow keys, the
  * number keys and the key itself also move the selection, and Enter confirms.
+ *
+ * <p>Opened while sneaking, it offers orders about the block or creature the player looks at
+ * instead, such as digging it or coming to it.
  */
 public class CommandScreen extends OverlayScreen {
     private static final int SLOT = 26;
@@ -31,7 +37,12 @@ public class CommandScreen extends OverlayScreen {
     /** A press held at least this long makes releasing the key confirm the selection. */
     private static final long HOLD_MS = 250;
 
-    private record Option(String key, PixelIcon icon, Runnable action) {
+    /** One order: what it is called, what it does, and the action that sends it. */
+    private record Option(Text label, Text description, PixelIcon icon, Runnable action) {
+        static Option of(String key, PixelIcon icon, Runnable action) {
+            return new Option(Text.translatable("shannonuimod.command." + key),
+                    Text.translatable("shannonuimod.command." + key + ".desc"), icon, action);
+        }
     }
 
     private final KeyBinding trigger;
@@ -43,18 +54,41 @@ public class CommandScreen extends OverlayScreen {
     private int lastMouseX = -1;
     private int lastMouseY = -1;
 
+    /** What the orders are about when opened by pointing, or {@code null}. */
+    private final PointTarget target;
+
+    /** The everyday orders. */
     public CommandScreen(KeyBinding trigger) {
         super(Text.translatable("shannonuimod.commands.title"));
         this.trigger = trigger;
+        this.target = null;
         this.options = List.of(
-                new Option("stop", Icons.CMD_STOP, () -> ClientActions.command(BotCommand.STOP)),
-                new Option("follow", Icons.CMD_FOLLOW, () -> ClientActions.command(BotCommand.FOLLOW)),
-                new Option("come", Icons.CMD_COME, () -> ClientActions.command(BotCommand.COME)),
-                new Option("resume", Icons.CMD_RESUME, () -> ClientActions.command(BotCommand.RESUME)),
-                new Option("cancel", Icons.CMD_CANCEL, () -> ClientActions.command(BotCommand.CANCEL)),
-                new Option("bag", Icons.CMD_BAG, null));
+                Option.of("stop", Icons.CMD_STOP, () -> ClientActions.command(BotCommand.STOP)),
+                Option.of("follow", Icons.CMD_FOLLOW, () -> ClientActions.command(BotCommand.FOLLOW)),
+                Option.of("come", Icons.CMD_COME, () -> ClientActions.command(BotCommand.COME)),
+                Option.of("resume", Icons.CMD_RESUME, () -> ClientActions.command(BotCommand.RESUME)),
+                Option.of("cancel", Icons.CMD_CANCEL, () -> ClientActions.command(BotCommand.CANCEL)),
+                Option.of("bag", Icons.CMD_BAG, () -> client.setScreen(new ShannonScreen(InventoryTab.class))));
         BotStatus status = ShannonClient.get().store().status();
         this.selected = status == BotStatus.WAITING || status == BotStatus.ERROR ? 3 : 1;
+    }
+
+    /** Orders about {@code target}, the block or creature the player looks at. */
+    public CommandScreen(KeyBinding trigger, PointTarget target) {
+        super(Text.translatable("shannonuimod.commands.title"));
+        this.trigger = trigger;
+        this.target = target;
+        List<Option> list = new ArrayList<>();
+        if (target.kind() == PointTarget.Kind.BLOCK) {
+            list.add(Option.of("dig", Icons.CMD_DIG, () -> ClientActions.chat(BotPhrases.dig(target))));
+            list.add(Option.of("gather", Icons.CMD_GATHER, () -> ClientActions.chat(BotPhrases.gather(target))));
+        } else if (target.hostile()) {
+            list.add(Option.of("attack", Icons.CMD_ATTACK, () -> ClientActions.chat(BotPhrases.attack(target))));
+        }
+        list.add(Option.of("come_here", Icons.CMD_COME, () -> ClientActions.chat(BotPhrases.comeTo(target))));
+        list.add(Option.of("wait_here", Icons.CMD_WAIT, () -> ClientActions.chat(BotPhrases.waitAt(target))));
+        this.options = List.copyOf(list);
+        this.selected = 0;
     }
 
     private int rowX() {
@@ -75,13 +109,11 @@ public class CommandScreen extends OverlayScreen {
     }
 
     private void confirm() {
-        Option option = options.get(selected);
-        if (option.action() == null) {
-            client.setScreen(new ShannonScreen(InventoryTab.class));
-            return;
+        options.get(selected).action().run();
+        // An order that opens another screen has already replaced this one.
+        if (client.currentScreen == this) {
+            close();
         }
-        option.action().run();
-        close();
     }
 
     @Override
@@ -101,19 +133,34 @@ public class CommandScreen extends OverlayScreen {
             }
         }
         Option option = options.get(selected);
-        Text label = Text.translatable("shannonuimod.command." + option.key());
-        Text description = Text.translatable("shannonuimod.command." + option.key() + ".desc");
+        Text label = option.label();
+        Text description = option.description();
+        Text about = target == null ? null : Text.translatable("shannonuimod.point.about",
+                target.name(), target.coordinates());
         int centerX = width / 2;
 
         // One box holds the name, the description and the row, so the text stays readable over
         // bright skies and name tags.
         int rowW = options.size() * SPACING - (SPACING - SLOT) + 12;
-        int boxW = Math.max(rowW, Math.max(Gui.width(label), Gui.width(description)) + 16);
+        int textW = Math.max(Gui.width(label), Gui.width(description));
+        if (about != null) {
+            textW = Math.max(textW, Gui.width(about) + 20);
+        }
+        int boxW = Math.max(rowW, textW + 16);
         int boxX = centerX - boxW / 2;
-        int boxY = rowY() - 34;
+        int boxY = rowY() - 34 - (about != null ? 14 : 0);
         int boxH = rowY() + SLOT + 6 - boxY;
         context.fill(boxX, boxY, boxX + boxW, boxY + boxH, 0x8C000000);
         Gui.outline(context, boxX, boxY, boxW, boxH, 0xFF4A4A4A);
+        if (about != null) {
+            int aboutW = Gui.width(about) + (target.icon().isEmpty() ? 0 : 20);
+            int aboutX = centerX - aboutW / 2;
+            if (!target.icon().isEmpty()) {
+                context.drawItem(target.icon(), aboutX, rowY() - 46);
+                aboutX += 20;
+            }
+            Gui.text(context, about, aboutX, rowY() - 42, Palette.AQUA);
+        }
         Gui.text(context, label, centerX - Gui.width(label) / 2, rowY() - 28, Palette.WHITE);
         Gui.text(context, description, centerX - Gui.width(description) / 2, rowY() - 17, Palette.GRAY);
         for (int i = 0; i < options.size(); i++) {
@@ -159,6 +206,13 @@ public class CommandScreen extends OverlayScreen {
             Gui.keyHint(context, escape, close, x, y);
         } else {
             Gui.text(context, release, x, y + 2, Palette.GRAY);
+        }
+        if (target == null) {
+            Text pointing = Text.translatable("shannonuimod.point.hint",
+                    client.options.sneakKey.getBoundKeyLocalizedText(), keyName);
+            int pointingX = centerX - Gui.width(pointing) / 2;
+            context.fill(pointingX - 4, y + 16, pointingX + Gui.width(pointing) + 4, y + 28, 0x80000000);
+            Gui.text(context, pointing, pointingX, y + 18, Palette.GRAY);
         }
     }
 

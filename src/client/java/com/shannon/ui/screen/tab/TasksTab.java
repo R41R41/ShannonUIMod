@@ -11,6 +11,7 @@ import com.shannon.ui.gfx.Palette;
 import com.shannon.ui.gfx.PixelIcon;
 import com.shannon.ui.net.ClientActions;
 import com.shannon.ui.state.BotStatus;
+import com.shannon.ui.state.TaskHistory;
 import com.shannon.ui.state.TaskView;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.tooltip.Tooltip;
@@ -21,7 +22,10 @@ import net.minecraft.util.Identifier;
 import java.util.ArrayList;
 import java.util.List;
 
-/** The task queue on the left and the selected task's steps on the right. */
+/**
+ * The task queue on the left and the selected task's steps on the right; or, switched to the
+ * log, what the bot did in its recent tasks.
+ */
 public class TasksTab extends ShannonTab {
     private static final Identifier ICON = Identifier.of(ShannonUIMod.MOD_ID, "textures/tasktree.png");
     private static final int LIST_W = 118;
@@ -29,6 +33,7 @@ public class TasksTab extends ShannonTab {
 
     /** Survives reopening the screen, like vanilla's selected recipe. */
     private static String selectedId;
+    private static boolean showLog;
 
     private record Entry(String id, String goal, PixelIcon icon) {
     }
@@ -36,6 +41,8 @@ public class TasksTab extends ShannonTab {
     private ButtonWidget resume;
     private ButtonWidget prioritize;
     private ButtonWidget cancel;
+    private ButtonWidget again;
+    private HistoryView log;
     private int listScroll;
     private int stepScroll;
 
@@ -56,9 +63,36 @@ public class TasksTab extends ShannonTab {
 
     @Override
     protected void build() {
+        log = new HistoryView(shannon);
         int buttonW = 64;
         int buttonY = y + h - 20;
         int right = x + w;
+        int switchW = 50;
+        ButtonWidget now = add(ButtonWidget.builder(Text.translatable("shannonuimod.tasks.view.now"), button -> {
+            showLog = false;
+            screen.rebuild();
+        }).dimensions(x, buttonY, switchW, 20).build());
+        ButtonWidget history = add(ButtonWidget.builder(Text.translatable("shannonuimod.tasks.view.log"), button -> {
+            showLog = true;
+            screen.rebuild();
+        }).dimensions(x + switchW + 2, buttonY, switchW, 20).build());
+        now.active = showLog;
+        history.active = !showLog;
+        if (showLog) {
+            resume = null;
+            int againW = 140;
+            again = add(ButtonWidget.builder(Text.translatable("shannonuimod.history.again"), button -> {
+                        TaskHistory.Record record = log.record();
+                        if (record != null && ClientActions.chat(record.repeatRequest())) {
+                            screen.close();
+                        }
+                    })
+                    .dimensions(right - againW, buttonY, againW, 20)
+                    .tooltip(Tooltip.of(Text.translatable("shannonuimod.history.again.tip")))
+                    .build());
+            tick();
+            return;
+        }
         cancel = add(ButtonWidget.builder(Text.translatable("shannonuimod.tasks.cancel"), button -> {
                     String id = selectedTaskId();
                     if (id != null) {
@@ -87,6 +121,12 @@ public class TasksTab extends ShannonTab {
 
     @Override
     public void tick() {
+        if (showLog) {
+            if (again != null) {
+                again.active = log.record() != null;
+            }
+            return;
+        }
         if (resume == null) {
             return;
         }
@@ -146,6 +186,10 @@ public class TasksTab extends ShannonTab {
 
     @Override
     public void render(DrawContext context, int mouseX, int mouseY, float deltaTicks) {
+        if (showLog) {
+            log.render(context, screen, x, y, LIST_W, w, h - 24, mouseX, mouseY);
+            return;
+        }
         int listTop = y + 10;
         int listH = h - 10 - 24;
         Gui.label(context, Text.translatable("shannonuimod.tasks.queue"), x + 1, y);
@@ -247,6 +291,9 @@ public class TasksTab extends ShannonTab {
 
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
+        if (showLog) {
+            return log.mouseClicked(mouseX, mouseY, x, y, LIST_W, h - 24);
+        }
         int top = y + 12;
         int height = h - 10 - 24 - 4;
         if (!Gui.inside(mouseX, mouseY, x, top, LIST_W, height)) {
@@ -264,6 +311,9 @@ public class TasksTab extends ShannonTab {
 
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double amount) {
+        if (showLog) {
+            return log.mouseScrolled(mouseX, amount, x, LIST_W);
+        }
         if (mouseX < x + LIST_W) {
             listScroll -= (int) Math.signum(amount);
         } else {

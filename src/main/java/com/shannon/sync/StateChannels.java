@@ -9,6 +9,7 @@ import com.shannon.model.InventoryState;
 import com.shannon.model.ReactionSettingsState;
 import com.shannon.model.TaskListState;
 import com.shannon.model.TaskTreeState;
+import com.shannon.model.VoiceState;
 
 import java.util.List;
 
@@ -23,9 +24,11 @@ public final class StateChannels {
     public static final SyncChannel<DetailedLogsState> LOGS = new SyncChannel<>("logs", DetailedLogsState.class);
     public static final SyncChannel<ReactionSettingsState> REACTIONS = new SyncChannel<>("reactions", ReactionSettingsState.class);
     public static final SyncChannel<AdvancementsState> ADVANCEMENTS = new SyncChannel<>("advancements", AdvancementsState.class);
+    /** Sent straight to players as events happen; never kept or replayed on join. */
+    public static final SyncChannel<VoiceState> VOICE = new SyncChannel<>("voice", VoiceState.class);
 
     public static final List<SyncChannel<?>> ALL = List.of(
-            TASK_TREE, TASK_LIST, INVENTORY, VITALS, SKILLS, CHAT, LOGS, REACTIONS, ADVANCEMENTS);
+            TASK_TREE, TASK_LIST, INVENTORY, VITALS, SKILLS, CHAT, LOGS, REACTIONS, ADVANCEMENTS, VOICE);
 
     private StateChannels() {
     }

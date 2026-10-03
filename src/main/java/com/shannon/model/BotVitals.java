@@ -24,4 +24,13 @@ public class BotVitals {
     public String biome;
     /** Registry id of the item in the bot's main hand, or {@code null}. */
     public String mainHand;
+    /**
+     * How many times the bot has been hurt since the server started. The client notes the time it
+     * sees this grow, so the two machines' clocks never need to agree.
+     */
+    public int hurtCount;
+    /** Translation key of the entity that hurt the bot last, such as {@code entity.minecraft.zombie}. */
+    public String hurtBy;
+    /** Vanilla's damage message id for the last hurt, such as {@code fall} or {@code lava}. */
+    public String hurtCause;
 }

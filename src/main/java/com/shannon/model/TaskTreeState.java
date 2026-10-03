@@ -20,6 +20,8 @@ public class TaskTreeState {
     /** {@code awaiting_user} while the bot waits for the player to answer. */
     public String recoveryStatus;
     public String currentSubTaskId;
+    /** Short answers the bot offers while it waits for the player, or {@code null}. */
+    public List<String> replyChoices;
     public List<SubTask> hierarchicalSubTasks = new ArrayList<>();
 
     public static class SubTask {

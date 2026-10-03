@@ -19,10 +19,12 @@ import net.minecraft.util.Formatting;
 import net.minecraft.util.Identifier;
 
 /**
- * The always-on HUD: the status card and, under it, the bot's latest words.
+ * The always-on HUD: the status card, the bot's latest words, what is above the bot's head, its
+ * face on the locator bar, and the push-to-talk box.
  *
- * <p>Registered as its own Fabric HUD element, so HUD mods that reorder or hide elements can
- * handle it like any other. It hides with F1, while F3 is open, and on servers without this mod.
+ * <p>Each part is its own Fabric HUD element, so HUD mods that reorder or hide elements can
+ * handle them like any other. All of it hides with F1, while F3 is open, and on servers without
+ * this mod.
  */
 public final class ShannonHud {
     private static final int MARGIN = 4;
@@ -30,12 +32,35 @@ public final class ShannonHud {
     private static final int EFFECTS_HEIGHT = 52;
     private static final long FADE_MS = 600;
 
+    /** Whether the bot's words were drawn above its head this frame. */
+    private static boolean spokeOverhead;
+
     private ShannonHud() {
     }
 
     public static void register(ShannonClient shannon) {
+        HudElementRegistry.addLast(Identifier.of(ShannonUIMod.MOD_ID, "overhead"), (context, tickCounter) -> {
+            spokeOverhead = false;
+            if (visible(shannon) && shannon.config().showOverhead) {
+                boolean speak = shannon.config().showSpeech && shannon.store().status() != BotStatus.WAITING
+                        && !(MinecraftClient.getInstance().currentScreen instanceof QuickChatScreen);
+                spokeOverhead = Overhead.render(context, shannon, tickCounter.getTickProgress(true), speak);
+            }
+        });
         HudElementRegistry.addLast(Identifier.of(ShannonUIMod.MOD_ID, "status"),
                 (context, tickCounter) -> render(context, shannon));
+        HudElementRegistry.addLast(Identifier.of(ShannonUIMod.MOD_ID, "voice"), (context, tickCounter) -> {
+            if (visible(shannon)) {
+                VoiceIndicator.render(context, shannon);
+            }
+        });
+        // After the held item name, which vanilla draws after the locator bar's dots.
+        HudElementRegistry.attachElementAfter(VanillaHudElements.HELD_ITEM_TOOLTIP,
+                Identifier.of(ShannonUIMod.MOD_ID, "locator_face"), (context, tickCounter) -> {
+                    if (visible(shannon) && shannon.config().showLocatorFace) {
+                        LocatorFace.render(context, shannon, tickCounter);
+                    }
+                });
         // The quick chat screen shows the conversation with the bot where vanilla's chat sits, and
         // vanilla's fading lines would draw through it. Wrapping keeps other mods' changes to chat.
         HudElementRegistry.replaceElement(VanillaHudElements.CHAT, chat -> (context, tickCounter) -> {
@@ -45,40 +70,61 @@ public final class ShannonHud {
         });
     }
 
+    /** Whether the mod's HUD may draw at all this frame. */
+    private static boolean visible(ShannonClient shannon) {
+        MinecraftClient client = MinecraftClient.getInstance();
+        return client.player != null && !client.options.hudHidden
+                && !(client.currentScreen instanceof ShannonScreen)
+                && !client.getDebugHud().shouldShowDebugHud()
+                && ClientActions.available();
+    }
+
     private static void render(DrawContext context, ShannonClient shannon) {
         MinecraftClient client = MinecraftClient.getInstance();
         ClientConfig config = shannon.config();
-        if (client.player == null || client.options.hudHidden || !config.showCard
-                || client.currentScreen instanceof ShannonScreen
-                || client.getDebugHud().shouldShowDebugHud()
-                || !ClientActions.available()) {
+        if (!visible(shannon) || !config.showCard) {
             return;
         }
+        StatusCard.Card card = StatusCard.prepare(shannon);
         int screenWidth = context.getScaledWindowWidth();
-        int x = config.cardCorner == ClientConfig.Corner.TOP_LEFT ? MARGIN : screenWidth - StatusCard.WIDTH - MARGIN;
+        boolean left = config.cardCorner == ClientConfig.Corner.TOP_LEFT;
+        int x = left ? MARGIN : screenWidth - card.width() - MARGIN;
         int y = MARGIN;
-        if (config.cardCorner == ClientConfig.Corner.TOP_RIGHT && !client.player.getStatusEffects().isEmpty()) {
+        if (!left && !client.player.getStatusEffects().isEmpty()) {
             y += EFFECTS_HEIGHT;
         }
-        int height = StatusCard.render(context, shannon, x, y);
+        card.draw(context, x, y);
         // While waiting, the card itself shows what the bot asked.
-        if (config.showSpeech && !(client.currentScreen instanceof QuickChatScreen)
+        if (config.showSpeech && !spokeOverhead && !(client.currentScreen instanceof QuickChatScreen)
                 && shannon.store().status() != BotStatus.WAITING) {
-            renderSpeech(context, shannon, x, y + height + 3);
+            int speechX = left ? x : screenWidth - StatusCard.WIDTH - MARGIN;
+            renderSpeech(context, shannon, speechX, y + card.height() + 3);
         }
     }
 
-    private static void renderSpeech(DrawContext context, ShannonClient shannon, int x, int y) {
+    /** The bot's newest words while they are still fresh, or {@code null}. */
+    static ChatState.Message currentSpeech(ShannonClient shannon) {
         ChatState.Message speech = shannon.store().speech();
+        if (speech == null) {
+            return null;
+        }
+        long shown = System.currentTimeMillis() - shannon.store().speechAt();
+        return shown > shannon.config().speechSeconds * 1000L ? null : speech;
+    }
+
+    /** How opaque the words are: fading out over their last moments. */
+    static float speechAlpha(ShannonClient shannon) {
+        long shown = System.currentTimeMillis() - shannon.store().speechAt();
+        long life = shannon.config().speechSeconds * 1000L;
+        return shown > life - FADE_MS ? Math.max(0f, (life - shown) / (float) FADE_MS) : 1f;
+    }
+
+    private static void renderSpeech(DrawContext context, ShannonClient shannon, int x, int y) {
+        ChatState.Message speech = currentSpeech(shannon);
         if (speech == null) {
             return;
         }
-        long shown = System.currentTimeMillis() - shannon.store().speechAt();
-        long life = shannon.config().speechSeconds * 1000L;
-        if (shown > life) {
-            return;
-        }
-        float alpha = shown > life - FADE_MS ? (life - shown) / (float) FADE_MS : 1f;
+        float alpha = speechAlpha(shannon);
         Text text = Text.empty()
                 .append(Text.translatable("shannonuimod.name").formatted(Formatting.AQUA))
                 .append(Text.literal("  "))

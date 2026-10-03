@@ -73,14 +73,20 @@ public class SettingsTab extends ShannonTab {
         ClientConfig config = shannon.config();
 
         header("shannonuimod.settings.display");
+        cell(toggle(() -> onOff("shannonuimod.settings.show_card", config.showCard),
+                () -> config.showCard = !config.showCard, "shannonuimod.settings.show_card.tip"));
+        cell(toggle(() -> Text.translatable("shannonuimod.settings.card_size." + config.cardSize.name().toLowerCase()),
+                () -> config.cardSize = config.cardSize.next(), "shannonuimod.settings.card_size.tip"));
         cell(toggle(() -> Text.translatable("shannonuimod.settings.card." + config.cardCorner.name().toLowerCase()),
                 () -> config.cardCorner = config.cardCorner.next(), "shannonuimod.settings.card.tip"));
         cell(toggle(() -> onOff("shannonuimod.settings.speech", config.showSpeech),
                 () -> config.showSpeech = !config.showSpeech, "shannonuimod.settings.speech.tip"));
+        cell(toggle(() -> onOff("shannonuimod.settings.overhead", config.showOverhead),
+                () -> config.showOverhead = !config.showOverhead, "shannonuimod.settings.overhead.tip"));
+        cell(toggle(() -> onOff("shannonuimod.settings.locator", config.showLocatorFace),
+                () -> config.showLocatorFace = !config.showLocatorFace, "shannonuimod.settings.locator.tip"));
         cell(toggle(() -> onOff("shannonuimod.settings.toasts", config.showToasts),
                 () -> config.showToasts = !config.showToasts, "shannonuimod.settings.toasts.tip"));
-        cell(toggle(() -> onOff("shannonuimod.settings.show_card", config.showCard),
-                () -> config.showCard = !config.showCard, "shannonuimod.settings.show_card.tip"));
 
         builtFrom = shannon.store().get(StateChannels.REACTIONS);
         if (builtFrom != null && builtFrom.reactions != null) {

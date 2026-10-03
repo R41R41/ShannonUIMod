@@ -21,6 +21,7 @@ import java.util.function.Consumer;
 public final class ClientStore {
     private final Map<SyncChannel<?>, Object> states = new HashMap<>();
     private final List<Consumer<SyncChannel<?>>> listeners = new ArrayList<>();
+    private final List<Runnable> clearListeners = new ArrayList<>();
     private BotStatus status = BotStatus.IDLE;
 
     /** The newest bot message the player has not seen yet in the speech bubble. */
@@ -58,6 +59,11 @@ public final class ClientStore {
         listeners.add(listener);
     }
 
+    /** Calls {@code listener} when the store is cleared, so what is derived from it resets too. */
+    public void onClear(Runnable listener) {
+        clearListeners.add(listener);
+    }
+
     public <T> void put(SyncChannel<T> channel, T state) {
         ChatState previousChat = channel == StateChannels.CHAT ? get(StateChannels.CHAT) : null;
         states.put(channel, state);
@@ -79,6 +85,7 @@ public final class ClientStore {
         speech = null;
         unread = 0;
         lastSeenTimestamp = 0;
+        clearListeners.forEach(Runnable::run);
     }
 
     private void trackNewMessages(boolean firstSync, ChatState chat) {

@@ -254,6 +254,12 @@ public final class Gui {
         }
     }
 
+    /** One vanilla heart, full or half, with its container. */
+    public static void heart(DrawContext context, int x, int y, boolean half) {
+        sprite(context, HEART_CONTAINER, x, y);
+        sprite(context, half ? HEART_HALF : HEART_FULL, x, y);
+    }
+
     /** Ten vanilla food icons filled from the right, as vanilla does, 81 pixels wide. */
     public static void food(DrawContext context, int x, int y, int food) {
         for (int i = 0; i < 10; i++) {

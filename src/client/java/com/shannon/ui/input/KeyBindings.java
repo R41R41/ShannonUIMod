@@ -54,7 +54,9 @@ public final class KeyBindings {
             if (talk.wasPressed()) {
                 client.setScreen(new QuickChatScreen());
             } else if (commands.wasPressed()) {
-                client.setScreen(new CommandScreen(commands));
+                PointTarget target = client.player.isSneaking()
+                        ? PointTarget.find(client, client.getRenderTickCounter().getTickProgress(true)) : null;
+                client.setScreen(target != null ? new CommandScreen(commands, target) : new CommandScreen(commands));
             } else if (details.wasPressed()) {
                 client.setScreen(new ShannonScreen());
             }
@@ -67,9 +69,13 @@ public final class KeyBindings {
             }
         }
         boolean held = client.currentScreen == null && pushToTalk.isPressed();
-        if (held != talking) {
+        if (held != talking && ClientActions.send(Actions.VOICE_PTT, new Actions.VoicePtt(held))) {
             talking = held;
-            ClientActions.send(Actions.VOICE_PTT, new Actions.VoicePtt(held));
+            if (held) {
+                shannon.voice().press();
+            } else {
+                shannon.voice().release();
+            }
         }
     }
 

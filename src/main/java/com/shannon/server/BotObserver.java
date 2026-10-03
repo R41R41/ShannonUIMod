@@ -7,6 +7,9 @@ import com.shannon.state.StateManager;
 import com.shannon.sync.StateChannels;
 import com.shannon.sync.SyncJson;
 import com.shannon.util.InventoryStateUtil;
+import net.minecraft.entity.Entity;
+import net.minecraft.entity.LivingEntity;
+import net.minecraft.entity.damage.DamageSource;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
@@ -25,6 +28,9 @@ public final class BotObserver {
     private int ticks;
     private String lastVitals;
     private String lastInventory;
+    private int hurtCount;
+    private String hurtBy;
+    private String hurtCause;
 
     public BotObserver(StateManager states) {
         this.states = states;
@@ -38,6 +44,9 @@ public final class BotObserver {
         ticks = 0;
         ServerPlayerEntity bot = server.getPlayerManager().getPlayer(ModConfig.TARGET_PLAYER_NAME);
         BotVitals vitals = bot == null ? offline() : readVitals(bot);
+        vitals.hurtCount = hurtCount;
+        vitals.hurtBy = hurtBy;
+        vitals.hurtCause = hurtCause;
         String vitalsJson = SyncJson.GSON.toJson(vitals);
         if (!vitalsJson.equals(lastVitals)) {
             lastVitals = vitalsJson;
@@ -51,6 +60,20 @@ public final class BotObserver {
                 states.publish(StateChannels.INVENTORY, inventory);
             }
         }
+    }
+
+    /**
+     * Notes that {@code entity} took damage. Registered on Fabric's after-damage event, which
+     * fires for every living entity, so it returns at once for anything but the bot.
+     */
+    public void onDamage(LivingEntity entity, DamageSource source, float damageTaken) {
+        if (damageTaken <= 0 || !ModConfig.TARGET_PLAYER_NAME.equals(entity.getName().getString())) {
+            return;
+        }
+        Entity attacker = source.getAttacker();
+        hurtCount++;
+        hurtBy = attacker != null ? attacker.getType().getTranslationKey() : null;
+        hurtCause = source.getType().msgId();
     }
 
     /** Forgets what was sent, so the next look publishes again. */

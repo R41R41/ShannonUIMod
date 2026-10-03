@@ -1,5 +1,7 @@
 package com.shannon.server;
 
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import com.shannon.client.BackendClient;
 import com.shannon.client.request.ChatMessageRequest;
 import com.shannon.client.request.SkillSwitchRequest;
@@ -9,6 +11,7 @@ import com.shannon.config.ModConfig;
 import com.shannon.model.AdvancementsState;
 import com.shannon.model.ChatState;
 import com.shannon.model.ReactionSettingsState;
+import com.shannon.model.VoiceState;
 import com.shannon.state.StateManager;
 import com.shannon.sync.ActionChannel;
 import com.shannon.sync.ActionPayload;
@@ -86,13 +89,7 @@ public final class ServerActions {
             ServerSync.send(player, StateChannels.ADVANCEMENTS, state);
         });
         on(Actions.VOICE_MODE, ServerActions::voiceMode);
-        on(Actions.VOICE_PTT, (server, player, request) -> BackendClient.post(ModConfig.ENDPOINT_VOICE_PTT,
-                        new VoicePttRequest(player.getName().getString(), request.pressed ? "on" : "off"))
-                .thenAccept(response -> {
-                    if (!response.ok()) {
-                        server.execute(() -> notifyFailure(player));
-                    }
-                }));
+        on(Actions.VOICE_PTT, ServerActions::voicePtt);
 
         ServerPlayNetworking.registerGlobalReceiver(ActionPayload.ID, (payload, context) -> {
             MinecraftServer server = context.server();
@@ -221,13 +218,46 @@ public final class ServerActions {
             }
             String result = "";
             try {
-                var json = com.google.gson.JsonParser.parseString(response.body()).getAsJsonObject();
+                JsonObject json = JsonParser.parseString(response.body()).getAsJsonObject();
                 result = json.has("result") ? json.get("result").getAsString() : "";
             } catch (RuntimeException ignored) {
                 // A body without a result still means the mode changed.
             }
             player.sendMessage(Text.translatableWithFallback("shannonuimod.voice.mode", "音声の宛先: %s", result), true);
         }));
+    }
+
+    /** Starts or stops the player's voice, and tells their client whether the bot is listening. */
+    private static void voicePtt(MinecraftServer server, ServerPlayerEntity player, Actions.VoicePtt request) {
+        BackendClient.post(ModConfig.ENDPOINT_VOICE_PTT,
+                        new VoicePttRequest(player.getName().getString(), request.pressed ? "on" : "off"))
+                .thenAccept(response -> server.execute(() -> {
+                    if (!request.pressed) {
+                        return;
+                    }
+                    ServerSync.send(player, StateChannels.VOICE, voiceState(response));
+                }));
+    }
+
+    /** Reads the backend's answer to a push-to-talk press: {@code success}, {@code blocked}, {@code blockedBy}. */
+    private static VoiceState voiceState(BackendClient.Response response) {
+        if (!response.ok()) {
+            return new VoiceState(VoiceState.UNAVAILABLE);
+        }
+        try {
+            JsonObject json = JsonParser.parseString(response.body()).getAsJsonObject();
+            if (json.has("blocked") && json.get("blocked").getAsBoolean()) {
+                VoiceState state = new VoiceState(VoiceState.BLOCKED);
+                state.blockedBy = json.has("blockedBy") ? json.get("blockedBy").getAsString() : null;
+                return state;
+            }
+            if (json.has("success") && !json.get("success").getAsBoolean()) {
+                return new VoiceState(VoiceState.UNAVAILABLE);
+            }
+        } catch (RuntimeException e) {
+            // An answer without a body still means the press went through.
+        }
+        return new VoiceState(VoiceState.LISTENING);
     }
 
     /** Tells the player, above the hotbar, that the bot could not be reached. */

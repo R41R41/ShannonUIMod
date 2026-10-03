@@ -202,6 +202,90 @@ public final class Icons {
             "bbbbbbbbbbbb",
             "dddddddddddd");
 
+    // ===== Pointing at something =====
+
+    public static final PixelIcon CMD_DIG = PixelIcon.of(new Object[]{'#', 0xFFE6E6E6, 's', 0xFF9C9C9C, 'h', 0xFF7A5230},
+            "............",
+            "....#####...",
+            "...#sssss#..",
+            "..#s....hs#.",
+            "........h.s#",
+            ".......h...#",
+            "......h.....",
+            ".....h......",
+            "....h.......",
+            "...h........",
+            "..h.........",
+            ".h..........");
+
+    public static final PixelIcon CMD_GATHER = PixelIcon.of(new Object[]{'#', 0xFF9C6B30, 'd', 0xFF5A3A16},
+            "............",
+            "...######...",
+            "...#d##d#...",
+            "...#d##d#...",
+            "...######...",
+            "............",
+            "######.#####",
+            "#d##d#.#d##d",
+            "#d##d#.#d##d",
+            "######.#####",
+            "............",
+            "............");
+
+    public static final PixelIcon CMD_WAIT = PixelIcon.of(new Object[]{'#', Palette.YELLOW, 's', 0xFFE2C46A},
+            "############",
+            ".#........#.",
+            ".#ssssssss#.",
+            "..#ssssss#..",
+            "...#ssss#...",
+            "....#ss#....",
+            "....#..#....",
+            "...#....#...",
+            "..#..ss..#..",
+            ".#.ssssss.#.",
+            ".#ssssssss#.",
+            "############");
+
+    public static final PixelIcon CMD_ATTACK = PixelIcon.of(new Object[]{'#', 0xFFE6E6E6, 'h', 0xFF7A5230, 'g', 0xFFC8A000},
+            "..........##",
+            ".........###",
+            "........###.",
+            ".......###..",
+            "......###...",
+            ".....###....",
+            "..g.###.....",
+            "...g##......",
+            "...hg.......",
+            "..h..g......",
+            ".h..........",
+            "h...........");
+
+    // ===== Voice =====
+
+    public static final PixelIcon MIC_ON = PixelIcon.of(new Object[]{'#', Palette.RED, 'w', Palette.WHITE},
+            "..###..",
+            ".#####.",
+            ".#####.",
+            ".#####.",
+            ".#####.",
+            "w.###.w",
+            "w.....w",
+            ".wwwww.",
+            "...w...",
+            ".wwwww.");
+
+    public static final PixelIcon MIC_OFF = PixelIcon.of(new Object[]{'#', Palette.GRAY, 'w', Palette.DARK_GRAY},
+            "..###..",
+            ".#####.",
+            ".#####.",
+            ".#####.",
+            ".#####.",
+            "w.###.w",
+            "w.....w",
+            ".wwwww.",
+            "...w...",
+            ".wwwww.");
+
     private Icons() {
     }
 

@@ -7,6 +7,7 @@ import com.shannon.ui.input.KeyBindings;
 import com.shannon.ui.screen.tab.AdvancementsTab;
 import com.shannon.ui.screen.tab.ChatTab;
 import com.shannon.ui.screen.tab.InventoryTab;
+import com.shannon.ui.screen.tab.RequestTab;
 import com.shannon.ui.screen.tab.SettingsTab;
 import com.shannon.ui.screen.tab.ShannonTab;
 import com.shannon.ui.screen.tab.SkillsTab;
@@ -65,6 +66,7 @@ public class ShannonScreen extends Screen {
         List<ShannonTab> list = new ArrayList<>();
         list.add(new TasksTab());
         list.add(new InventoryTab());
+        list.add(new RequestTab());
         list.add(new SkillsTab());
         list.add(new ChatTab());
         list.add(new AdvancementsTab());

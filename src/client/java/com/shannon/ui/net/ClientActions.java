@@ -34,7 +34,18 @@ public final class ClientActions {
     }
 
     public static boolean chat(String message) {
-        return send(Actions.CHAT, new Actions.Chat(message));
+        boolean sent = send(Actions.CHAT, new Actions.Chat(message));
+        if (sent) {
+            noteSent(message);
+        }
+        return sent;
+    }
+
+    private static void noteSent(String message) {
+        ShannonClient shannon = ShannonClient.get();
+        if (shannon != null) {
+            shannon.history().noteSent(message);
+        }
     }
 
     /** How the bot recognises game chat addressed to it. */
@@ -62,6 +73,7 @@ public final class ClientActions {
         }
         String text = message.startsWith(GAME_CHAT_PREFIX) ? message : GAME_CHAT_PREFIX + message;
         network.sendChatMessage(text.length() > GAME_CHAT_LIMIT ? text.substring(0, GAME_CHAT_LIMIT) : text);
+        noteSent(message);
         return true;
     }
 
