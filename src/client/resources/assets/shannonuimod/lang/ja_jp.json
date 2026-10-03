@@ -170,5 +170,6 @@
   "shannonuimod.reaction.damage": "ダメージを受けた",
   "shannonuimod.reaction.suffocation": "息が苦しい",
   "shannonuimod.logs.title": "デバッグログ",
-  "shannonuimod.logs.empty": "ログはまだありません"
+  "shannonuimod.logs.empty": "ログはまだありません",
+  "shannonuimod.talk.prefix.public": "シャノンへ（全体チャット）›"
 }

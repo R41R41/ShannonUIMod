@@ -60,6 +60,7 @@ public final class ModConfig {
     public static final String ENDPOINT_TASK_DELETE = "/task_delete";
     public static final String ENDPOINT_TASK_PRIORITIZE = "/task_prioritize";
     public static final String ENDPOINT_TASK_CONTINUE = "/task_continue";
+    public static final String ENDPOINT_BOT_COMMAND = "/bot_command";
     public static final String ENDPOINT_TASK_LIST = "/task_list";
     public static final String ENDPOINT_VOICE_MODE = "/voice_mode";
     public static final String ENDPOINT_VOICE_PTT = "/voice_ptt";

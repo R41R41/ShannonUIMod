@@ -46,7 +46,8 @@ public class QuickChatScreen extends OverlayScreen {
     }
 
     private static Text prefix() {
-        return Text.translatable("shannonuimod.talk.prefix");
+        return Text.translatable(ClientActions.talksInGameChat()
+                ? "shannonuimod.talk.prefix.public" : "shannonuimod.talk.prefix");
     }
 
     @Override
@@ -55,7 +56,7 @@ public class QuickChatScreen extends OverlayScreen {
         if (key == GLFW.GLFW_KEY_ENTER || key == GLFW.GLFW_KEY_KP_ENTER) {
             String message = this.input.getText().strip();
             if (!message.isEmpty()) {
-                ClientActions.chat(message);
+                ClientActions.talk(message);
             }
             close();
             return true;

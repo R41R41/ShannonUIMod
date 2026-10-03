@@ -105,7 +105,7 @@ public class ChatTab extends ShannonTab {
 
     private void send() {
         String message = input.getText().strip();
-        if (!message.isEmpty() && ClientActions.chat(message)) {
+        if (!message.isEmpty() && ClientActions.talk(message)) {
             input.setText("");
             scrollUp = 0;
         }

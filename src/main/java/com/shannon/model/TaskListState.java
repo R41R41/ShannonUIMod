@@ -10,6 +10,8 @@ public class TaskListState {
     public String currentTaskId;
     /** {@code awaiting_user} while the current task waits for the player. */
     public String currentRecoveryStatus;
+    /** The runtime's view of the current task, including how it ended. */
+    public TaskTreeState currentTaskTree;
 
     public static class TaskInfo {
         public String id;

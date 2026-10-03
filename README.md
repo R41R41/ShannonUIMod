@@ -75,10 +75,13 @@ src/client
 
 状態を1つ増やすときは、`model` にデータ型を作り、`sync/StateChannels` に1行足します。操作を1つ増やすときは、`sync/Actions` に1行足し、`server/ServerActions` に処理を1つ登録します。タブを1つ増やすときは、`ShannonTab` を継承したクラスを作り、`ShannonScreen#createTabs` に1行足します。
 
-## バックエンドに必要な対応
+## バックエンドとの対応
 
-- **「止まって」「こっちに来て」専用の受け口がありません。** 今はプレイヤーの発言としてシャノンに伝えています。専用の受け口ができたら `server/BotCommandDispatcher` の該当箇所だけを変えます。
-- **返事待ちの状態**は、`/task` の `recoveryStatus` か `/task_list` の `currentRecoveryStatus` が `awaiting_user` のときに表示します。
+ボット本体（`R41R41/Shannon`）のブランチ `codex/shannonuimod-v2-bridge` に、この MOD 用の対応を入れています。
+
+- **指示メニュー**は `POST /bot_command` に送ります。止まる・ついていく・来る・続ける・やめるは、ボット側で決まった操作として実行されます。古いボット本体では 404 になるので、そのときは以前の方法に切り替えます。
+- **返事待ちのとき**、すぐ話す欄と会話タブの入力は、ゲーム内チャットに「シャノン、」を付けて送ります。シャノンが質問したのと同じ場所で答えるためです。それ以外のときは MOD の経路で送ります。
+- **返事待ちの状態**は、`/task` の `recoveryStatus` か `/task_list` の `currentRecoveryStatus` が `awaiting_user` のときに表示します。タスクがどう終わったかは `/task_list` の `currentTaskTree` からも拾います。
 
 ## ビルド
 

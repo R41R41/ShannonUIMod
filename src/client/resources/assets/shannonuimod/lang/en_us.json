@@ -155,5 +155,6 @@
   "shannonuimod.reaction.damage": "Taking damage",
   "shannonuimod.reaction.suffocation": "Suffocating",
   "shannonuimod.logs.title": "Debug Log",
-  "shannonuimod.logs.empty": "No log yet"
+  "shannonuimod.logs.empty": "No log yet",
+  "shannonuimod.talk.prefix.public": "To Shannon (public chat) ›"
 }
