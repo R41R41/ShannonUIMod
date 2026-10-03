@@ -13,7 +13,9 @@ import net.minecraft.text.Text;
 import net.minecraft.text.TranslatableTextContent;
 
 import java.util.ArrayDeque;
+import java.util.Comparator;
 import java.util.Deque;
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -23,6 +25,11 @@ import java.util.Optional;
  * the server thread.
  */
 public final class AdvancementCollector {
+    /** Vanilla's tab order. Trees from data packs and mods follow, sorted by id. */
+    private static final List<String> VANILLA_ORDER = List.of(
+            "minecraft:story/root", "minecraft:nether/root", "minecraft:end/root",
+            "minecraft:adventure/root", "minecraft:husbandry/root");
+
     private AdvancementCollector() {
     }
 
@@ -66,7 +73,15 @@ public final class AdvancementCollector {
             }
             state.categories.add(category);
         }
+        state.categories.sort(Comparator
+                .comparingInt((AdvancementsState.Category category) -> order(category.rootId))
+                .thenComparing(category -> category.rootId));
         return state;
+    }
+
+    private static int order(String rootId) {
+        int index = VANILLA_ORDER.indexOf(rootId);
+        return index < 0 ? VANILLA_ORDER.size() : index;
     }
 
     private static AdvancementsState.Advancement read(PlacedAdvancement placed, PlayerAdvancementTracker tracker) {

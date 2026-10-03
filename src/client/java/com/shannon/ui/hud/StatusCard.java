@@ -135,7 +135,7 @@ public final class StatusCard {
                 Gui.face(context, x, y, 18);
                 Gui.text(context, Text.translatable("shannonuimod.name"), x + 22, y, Palette.WHITE);
                 if (offline) {
-                    Gui.text(context, Text.translatable("shannonuimod.status.offline"), x + 22, y + 10, Palette.DARK_GRAY);
+                    Gui.text(context, Text.translatable("shannonuimod.status.offline"), x + 22, y + 10, Palette.GRAY);
                 } else {
                     Icons.status(status).draw(context, x + 22, y + 9);
                     Gui.text(context, Text.translatable(status.labelKey()), x + 34, y + 10, Icons.statusColor(status));

@@ -13,7 +13,12 @@ import java.util.List;
  * leave the region, so clicks never reach a widget that is out of view.
  */
 public final class ScrollArea {
-    private record Placed(ClickableWidget widget, int offset) {
+    /** Room kept at the right for the scrollbar when the content overflows. */
+    public static final int SCROLLBAR_GUTTER = 8;
+    private static final int SCROLLBAR_WIDTH = 6;
+
+    /** A placed widget; {@code column} is 0 or 1 for a two-column cell, or -1 for free placement. */
+    private record Placed(ClickableWidget widget, int offset, int column) {
     }
 
     private final List<Placed> widgets = new ArrayList<>();
@@ -29,7 +34,19 @@ public final class ScrollArea {
 
     /** Places {@code widget} at {@code offset} pixels below the top of the content. */
     public <T extends ClickableWidget> T place(T widget, int offset) {
-        widgets.add(new Placed(widget, offset));
+        return place(widget, offset, -1);
+    }
+
+    /**
+     * Places {@code widget} in {@code column} (0 or 1) of a two-column grid. Its x and width are set
+     * by {@link #layoutColumns} once all content is placed.
+     */
+    public <T extends ClickableWidget> T placeCell(T widget, int offset, int column) {
+        return place(widget, offset, column);
+    }
+
+    private <T extends ClickableWidget> T place(T widget, int offset, int column) {
+        widgets.add(new Placed(widget, offset, column));
         contentHeight = Math.max(contentHeight, offset + widget.getHeight());
         apply();
         return widget;
@@ -38,6 +55,21 @@ public final class ScrollArea {
     public void setContentHeight(int height) {
         contentHeight = Math.max(contentHeight, height);
         apply();
+    }
+
+    /**
+     * Sizes the two-column cells to fill {@code width} from {@code left}, leaving room for the
+     * scrollbar only when the content overflows, so both margins match when it does not.
+     */
+    public void layoutColumns(int left, int width, int gap) {
+        int usable = width - (maxScroll() > 0 ? SCROLLBAR_GUTTER : 0);
+        int columnWidth = (usable - gap) / 2;
+        for (Placed placed : widgets) {
+            if (placed.column() >= 0) {
+                placed.widget().setX(left + placed.column() * (columnWidth + gap));
+                placed.widget().setWidth(columnWidth);
+            }
+        }
     }
 
     public void setScroll(double value) {
@@ -80,8 +112,9 @@ public final class ScrollArea {
         }
     }
 
-    /** A thin vanilla-style scrollbar at {@code x} when the content overflows. */
-    public void drawScrollbar(DrawContext context, int x) {
+    /** A thin vanilla-style scrollbar ending at {@code right} when the content overflows. */
+    public void drawScrollbar(DrawContext context, int right) {
+        int x = right - SCROLLBAR_WIDTH;
         int max = maxScroll();
         if (max <= 0) {
             return;
@@ -89,9 +122,9 @@ public final class ScrollArea {
         int height = bottom - top;
         int thumb = Math.max(12, height * height / contentHeight);
         int thumbY = top + (int) ((height - thumb) * (scroll / max));
-        context.fill(x, top, x + 4, bottom, 0xFF000000);
-        context.fill(x, thumbY, x + 4, thumbY + thumb, 0xFFC0C0C0);
-        context.fill(x + 3, thumbY, x + 4, thumbY + thumb, 0xFF808080);
-        context.fill(x, thumbY + thumb - 1, x + 4, thumbY + thumb, 0xFF808080);
+        // Vanilla's scroller: a dark track and a raised light thumb inset by a pixel.
+        context.fill(x, top, right, bottom, 0xFF000000);
+        context.fill(x + 1, thumbY + 1, right - 1, thumbY + thumb - 1, 0xFF808080);
+        context.fill(x + 1, thumbY + 1, right - 2, thumbY + thumb - 2, 0xFFC0C0C0);
     }
 }

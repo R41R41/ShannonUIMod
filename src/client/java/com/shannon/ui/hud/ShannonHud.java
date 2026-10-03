@@ -9,7 +9,9 @@ import com.shannon.ui.gfx.Palette;
 import com.shannon.ui.net.ClientActions;
 import com.shannon.ui.screen.QuickChatScreen;
 import com.shannon.ui.screen.ShannonScreen;
+import com.shannon.ui.state.BotStatus;
 import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry;
+import net.fabricmc.fabric.api.client.rendering.v1.hud.VanillaHudElements;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.text.Text;
@@ -34,6 +36,13 @@ public final class ShannonHud {
     public static void register(ShannonClient shannon) {
         HudElementRegistry.addLast(Identifier.of(ShannonUIMod.MOD_ID, "status"),
                 (context, tickCounter) -> render(context, shannon));
+        // The quick chat screen shows the conversation with the bot where vanilla's chat sits, and
+        // vanilla's fading lines would draw through it. Wrapping keeps other mods' changes to chat.
+        HudElementRegistry.replaceElement(VanillaHudElements.CHAT, chat -> (context, tickCounter) -> {
+            if (!(MinecraftClient.getInstance().currentScreen instanceof QuickChatScreen)) {
+                chat.render(context, tickCounter);
+            }
+        });
     }
 
     private static void render(DrawContext context, ShannonClient shannon) {
@@ -52,7 +61,9 @@ public final class ShannonHud {
             y += EFFECTS_HEIGHT;
         }
         int height = StatusCard.render(context, shannon, x, y);
-        if (config.showSpeech && !(client.currentScreen instanceof QuickChatScreen)) {
+        // While waiting, the card itself shows what the bot asked.
+        if (config.showSpeech && !(client.currentScreen instanceof QuickChatScreen)
+                && shannon.store().status() != BotStatus.WAITING) {
             renderSpeech(context, shannon, x, y + height + 3);
         }
     }

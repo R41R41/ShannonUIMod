@@ -88,7 +88,6 @@ public class SkillsTab extends ShannonTab {
         for (ConstantSkillsState.Skill skill : builtFrom.skills) {
             grouped.get(groupOf(skill.skillName)).add(skill);
         }
-        int columnW = (w - 10 - 4) / 2;
         int offset = 0;
         for (Map.Entry<String, List<ConstantSkillsState.Skill>> group : grouped.entrySet()) {
             if (group.getValue().isEmpty()) {
@@ -100,11 +99,11 @@ public class SkillsTab extends ShannonTab {
                 ConstantSkillsState.Skill skill = group.getValue().get(i);
                 int column = i % 2;
                 ButtonWidget button = ButtonWidget.builder(label(skill), b -> toggle(skill))
-                        .dimensions(x + column * (columnW + 4), 0, columnW, BUTTON_H)
+                        .dimensions(x, 0, w, BUTTON_H)
                         .tooltip(Tooltip.of(description(skill)))
                         .build();
                 button.active = !ALWAYS_ON.contains(skill.skillName);
-                buttons.put(skill.skillName, add(area.place(button, offset)));
+                buttons.put(skill.skillName, add(area.placeCell(button, offset, column)));
                 if (column == 1 || i == group.getValue().size() - 1) {
                     offset += BUTTON_H + 2;
                 }
@@ -112,6 +111,7 @@ public class SkillsTab extends ShannonTab {
             offset += 2;
         }
         area.setContentHeight(offset);
+        area.layoutColumns(x, w, 4);
         area.setScroll(savedScroll);
     }
 
@@ -196,7 +196,7 @@ public class SkillsTab extends ShannonTab {
                 Gui.label(context, header.text(), x + 1, area.y(header.offset()) + 2);
             }
         }
-        area.drawScrollbar(context, x + w - 5);
+        area.drawScrollbar(context, x + w);
     }
 
     @Override

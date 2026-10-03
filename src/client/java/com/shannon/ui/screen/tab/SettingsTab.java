@@ -128,6 +128,7 @@ public class SettingsTab extends ShannonTab {
         cell(ButtonWidget.builder(Text.translatable("shannonuimod.settings.keys"),
                         button -> client.setScreen(new KeybindsScreen(screen, client.options)))
                 .dimensions(0, 0, cellWidth(), 20).build());
+        area.layoutColumns(x, w, 4);
         area.setScroll(savedScroll);
 
         int footerY = y + h - 20;
@@ -135,10 +136,13 @@ public class SettingsTab extends ShannonTab {
         add(ButtonWidget.builder(Text.translatable("shannonuimod.settings.logs"),
                         button -> client.setScreen(new DebugLogScreen(screen)))
                 .dimensions(x, footerY, half, 20).build());
-        add(ButtonWidget.builder(Text.translatable("shannonuimod.settings.reset"),
-                        button -> ClientActions.send(Actions.REACTION_RESET, new Actions.Empty()))
-                .tooltip(Tooltip.of(Text.translatable("shannonuimod.settings.reset.tip")))
-                .dimensions(x + w - half, footerY, half, 20).build());
+        if (builtFrom != null) {
+            // Only offered once the bot has sent the settings it would reset.
+            add(ButtonWidget.builder(Text.translatable("shannonuimod.settings.reset"),
+                            button -> ClientActions.send(Actions.REACTION_RESET, new Actions.Empty()))
+                    .tooltip(Tooltip.of(Text.translatable("shannonuimod.settings.reset.tip")))
+                    .dimensions(x + w - half, footerY, half, 20).build());
+        }
     }
 
     private Actions.ReactionUpdate hostileUpdate() {
@@ -155,8 +159,9 @@ public class SettingsTab extends ShannonTab {
         return update;
     }
 
+    /** A cell's width before {@link ScrollArea#layoutColumns} sizes it. */
     private int cellWidth() {
-        return (w - 10 - 4) / 2;
+        return (w - 4) / 2;
     }
 
     private void header(String key) {
@@ -169,8 +174,7 @@ public class SettingsTab extends ShannonTab {
     }
 
     private void cell(ClickableWidget widget) {
-        widget.setX(x + column * (cellWidth() + 4));
-        add(area.place(widget, offset));
+        add(area.placeCell(widget, offset, column));
         if (column == 1) {
             column = 0;
             offset += ROW_H;
@@ -229,7 +233,7 @@ public class SettingsTab extends ShannonTab {
                 Gui.label(context, header.text(), x + 1, area.y(header.offset()) + 2);
             }
         }
-        area.drawScrollbar(context, x + w - 5);
+        area.drawScrollbar(context, x + w);
     }
 
     @Override

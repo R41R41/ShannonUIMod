@@ -28,6 +28,7 @@ public class AdvancementsTab extends ShannonTab {
     /** Vanilla's spacing between tree columns and rows. */
     private static final int COLUMN = 28;
     private static final int ROW = 27;
+    private static final int MARGIN = 8;
     private static final long REFRESH_MS = 20_000;
 
     private static int selectedCategory;
@@ -136,17 +137,32 @@ public class AdvancementsTab extends ShannonTab {
 
         float minX = Float.MAX_VALUE;
         float minY = Float.MAX_VALUE;
+        float maxX = -Float.MAX_VALUE;
+        float maxY = -Float.MAX_VALUE;
+        AdvancementsState.Advancement root = null;
         Map<String, AdvancementsState.Advancement> byId = new HashMap<>();
         for (AdvancementsState.Advancement advancement : category.advancements) {
             byId.put(advancement.id, advancement);
             minX = Math.min(minX, advancement.x);
             minY = Math.min(minY, advancement.y);
+            maxX = Math.max(maxX, advancement.x);
+            maxY = Math.max(maxY, advancement.y);
+            if (advancement.parentId == null && root == null) {
+                root = advancement;
+            }
         }
+        int left = Math.round(minX * COLUMN);
+        int right = Math.round(maxX * COLUMN) + NODE;
+        int top = Math.round(minY * ROW);
+        int bottom = Math.round(maxY * ROW) + NODE;
         if (panCategory != selectedCategory || Double.isNaN(panX)) {
+            // Start with the root at the left edge, level with the middle of the view.
             panCategory = selectedCategory;
-            panX = 8 - minX * COLUMN;
-            panY = 8 - minY * ROW;
+            panX = MARGIN - left;
+            panY = root == null ? MARGIN - top : th / 2.0 - (Math.round(root.y * ROW) + NODE / 2.0);
         }
+        panX = clampPan(panX, left, right, tw);
+        panY = clampPan(panY, top, bottom, th);
         int originX = tx + (int) panX;
         int originY = y + (int) panY;
 
@@ -184,6 +200,19 @@ public class AdvancementsTab extends ShannonTab {
                     : "shannonuimod.advancements.todo").formatted(Formatting.DARK_GRAY));
             screen.tooltip(lines);
         }
+    }
+
+    /**
+     * Keeps a tree of extent {@code low} to {@code high} inside a view of {@code size}: centred
+     * when it fits, otherwise never panned past its edges.
+     */
+    private static double clampPan(double pan, int low, int high, int size) {
+        int min = size - MARGIN - high;
+        int max = MARGIN - low;
+        if (min >= max) {
+            return (size - (high - low)) / 2.0 - low;
+        }
+        return Math.max(min, Math.min(max, pan));
     }
 
     /** An elbow line from the parent's right side to the child's left side, as in vanilla. */

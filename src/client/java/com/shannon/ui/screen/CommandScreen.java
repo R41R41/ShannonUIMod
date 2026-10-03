@@ -104,13 +104,18 @@ public class CommandScreen extends OverlayScreen {
         Text label = Text.translatable("shannonuimod.command." + option.key());
         Text description = Text.translatable("shannonuimod.command." + option.key() + ".desc");
         int centerX = width / 2;
-        Gui.text(context, label, centerX - Gui.width(label) / 2, rowY() - 30, Palette.WHITE);
-        Gui.text(context, description, centerX - Gui.width(description) / 2, rowY() - 19, Palette.GRAY);
 
-        int boxX = rowX() - 6;
-        int boxW = options.size() * SPACING - (SPACING - SLOT) + 12;
-        context.fill(boxX, rowY() - 6, boxX + boxW, rowY() + SLOT + 6, 0x8C000000);
-        Gui.outline(context, boxX, rowY() - 6, boxW, SLOT + 12, 0xFF4A4A4A);
+        // One box holds the name, the description and the row, so the text stays readable over
+        // bright skies and name tags.
+        int rowW = options.size() * SPACING - (SPACING - SLOT) + 12;
+        int boxW = Math.max(rowW, Math.max(Gui.width(label), Gui.width(description)) + 16);
+        int boxX = centerX - boxW / 2;
+        int boxY = rowY() - 34;
+        int boxH = rowY() + SLOT + 6 - boxY;
+        context.fill(boxX, boxY, boxX + boxW, boxY + boxH, 0x8C000000);
+        Gui.outline(context, boxX, boxY, boxW, boxH, 0xFF4A4A4A);
+        Gui.text(context, label, centerX - Gui.width(label) / 2, rowY() - 28, Palette.WHITE);
+        Gui.text(context, description, centerX - Gui.width(description) / 2, rowY() - 17, Palette.GRAY);
         for (int i = 0; i < options.size(); i++) {
             int x = rowX() + i * SPACING;
             int y = rowY();
@@ -124,15 +129,37 @@ public class CommandScreen extends OverlayScreen {
             Gui.text(context, number, x + SLOT - Gui.width(number) - 1, y + SLOT - 8, Palette.DARK_GRAY);
         }
 
+        renderHints(context, centerX, rowY() + SLOT + 12);
+        super.render(context, mouseX, mouseY, deltaTicks);
+    }
+
+    /**
+     * The keys that work right now: while the opening key is held, letting go chooses; after a
+     * quick tap the menu stays open and Enter or a click chooses.
+     */
+    private void renderHints(DrawContext context, int centerX, int y) {
         Text keyName = KeyBindings.keyName(trigger);
         Text next = Text.translatable("shannonuimod.commands.next");
+        int width = Gui.keyHintWidth(keyName, next) + 10;
+        Text enter = Text.translatable("key.keyboard.enter");
+        Text choose = Text.translatable("shannonuimod.commands.choose");
+        Text escape = Text.translatable("key.keyboard.escape");
+        Text close = Text.translatable("shannonuimod.talk.close");
         Text release = Text.translatable("shannonuimod.commands.release");
-        int hintWidth = Gui.keyHintWidth(keyName, next) + 10 + Gui.width(release);
-        int hintX = centerX - hintWidth / 2;
-        int hintY = rowY() + SLOT + 12;
-        hintX += Gui.keyHint(context, keyName, next, hintX, hintY) + 10;
-        Gui.text(context, release, hintX, hintY + 2, Palette.GRAY);
-        super.render(context, mouseX, mouseY, deltaTicks);
+        if (triggerReleased) {
+            width += Gui.keyHintWidth(enter, choose) + 10 + Gui.keyHintWidth(escape, close);
+        } else {
+            width += Gui.width(release);
+        }
+        int x = centerX - width / 2;
+        context.fill(x - 4, y - 2, x + width + 4, y + 14, 0x80000000);
+        x += Gui.keyHint(context, keyName, next, x, y) + 10;
+        if (triggerReleased) {
+            x += Gui.keyHint(context, enter, choose, x, y) + 10;
+            Gui.keyHint(context, escape, close, x, y);
+        } else {
+            Gui.text(context, release, x, y + 2, Palette.GRAY);
+        }
     }
 
     @Override

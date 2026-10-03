@@ -83,8 +83,9 @@ public final class Gui {
         return Text.literal(cut + ELLIPSIS);
     }
 
+    /** Wraps {@code text} to {@code maxWidth}, keeping Japanese punctuation off the start of a line. */
     public static List<OrderedText> wrap(Text text, int maxWidth) {
-        return font().wrapLines(text, Math.max(1, maxWidth));
+        return LineBreaker.wrap(font(), text, maxWidth);
     }
 
     /** Draws wrapped text and returns the height used. Lines beyond {@code maxLines} are dropped. */
