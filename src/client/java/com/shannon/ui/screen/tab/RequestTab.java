@@ -31,8 +31,14 @@ public class RequestTab extends ShannonTab {
     private static final int LIST_W = 104;
     private static final int ROW = 14;
     private static final int SLOT = 18;
-    private static final int COLUMNS = 12;
-    private static final int ROWS = 3;
+    private static final int MAX_COLUMNS = 12;
+    private static final int MAX_ROWS = 3;
+    private static final int RESULTS_TOP = 31;
+    /** Below the results: gap, the count's label, its buttons, gap, (the sentence), gap, the send buttons. */
+    private static final int BELOW_RESULTS = 5 + 11 + 18 + 4 + 4 + 20;
+    /** A sentence box that fits one line; two lines need {@link #SENTENCE_TWO_LINES}. */
+    private static final int SENTENCE_MIN = 14;
+    private static final int SENTENCE_TWO_LINES = 24;
     private static final int[] COUNTS = {1, 8, 16, 32, 64};
 
     /** Every item with its name in the player's language, built once per opening. */
@@ -49,6 +55,12 @@ public class RequestTab extends ShannonTab {
     private int resultScroll;
     private int favoriteScroll;
     private TextFieldWidget search;
+    /** The layout, from the content box: a short screen shows fewer result rows before anything overlaps. */
+    private int columns;
+    private int rows;
+    private int countLabelY;
+    private int sentenceY;
+    private int sentenceH;
     private final List<ButtonWidget> countButtons = new ArrayList<>();
 
     @Override
@@ -75,6 +87,7 @@ public class RequestTab extends ShannonTab {
         }
         int rightX = x + LIST_W + 6;
         int rightW = w - LIST_W - 6;
+        layout(rightW);
         search = add(new TextFieldWidget(client.textRenderer, rightX + 1, y + 11, rightW - 2, 16,
                 Text.translatable("shannonuimod.request.search")));
         search.setMaxLength(64);
@@ -88,7 +101,7 @@ public class RequestTab extends ShannonTab {
         filter();
 
         countButtons.clear();
-        int countY = y + 104;
+        int countY = countLabelY + 11;
         int buttonW = (rightW - (COUNTS.length - 1) * 2) / COUNTS.length;
         for (int i = 0; i < COUNTS.length; i++) {
             int value = COUNTS[i];
@@ -108,6 +121,19 @@ public class RequestTab extends ShannonTab {
                 .dimensions(x + w - sendW - 4 - 60, buttonY, 60, 20)
                 .tooltip(Tooltip.of(Text.translatable("shannonuimod.request.save.tip")))
                 .build());
+    }
+
+    /**
+     * Places the parts from the bottom up: the send buttons on the bottom edge, the sentence above them, the count above that,
+     * and as many result rows (up to three) as the rest holds. The sentence box takes what is left, up to two lines.
+     */
+    private void layout(int rightW) {
+        columns = Math.max(1, Math.min(MAX_COLUMNS, rightW / SLOT));
+        int room = h - RESULTS_TOP - BELOW_RESULTS;
+        rows = Math.max(1, Math.min(MAX_ROWS, (room - SENTENCE_MIN) / SLOT));
+        sentenceH = Math.max(SENTENCE_MIN, Math.min(30, room - rows * SLOT));
+        countLabelY = y + RESULTS_TOP + rows * SLOT + 5;
+        sentenceY = countLabelY + 11 + 18 + 4;
     }
 
     private void filter() {
@@ -174,18 +200,24 @@ public class RequestTab extends ShannonTab {
         int rightX = x + LIST_W + 6;
         int rightW = w - LIST_W - 6;
         Gui.label(context, Text.translatable("shannonuimod.request.what"), rightX + 1, y);
-        renderResults(context, mouseX, mouseY, rightX, y + 31);
+        renderResults(context, mouseX, mouseY, rightX, y + RESULTS_TOP);
 
         Entry entry = selected();
         Gui.label(context, entry == null ? Text.translatable("shannonuimod.request.pick")
-                : Text.translatable("shannonuimod.request.how_many", entry.name()), rightX + 1, y + 93);
+                : Text.translatable("shannonuimod.request.how_many", entry.name()), rightX + 1, countLabelY);
 
-        int sentenceY = y + 126;
-        Gui.inset(context, rightX, sentenceY, rightW, 30, Palette.SLOT);
+        Gui.inset(context, rightX, sentenceY, rightW, sentenceH, Palette.SLOT);
         String text = sentence();
         if (text != null) {
-            Gui.paragraph(context, Text.translatable("shannonuimod.request.quote", text), rightX + 4, sentenceY + 5,
-                    rightW - 8, Palette.WHITE, 2);
+            Text quote = Text.translatable("shannonuimod.request.quote", text);
+            if (sentenceH >= SENTENCE_TWO_LINES) {
+                Gui.paragraph(context, quote, rightX + 4, sentenceY + 4, rightW - 8, Palette.WHITE, 2);
+            } else {
+                Gui.text(context, Gui.fit(quote.getString(), rightW - 8), rightX + 4, sentenceY + (sentenceH - 8) / 2, Palette.WHITE);
+                if (Gui.inside(mouseX, mouseY, rightX, sentenceY, rightW, sentenceH) && Gui.width(quote) > rightW - 8) {
+                    screen.tooltip(List.of(quote));
+                }
+            }
         }
     }
 
@@ -218,14 +250,14 @@ public class RequestTab extends ShannonTab {
     }
 
     private void renderResults(DrawContext context, int mouseX, int mouseY, int left, int top) {
-        int maxScroll = Math.max(0, (matches.size() + COLUMNS - 1) / COLUMNS - ROWS);
+        int maxScroll = Math.max(0, (matches.size() + columns - 1) / columns - rows);
         resultScroll = Math.max(0, Math.min(resultScroll, maxScroll));
-        for (int row = 0; row < ROWS; row++) {
-            for (int column = 0; column < COLUMNS; column++) {
+        for (int row = 0; row < rows; row++) {
+            for (int column = 0; column < columns; column++) {
                 int sx = left + column * SLOT;
                 int sy = top + row * SLOT;
                 Gui.slot(context, sx, sy);
-                int index = (row + resultScroll) * COLUMNS + column;
+                int index = (row + resultScroll) * columns + column;
                 if (index >= matches.size()) {
                     continue;
                 }
@@ -263,11 +295,11 @@ public class RequestTab extends ShannonTab {
             return false;
         }
         int left = x + LIST_W + 6;
-        int resultsTop = y + 31;
-        if (Gui.inside(mouseX, mouseY, left, resultsTop, COLUMNS * SLOT, ROWS * SLOT)) {
+        int resultsTop = y + RESULTS_TOP;
+        if (Gui.inside(mouseX, mouseY, left, resultsTop, columns * SLOT, rows * SLOT)) {
             int column = (int) ((mouseX - left) / SLOT);
             int row = (int) ((mouseY - resultsTop) / SLOT);
-            int index = (row + resultScroll) * COLUMNS + column;
+            int index = (row + resultScroll) * columns + column;
             if (index < matches.size()) {
                 selectedId = matches.get(index).id();
             }

@@ -6,10 +6,17 @@ package com.shannon.client.request;
 public class SkillSwitchRequest {
     private String skillName;
     private String status;
+    /** The player who asked, or {@code null}; Gson leaves a null out. */
+    private String sender;
 
     public SkillSwitchRequest(String skillName, boolean status) {
         this.skillName = skillName;
         this.status = String.valueOf(status);
+    }
+
+    public SkillSwitchRequest(String skillName, boolean status, String sender) {
+        this(skillName, status);
+        this.sender = sender;
     }
 
     public String getSkillName() {

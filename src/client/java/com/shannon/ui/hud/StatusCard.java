@@ -2,6 +2,7 @@ package com.shannon.ui.hud;
 
 import com.shannon.model.BotVitals;
 import com.shannon.model.ChatState;
+import com.shannon.model.JourneyState;
 import com.shannon.model.TaskTreeState;
 import com.shannon.sync.StateChannels;
 import com.shannon.ui.ClientConfig;
@@ -262,6 +263,10 @@ public final class StatusCard {
                 if (action != null) {
                     rows.add(labelled(Text.translatable("shannonuimod.card.now"), action));
                 }
+                String reflex = TaskView.blankToNull(tree.activeReflex);
+                if (reflex != null) {
+                    rows.add(line(Text.translatable("shannonuimod.tasks.reflex", reflex), Palette.GOLD));
+                }
             }
             case WAITING -> {
                 if (goal != null) {
@@ -284,6 +289,10 @@ public final class StatusCard {
                         Palette.WHITE, 3));
                 rows.add(hints(shannon, false));
             }
+        }
+        JourneyState journey = store.get(StateChannels.JOURNEY);
+        if (journey != null && journey.startTick >= 0) {
+            rows.add(journeyRow(journey));
         }
         if (vitals != null && vitals.online) {
             rows.add(vitalsRow(vitals));
@@ -373,6 +382,21 @@ public final class StatusCard {
                 Gui.paragraph(context, text, x, y, INNER, color, maxLines);
             }
         };
+    }
+
+    /** How far along the way to the dragon, and the next milestone: "6/14 次: 鉄のツルハシ". */
+    private static Row journeyRow(JourneyState journey) {
+        String next = null;
+        for (JourneyState.Milestone milestone : JourneyState.MILESTONES) {
+            if (journey.reachedAt(milestone.id()) < 0) {
+                next = Text.translatable("shannonuimod.journey." + milestone.id()).getString();
+                break;
+            }
+        }
+        Text text = next == null
+                ? Text.translatable("shannonuimod.card.journey.done", journey.marks.size())
+                : Text.translatable("shannonuimod.card.journey", journey.marks.size(), JourneyState.MILESTONES.size(), next);
+        return line(text, Palette.GRAY);
     }
 
     private static Row progressRow(int done, int total) {

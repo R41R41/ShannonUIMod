@@ -25,6 +25,7 @@ public final class BotObserver {
     private static final int INTERVAL_TICKS = 10;
 
     private final StateManager states;
+    private final JourneyTracker journey;
     private int ticks;
     private String lastVitals;
     private String lastInventory;
@@ -32,8 +33,9 @@ public final class BotObserver {
     private String hurtBy;
     private String hurtCause;
 
-    public BotObserver(StateManager states) {
+    public BotObserver(StateManager states, JourneyTracker journey) {
         this.states = states;
+        this.journey = journey;
     }
 
     /** Called at the end of every server tick. */
@@ -54,6 +56,7 @@ public final class BotObserver {
         }
         if (bot != null) {
             InventoryState inventory = InventoryStateUtil.createInventoryState(bot);
+            journey.observe(server, bot, inventory);
             String inventoryJson = SyncJson.GSON.toJson(inventory);
             if (!inventoryJson.equals(lastInventory)) {
                 lastInventory = inventoryJson;
@@ -108,6 +111,7 @@ public final class BotObserver {
                 .map(key -> key.getValue().toString())
                 .orElse(null);
         vitals.mainHand = InventoryStateUtil.itemId(bot.getMainHandStack());
+        vitals.held = InventoryStateUtil.toStack(bot.getMainHandStack());
         return vitals;
     }
 

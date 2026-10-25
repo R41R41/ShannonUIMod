@@ -18,10 +18,20 @@ public class InventoryState {
     public Stack offHand;
     public int selectedSlot;
 
-    /** One stack. {@code item} is a registry id such as {@code minecraft:oak_log}. */
+    /**
+     * One stack. {@code item} is a registry id such as {@code minecraft:oak_log}.
+     *
+     * <p>{@code maxDamage} is 0 for an item that does not wear out; otherwise {@code damage} is how
+     * much of it is used up, as vanilla counts it.
+     */
     public static class Stack {
         public String item;
         public int count;
+        public int damage;
+        public int maxDamage;
+        public boolean enchanted;
+        /** The name given on an anvil, or {@code null}. */
+        public String name;
 
         public Stack() {
         }
@@ -29,6 +39,11 @@ public class InventoryState {
         public Stack(String item, int count) {
             this.item = item;
             this.count = count;
+        }
+
+        /** What is left of it, from 0 to 1; 1 for an item that does not wear out. */
+        public float durability() {
+            return maxDamage <= 0 ? 1f : Math.max(0f, (maxDamage - damage) / (float) maxDamage);
         }
     }
 }

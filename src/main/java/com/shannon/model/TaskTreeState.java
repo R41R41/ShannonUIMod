@@ -22,6 +22,10 @@ public class TaskTreeState {
     public String currentSubTaskId;
     /** Short answers the bot offers while it waits for the player, or {@code null}. */
     public List<String> replyChoices;
+    /** How many times the plan has been made again, when the task follows a plan; {@code null} otherwise. */
+    public Integer planRevision;
+    /** What a reflex of the body is doing while it holds the body (fleeing lava, fighting back), or {@code null}. */
+    public String activeReflex;
     public List<SubTask> hierarchicalSubTasks = new ArrayList<>();
 
     public static class SubTask {
@@ -34,6 +38,13 @@ public class TaskTreeState {
         public String failureReason;
         public int depth;
         public String parentId;
+        /** A plan node's notes from the planner, any of them missing: where, what shows it done, a note. */
+        public String where;
+        public String doneWhen;
+        public String note;
+        /** What not to do, and what to mind, while this node or one under it is worked on. */
+        public List<String> forbid;
+        public List<String> caution;
         public List<SubTask> children = new ArrayList<>();
     }
 }

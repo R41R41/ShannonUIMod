@@ -24,6 +24,8 @@ public class BotVitals {
     public String biome;
     /** Registry id of the item in the bot's main hand, or {@code null}. */
     public String mainHand;
+    /** The main-hand stack with its wear, or {@code null} when the hand is empty. */
+    public InventoryState.Stack held;
     /**
      * How many times the bot has been hurt since the server started. The client notes the time it
      * sees this grow, so the two machines' clocks never need to agree.

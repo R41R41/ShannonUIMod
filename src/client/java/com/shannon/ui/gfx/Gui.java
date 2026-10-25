@@ -1,15 +1,18 @@
 package com.shannon.ui.gfx;
 
 import com.shannon.ShannonUIMod;
+import com.shannon.model.InventoryState;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.font.TextRenderer;
 import net.minecraft.client.gl.RenderPipelines;
 import net.minecraft.client.gui.DrawContext;
+import net.minecraft.component.DataComponentTypes;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.registry.Registries;
 import net.minecraft.text.OrderedText;
 import net.minecraft.text.Text;
+import net.minecraft.util.Formatting;
 import net.minecraft.util.Identifier;
 
 import java.util.List;
@@ -299,6 +302,56 @@ public final class Gui {
             String label = String.valueOf(count);
             text(context, Text.literal(label), x + 17 - width(label), y + 9, Palette.WHITE);
         }
+    }
+
+    /** A synced stack as a real one: its wear, its glint and its anvil name, so vanilla draws and names it as in a slot. */
+    public static ItemStack stack(InventoryState.Stack synced) {
+        ItemStack stack = stack(synced.item, synced.count);
+        if (stack.isEmpty()) {
+            return stack;
+        }
+        if (synced.maxDamage > 0) {
+            stack.set(DataComponentTypes.MAX_DAMAGE, synced.maxDamage);
+            stack.setDamage(synced.damage);
+        }
+        if (synced.enchanted) {
+            stack.set(DataComponentTypes.ENCHANTMENT_GLINT_OVERRIDE, true);
+        }
+        if (synced.name != null && !synced.name.isBlank()) {
+            stack.set(DataComponentTypes.CUSTOM_NAME, Text.literal(synced.name));
+        }
+        return stack;
+    }
+
+    /** A synced stack as in a slot: count, durability bar and glint, all drawn by vanilla. */
+    public static void item(DrawContext context, InventoryState.Stack synced, int x, int y) {
+        ItemStack stack = stack(synced);
+        if (stack.isEmpty()) {
+            item(context, synced.item, synced.count, x, y);
+            return;
+        }
+        context.drawItem(stack, x, y);
+        // The synced count may exceed a stack (vanilla would print the clamped one).
+        context.drawStackOverlay(font(), stack, x, y, synced.count > 1 ? String.valueOf(synced.count) : "");
+    }
+
+    /** Below this much durability left a tool is shown as about to break. */
+    public static final float WORN = 0.1f;
+
+    /** "Durability 123 / 250", coloured as vanilla's bar: green, then yellow, then red. */
+    public static Text durability(InventoryState.Stack synced) {
+        return Text.translatable("shannonuimod.inventory.durability", synced.maxDamage - synced.damage, synced.maxDamage)
+                .formatted(wearColor(synced));
+    }
+
+    /** Just "123 / 250", in the same colour, for a row that is already labelled. */
+    public static Text durabilityValue(InventoryState.Stack synced) {
+        return Text.literal((synced.maxDamage - synced.damage) + " / " + synced.maxDamage).formatted(wearColor(synced));
+    }
+
+    private static Formatting wearColor(InventoryState.Stack synced) {
+        float left = synced.durability();
+        return left <= WORN ? Formatting.RED : left <= 0.4f ? Formatting.YELLOW : Formatting.GREEN;
     }
 
     public static boolean inside(double mouseX, double mouseY, int x, int y, int w, int h) {

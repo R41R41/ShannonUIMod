@@ -1,6 +1,7 @@
 package com.shannon.util;
 
 import com.shannon.model.InventoryState;
+import net.minecraft.component.DataComponentTypes;
 import net.minecraft.entity.EquipmentSlot;
 import net.minecraft.entity.player.PlayerInventory;
 import net.minecraft.item.ItemStack;
@@ -34,10 +35,19 @@ public final class InventoryStateUtil {
         return stack.isEmpty() ? null : Registries.ITEM.getId(stack.getItem()).toString();
     }
 
-    private static InventoryState.Stack toStack(ItemStack stack) {
+    public static InventoryState.Stack toStack(ItemStack stack) {
         if (stack == null || stack.isEmpty()) {
             return null;
         }
-        return new InventoryState.Stack(itemId(stack), stack.getCount());
+        InventoryState.Stack state = new InventoryState.Stack(itemId(stack), stack.getCount());
+        if (stack.isDamageable()) {
+            state.damage = stack.getDamage();
+            state.maxDamage = stack.getMaxDamage();
+        }
+        state.enchanted = stack.hasGlint();
+        if (stack.contains(DataComponentTypes.CUSTOM_NAME)) {
+            state.name = stack.getName().getString();
+        }
+        return state;
     }
 }

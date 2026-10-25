@@ -7,6 +7,7 @@ import com.shannon.model.AdvancementsState;
 import com.shannon.network.packet.ScreenshotResultPacket;
 import com.shannon.http.endpoints.ServerScreenshotEndpoint;
 import com.shannon.server.BotObserver;
+import com.shannon.server.JourneyTracker;
 import com.shannon.server.ServerActions;
 import com.shannon.server.ServerSync;
 import com.shannon.state.StateManager;
@@ -36,7 +37,8 @@ public class ShannonUIMod implements ModInitializer {
     public static final Logger LOGGER = LoggerFactory.getLogger(MOD_ID);
 
     private static final StateManager STATES = StateManager.getInstance();
-    private static final BotObserver OBSERVER = new BotObserver(STATES);
+    private static final JourneyTracker JOURNEY = new JourneyTracker(STATES);
+    private static final BotObserver OBSERVER = new BotObserver(STATES, JOURNEY);
 
     @Override
     public void onInitialize() {
@@ -52,14 +54,17 @@ public class ShannonUIMod implements ModInitializer {
         ServerLifecycleEvents.SERVER_STARTED.register(server -> {
             STATES.setServer(server);
             OBSERVER.reset();
+            JOURNEY.load(server);
             HttpServerManager.startServer();
         });
         ServerLifecycleEvents.SERVER_STOPPING.register(server -> {
             HttpServerManager.stopServer();
+            JOURNEY.unload();
             STATES.setServer(null);
         });
         ServerLivingEntityEvents.AFTER_DAMAGE.register((entity, source, baseDamage, damageTaken, blocked) ->
                 OBSERVER.onDamage(entity, source, damageTaken));
+        ServerLivingEntityEvents.AFTER_DEATH.register((entity, source) -> JOURNEY.onDeath(entity));
         ServerTickEvents.END_SERVER_TICK.register(server -> {
             STATES.tick();
             OBSERVER.tick(server);

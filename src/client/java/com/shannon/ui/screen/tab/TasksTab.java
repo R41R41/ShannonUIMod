@@ -16,35 +16,44 @@ import com.shannon.ui.state.TaskView;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.tooltip.Tooltip;
 import net.minecraft.client.gui.widget.ButtonWidget;
+import net.minecraft.text.OrderedText;
 import net.minecraft.text.Text;
+import net.minecraft.util.Formatting;
 import net.minecraft.util.Identifier;
 
 import java.util.ArrayList;
 import java.util.List;
 
 /**
- * The task queue on the left and the selected task's steps on the right; or, switched to the
- * log, what the bot did in its recent tasks.
+ * The task the bot works on: its goal and progress on top, its plan as a tree on the left and the
+ * chosen node's notes on the right; or, switched to the log, what the bot did in its recent tasks.
+ *
+ * <p>The bot holds one task at a time, so there is no queue to pick from; the plan is what the
+ * player wants to follow.
  */
 public class TasksTab extends ShannonTab {
     private static final Identifier ICON = Identifier.of(ShannonUIMod.MOD_ID, "textures/tasktree.png");
-    private static final int LIST_W = 118;
-    private static final int ROW = 14;
+    /** The goal, the progress bar and the plan's line. */
+    private static final int HEADER_H = 34;
+    private static final int ROW = 11;
+    private static final int INDENT = 8;
+    /** The log view's list width, as it was before the plan view. */
+    private static final int LOG_LIST_W = 118;
 
-    /** Survives reopening the screen, like vanilla's selected recipe. */
-    private static String selectedId;
+    /** Survive reopening the screen, like vanilla's selected recipe. */
+    private static String selectedNode;
     private static boolean showLog;
 
-    private record Entry(String id, String goal, PixelIcon icon) {
-    }
-
     private ButtonWidget resume;
-    private ButtonWidget prioritize;
     private ButtonWidget cancel;
     private ButtonWidget again;
     private HistoryView log;
-    private int listScroll;
-    private int stepScroll;
+    private int treeScroll;
+    private int detailScroll;
+    /** The tree keeps the node worked on in view until the player scrolls it. */
+    private boolean followCurrent = true;
+    /** The rows drawn this frame, for clicks. */
+    private final List<TaskView.Step> shown = new ArrayList<>();
 
     @Override
     public Identifier icon() {
@@ -80,6 +89,7 @@ public class TasksTab extends ShannonTab {
         history.active = !showLog;
         if (showLog) {
             resume = null;
+            cancel = null;
             int againW = 140;
             again = add(ButtonWidget.builder(Text.translatable("shannonuimod.history.again"), button -> {
                         TaskHistory.Record record = log.record();
@@ -94,7 +104,7 @@ public class TasksTab extends ShannonTab {
             return;
         }
         cancel = add(ButtonWidget.builder(Text.translatable("shannonuimod.tasks.cancel"), button -> {
-                    String id = selectedTaskId();
+                    String id = currentTaskId();
                     if (id != null) {
                         ClientActions.task(Actions.TaskAction.DELETE, id);
                     }
@@ -102,18 +112,9 @@ public class TasksTab extends ShannonTab {
                 .dimensions(right - buttonW, buttonY, buttonW, 20)
                 .tooltip(Tooltip.of(Text.translatable("shannonuimod.tasks.cancel.tip")))
                 .build());
-        prioritize = add(ButtonWidget.builder(Text.translatable("shannonuimod.tasks.prioritize"), button -> {
-                    String id = selectedTaskId();
-                    if (id != null) {
-                        ClientActions.task(Actions.TaskAction.PRIORITIZE, id);
-                    }
-                })
-                .dimensions(right - buttonW * 2 - 4, buttonY, buttonW, 20)
-                .tooltip(Tooltip.of(Text.translatable("shannonuimod.tasks.prioritize.tip")))
-                .build());
         resume = add(ButtonWidget.builder(Text.translatable("shannonuimod.tasks.resume"),
                         button -> ClientActions.command(BotCommand.RESUME))
-                .dimensions(right - buttonW * 3 - 8, buttonY, buttonW, 20)
+                .dimensions(right - buttonW * 2 - 4, buttonY, buttonW, 20)
                 .tooltip(Tooltip.of(Text.translatable("shannonuimod.tasks.resume.tip")))
                 .build());
         tick();
@@ -131,11 +132,8 @@ public class TasksTab extends ShannonTab {
             return;
         }
         BotStatus status = shannon.store().status();
-        String selected = selectedTaskId();
-        String current = currentTaskId();
         resume.active = status == BotStatus.WAITING || status == BotStatus.ERROR;
-        prioritize.active = selected != null && !selected.equals(current);
-        cancel.active = selected != null;
+        cancel.active = currentTaskId() != null;
     }
 
     private String currentTaskId() {
@@ -143,182 +141,272 @@ public class TasksTab extends ShannonTab {
         return list != null ? list.currentTaskId : null;
     }
 
-    private List<Entry> entries() {
-        List<Entry> entries = new ArrayList<>();
+    /** When the current task began, in the backend's clock (milliseconds), or 0. */
+    private long startedAt() {
         TaskListState list = shannon.store().taskList();
-        if (list == null) {
-            return entries;
+        if (list == null || list.tasks == null || list.currentTaskId == null) {
+            return 0;
         }
-        if (list.emergencyTask != null) {
-            entries.add(new Entry(list.emergencyTask.id, list.emergencyTask.goal, Icons.WARNING));
-        }
-        BotStatus status = shannon.store().status();
-        if (list.tasks != null) {
-            for (TaskListState.TaskInfo task : list.tasks) {
-                PixelIcon icon = Icons.PENDING;
-                if (task.id != null && task.id.equals(list.currentTaskId)) {
-                    icon = Icons.status(status == BotStatus.IDLE ? BotStatus.WORKING : status);
-                } else if ("awaiting_user".equals(task.status)) {
-                    icon = Icons.QUESTION;
-                } else if ("failed_terminal".equals(task.status)) {
-                    icon = Icons.WARNING;
-                }
-                entries.add(new Entry(task.id, task.goal, icon));
+        for (TaskListState.TaskInfo task : list.tasks) {
+            if (list.currentTaskId.equals(task.id)) {
+                return task.createdAt;
             }
         }
-        return entries;
-    }
-
-    /** The selected task, falling back to the current one and then to the first. */
-    private String selectedTaskId() {
-        List<Entry> entries = entries();
-        for (Entry entry : entries) {
-            if (entry.id() != null && entry.id().equals(selectedId)) {
-                return selectedId;
-            }
-        }
-        String current = currentTaskId();
-        if (current != null) {
-            return current;
-        }
-        return entries.isEmpty() ? null : entries.get(0).id();
+        return 0;
     }
 
     @Override
     public void render(DrawContext context, int mouseX, int mouseY, float deltaTicks) {
+        shown.clear();
         if (showLog) {
-            log.render(context, screen, x, y, LIST_W, w, h - 24, mouseX, mouseY);
+            log.render(context, screen, x, y, LOG_LIST_W, w, h - 24, mouseX, mouseY);
             return;
         }
-        int listTop = y + 10;
-        int listH = h - 10 - 24;
-        Gui.label(context, Text.translatable("shannonuimod.tasks.queue"), x + 1, y);
-        Gui.inset(context, x, listTop, LIST_W, listH, Palette.SLOT);
-        renderList(context, mouseX, mouseY, listTop, listH);
-
-        int rightX = x + LIST_W + 6;
-        int rightW = w - LIST_W - 6;
-        Gui.label(context, Text.translatable("shannonuimod.tasks.detail"), rightX + 1, y);
-        Gui.inset(context, rightX, listTop, rightW, listH, Palette.SLOT);
-        renderDetail(context, rightX + 6, listTop + 6, rightW - 12, listH - 12);
-    }
-
-    private void renderList(DrawContext context, int mouseX, int mouseY, int top, int height) {
-        List<Entry> entries = entries();
-        String selected = selectedTaskId();
-        if (entries.isEmpty()) {
-            Gui.paragraph(context, Text.translatable("shannonuimod.tasks.empty"), x + 6, top + 6, LIST_W - 12, Palette.WHITE, 3);
-            return;
-        }
-        int visible = (height - 4) / ROW;
-        listScroll = Math.max(0, Math.min(listScroll, entries.size() - visible));
-        for (int i = 0; i < Math.min(visible, entries.size() - listScroll); i++) {
-            Entry entry = entries.get(i + listScroll);
-            int rowY = top + 2 + i * ROW;
-            boolean isSelected = entry.id() != null && entry.id().equals(selected);
-            if (isSelected) {
-                context.fill(x + 2, rowY, x + LIST_W - 2, rowY + ROW, 0x2E000000);
-                Gui.outline(context, x + 2, rowY, LIST_W - 4, ROW, Palette.WHITE);
-            } else if (Gui.inside(mouseX, mouseY, x + 2, rowY, LIST_W - 4, ROW)) {
-                context.fill(x + 2, rowY, x + LIST_W - 2, rowY + ROW, 0x20FFFFFF);
-            }
-            entry.icon().draw(context, x + 5, rowY + 3);
-            Gui.text(context, Gui.fit(entry.goal(), LIST_W - 24), x + 17, rowY + 3, Palette.WHITE);
-            if (Gui.inside(mouseX, mouseY, x + 2, rowY, LIST_W - 4, ROW) && Gui.width(entry.goal()) > LIST_W - 24) {
-                screen.tooltip(List.of(Text.literal(entry.goal())));
-            }
-        }
-    }
-
-    private void renderDetail(DrawContext context, int left, int top, int width, int height) {
-        String selected = selectedTaskId();
-        String current = currentTaskId();
         TaskTreeState tree = shannon.store().taskTree();
-        if (selected == null && (tree == null || TaskView.blankToNull(tree.goal) == null)) {
-            Gui.paragraph(context, Text.translatable("shannonuimod.tasks.nothing"), left, top, width, Palette.WHITE, 3);
+        Gui.label(context, Text.translatable("shannonuimod.tasks.detail"), x + 1, y);
+        int headerTop = y + 10;
+        Gui.inset(context, x, headerTop, w, HEADER_H, Palette.SLOT);
+        int paneTop = paneTop();
+        int paneH = h - 24 - (paneTop - y);
+        int treeW = treeWidth();
+        int detailX = x + treeW + 4;
+        int detailW = w - treeW - 4;
+        Gui.inset(context, x, paneTop, treeW, paneH, Palette.SLOT);
+        Gui.inset(context, detailX, paneTop, detailW, paneH, Palette.SLOT);
+        if (tree == null || TaskView.blankToNull(tree.goal) == null) {
+            Gui.text(context, Text.translatable("shannonuimod.tasks.nothing"), x + 5, headerTop + 4, Palette.WHITE);
             return;
         }
-        if (selected != null && !selected.equals(current)) {
-            String goal = goalOf(selected);
-            int used = Gui.paragraph(context, Text.literal(goal == null ? "" : goal), left, top, width, Palette.WHITE, 3);
-            Gui.text(context, Text.translatable("shannonuimod.tasks.not_started"), left, top + used + 4, Palette.GRAY);
-            return;
-        }
-        int cursor = top;
-        if (tree != null && tree.goal != null) {
-            cursor += Gui.paragraph(context, Text.literal(tree.goal), left, cursor, width, Palette.WHITE, 2) + 2;
+        renderHeader(context, tree, x + 5, headerTop + 4, w - 10, mouseX, mouseY);
+        List<TaskView.Step> steps = TaskView.steps(tree);
+        TaskView.Step chosen = chosen(steps);
+        renderTree(context, tree, steps, chosen, x, paneTop, treeW, paneH, mouseX, mouseY);
+        renderDetail(context, tree, chosen, detailX + 5, paneTop + 5, detailW - 12, paneH - 10);
+    }
+
+    private int paneTop() {
+        return y + 10 + HEADER_H + 4;
+    }
+
+    private int treeWidth() {
+        return w * 3 / 5;
+    }
+
+    /** The goal; a progress bar over the plan; the plan's version and the time spent, or the reflex holding the body. */
+    private void renderHeader(DrawContext context, TaskTreeState tree, int left, int top, int width, int mouseX, int mouseY) {
+        Gui.text(context, Gui.fit(tree.goal, width), left, top, Palette.WHITE);
+        if (Gui.inside(mouseX, mouseY, left, top, width, 9) && Gui.width(tree.goal) > width) {
+            screen.tooltip(List.of(Text.literal(tree.goal)));
         }
         int[] progress = TaskView.progress(tree);
         if (progress[1] > 0) {
-            Text count = Text.literal(progress[0] + "/" + progress[1]);
-            Gui.progress(context, left, cursor + 2, width - Gui.width(count) - 6, 6, progress[0] / (float) progress[1]);
-            Gui.text(context, count, left + width - Gui.width(count), cursor, Palette.WHITE);
-            cursor += 13;
+            Text count = Text.translatable("shannonuimod.tasks.done_of", progress[0], progress[1]);
+            Gui.progress(context, left, top + 12, width - Gui.width(count) - 6, 5, progress[0] / (float) progress[1]);
+            Gui.text(context, count, left + width - Gui.width(count), top + 10, Palette.WHITE);
         }
-
-        String thinking = tree != null ? TaskView.blankToNull(tree.currentThinking) : null;
-        int thinkingHeight = thinking == null ? 0 : 12 + Gui.paragraphHeight(Text.literal(thinking), width, 2) + 4;
-        int stepsBottom = top + height - thinkingHeight;
-        List<TaskView.Step> steps = TaskView.steps(tree);
-        int visible = Math.max(0, (stepsBottom - cursor) / 11);
-        stepScroll = Math.max(0, Math.min(stepScroll, steps.size() - visible));
-        for (int i = 0; i < Math.min(visible, steps.size() - stepScroll); i++) {
-            TaskView.Step step = steps.get(i + stepScroll);
-            int indent = Math.min(step.depth(), 4) * 8;
-            PixelIcon icon = step.done() ? Icons.CHECK : step.running() ? Icons.PLAY : step.failed() ? Icons.WARNING : Icons.PENDING;
-            int color = step.running() ? Palette.WHITE : step.failed() ? Palette.RED : Palette.GRAY;
-            icon.draw(context, left + indent, cursor + 1);
-            String goal = step.task().goal == null ? "" : step.task().goal;
-            Gui.text(context, Gui.fit(goal, width - indent - 13), left + indent + 12, cursor, color);
-            cursor += 11;
+        int lineY = top + 21;
+        String reflex = TaskView.blankToNull(tree.activeReflex);
+        if (reflex != null) {
+            Gui.text(context, Gui.fit(Text.translatable("shannonuimod.tasks.reflex", reflex).getString(), width), left, lineY, Palette.GOLD);
+            return;
         }
-        if (thinking != null) {
-            int lineY = top + height - thinkingHeight + 2;
-            context.fill(left, lineY, left + width, lineY + 1, 0xFF6E6E6E);
-            Gui.text(context, Text.translatable("shannonuimod.tasks.thinking"), left, lineY + 4, Palette.GRAY);
-            Gui.paragraph(context, Text.literal(thinking), left, lineY + 15, width, Palette.WHITE, 2);
+        List<String> parts = new ArrayList<>();
+        if (tree.planRevision != null) {
+            parts.add(Text.translatable("shannonuimod.tasks.plan_version", tree.planRevision).getString());
+        }
+        long started = startedAt();
+        if (started > 0 && "in_progress".equals(tree.status)) {
+            parts.add(Text.translatable("shannonuimod.tasks.elapsed", clock((System.currentTimeMillis() - started) / 1000)).getString());
+        }
+        if (!parts.isEmpty()) {
+            Gui.text(context, Gui.fit(String.join("  ·  ", parts), width), left, lineY, Palette.GRAY);
         }
     }
 
-    private String goalOf(String id) {
-        for (Entry entry : entries()) {
-            if (id.equals(entry.id())) {
-                return entry.goal();
+    /** {@code 12:34}, or {@code 1:02:03} past an hour. */
+    public static String clock(long seconds) {
+        seconds = Math.max(0, seconds);
+        long hours = seconds / 3600;
+        long minutes = seconds / 60 % 60;
+        long rest = seconds % 60;
+        return hours > 0 ? String.format("%d:%02d:%02d", hours, minutes, rest) : String.format("%d:%02d", minutes, rest);
+    }
+
+    /** The node the player chose, while it is still in the plan; else none. */
+    private static TaskView.Step chosen(List<TaskView.Step> steps) {
+        if (selectedNode == null) {
+            return null;
+        }
+        for (TaskView.Step step : steps) {
+            if (selectedNode.equals(step.task().id)) {
+                return step;
             }
         }
         return null;
     }
 
+    private void renderTree(DrawContext context, TaskTreeState tree, List<TaskView.Step> steps, TaskView.Step chosen,
+                            int left, int top, int width, int height, int mouseX, int mouseY) {
+        int visible = Math.max(1, (height - 4) / ROW);
+        if (followCurrent && tree.currentSubTaskId != null) {
+            for (int i = 0; i < steps.size(); i++) {
+                if (tree.currentSubTaskId.equals(steps.get(i).task().id)) {
+                    // The current node a little below the top, so its parents and next moves both show.
+                    treeScroll = i - Math.min(2, visible / 3);
+                    break;
+                }
+            }
+        }
+        treeScroll = Math.max(0, Math.min(treeScroll, steps.size() - visible));
+        for (int i = 0; i < Math.min(visible, steps.size() - treeScroll); i++) {
+            TaskView.Step step = steps.get(i + treeScroll);
+            shown.add(step);
+            int rowY = top + 2 + i * ROW;
+            boolean current = step.task().id != null && step.task().id.equals(tree.currentSubTaskId);
+            boolean hovered = Gui.inside(mouseX, mouseY, left + 2, rowY, width - 4, ROW);
+            if (step == chosen) {
+                context.fill(left + 2, rowY, left + width - 2, rowY + ROW, 0x2E000000);
+                Gui.outline(context, left + 2, rowY, width - 4, ROW, Palette.WHITE);
+            } else if (current) {
+                context.fill(left + 2, rowY, left + width - 2, rowY + ROW, 0x30FFFF55);
+            } else if (hovered) {
+                context.fill(left + 2, rowY, left + width - 2, rowY + ROW, 0x20FFFFFF);
+            }
+            int indent = Math.min(step.depth(), 4) * INDENT;
+            PixelIcon icon = step.done() ? Icons.CHECK : step.running() ? Icons.PLAY : step.failed() ? Icons.WARNING : Icons.PENDING;
+            icon.draw(context, left + 5 + indent, rowY + 2);
+            int color = step.running() ? Palette.WHITE : step.failed() ? Palette.RED : step.move() ? 0xFFD0D0D0 : Palette.GRAY;
+            boolean rules = has(step.task().forbid) || has(step.task().caution);
+            int textW = width - 20 - indent - (rules ? 6 : 0);
+            String goal = step.task().goal == null ? "" : step.task().goal;
+            Gui.text(context, Gui.fit(goal, textW), left + 17 + indent, rowY + 1, color);
+            if (rules) {
+                // A plan node with forbids or cautions: a small gold "!", read in the notes on the right.
+                context.fill(left + width - 7, rowY + 2, left + width - 5, rowY + 7, Palette.GOLD);
+                context.fill(left + width - 7, rowY + 8, left + width - 5, rowY + 10, Palette.GOLD);
+            }
+            if (hovered && step != chosen) {
+                screen.tooltip(List.of(Text.literal(goal), Text.translatable("shannonuimod.tasks.node.click").formatted(Formatting.GRAY)));
+            }
+        }
+    }
+
+    private static boolean has(List<String> list) {
+        return list != null && !list.isEmpty();
+    }
+
+    /** The chosen node's notes; with none chosen, the bot's own summary of the task and what makes it done. */
+    private void renderDetail(DrawContext context, TaskTreeState tree, TaskView.Step chosen, int left, int top, int width, int height) {
+        List<Line> lines = new ArrayList<>();
+        if (chosen == null) {
+            add(lines, Text.translatable("shannonuimod.tasks.summary"), Palette.GRAY, width);
+            String summary = TaskView.blankToNull(tree.currentThinking);
+            add(lines, summary == null ? Text.translatable("shannonuimod.tasks.summary.none") : Text.literal(summary),
+                    Palette.WHITE, width);
+            String condition = TaskView.blankToNull(tree.strategy);
+            if (condition != null) {
+                gap(lines);
+                add(lines, Text.translatable("shannonuimod.tasks.condition"), Palette.GRAY, width);
+                add(lines, Text.literal(condition), Palette.WHITE, width);
+            }
+        } else {
+            TaskTreeState.SubTask node = chosen.task();
+            add(lines, Text.literal(node.goal == null ? "" : node.goal), Palette.WHITE, width);
+            String state = chosen.done() ? "done" : chosen.running() ? "now" : chosen.failed() ? "blocked" : "later";
+            add(lines, Text.translatable("shannonuimod.tasks.node.state." + state), chosen.failed() ? Palette.RED : Palette.GRAY, width);
+            field(lines, "blocked_why", chosen.failed() ? node.failureReason : null, Palette.RED, width);
+            field(lines, "done_when", node.doneWhen, Palette.WHITE, width);
+            field(lines, "where", node.where, Palette.WHITE, width);
+            rules(lines, "forbid", node.forbid, Palette.RED, width);
+            rules(lines, "caution", node.caution, Palette.GOLD, width);
+            field(lines, "note", node.note, Palette.WHITE, width);
+            // A plan node's result is only "done"; an act's move tells what happened.
+            String result = TaskView.blankToNull(node.result);
+            field(lines, "result", chosen.move() ? result : null, Palette.WHITE, width);
+        }
+        int visible = Math.max(1, height / Gui.LINE);
+        detailScroll = Math.max(0, Math.min(detailScroll, lines.size() - visible));
+        for (int i = 0; i < Math.min(visible, lines.size() - detailScroll); i++) {
+            Line line = lines.get(i + detailScroll);
+            if (line.text() != null) {
+                Gui.text(context, line.text(), left, top + i * Gui.LINE, line.color());
+            }
+        }
+        if (lines.size() > visible) {
+            // A thin bar on the right edge: how much is out of view, and where.
+            int barH = Math.max(6, height * visible / lines.size());
+            int barY = top + (height - barH) * detailScroll / Math.max(1, lines.size() - visible);
+            context.fill(left + width + 3, barY, left + width + 5, barY + barH, 0xFFC6C6C6);
+        }
+    }
+
+    private record Line(OrderedText text, int color) {
+    }
+
+    private static void add(List<Line> lines, Text text, int color, int width) {
+        for (OrderedText line : Gui.wrap(text, width)) {
+            lines.add(new Line(line, color));
+        }
+    }
+
+    private static void gap(List<Line> lines) {
+        lines.add(new Line(null, 0));
+    }
+
+    private static void field(List<Line> lines, String key, String value, int color, int width) {
+        String text = TaskView.blankToNull(value);
+        if (text == null) {
+            return;
+        }
+        gap(lines);
+        add(lines, Text.translatable("shannonuimod.tasks.node." + key), Palette.GRAY, width);
+        add(lines, Text.literal(text), color, width);
+    }
+
+    private static void rules(List<Line> lines, String key, List<String> values, int color, int width) {
+        if (!has(values)) {
+            return;
+        }
+        gap(lines);
+        add(lines, Text.translatable("shannonuimod.tasks.node." + key), Palette.GRAY, width);
+        for (String value : values) {
+            add(lines, Text.literal("・" + value), color, width);
+        }
+    }
+
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
         if (showLog) {
-            return log.mouseClicked(mouseX, mouseY, x, y, LIST_W, h - 24);
+            return log.mouseClicked(mouseX, mouseY, x, y, LOG_LIST_W, h - 24);
         }
-        int top = y + 12;
-        int height = h - 10 - 24 - 4;
-        if (!Gui.inside(mouseX, mouseY, x, top, LIST_W, height)) {
+        int top = paneTop() + 2;
+        if (!Gui.inside(mouseX, mouseY, x, top, treeWidth(), shown.size() * ROW)) {
             return false;
         }
-        int index = (int) ((mouseY - top) / ROW) + listScroll;
-        List<Entry> entries = entries();
-        if (index >= 0 && index < entries.size()) {
-            selectedId = entries.get(index).id();
-            tick();
-            return true;
-        }
-        return false;
+        TaskView.Step step = shown.get((int) ((mouseY - top) / ROW));
+        String id = step.task().id;
+        // Clicking the chosen node again goes back to the task's summary.
+        selectedNode = id != null && id.equals(selectedNode) ? null : id;
+        detailScroll = 0;
+        return true;
     }
 
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double amount) {
         if (showLog) {
-            return log.mouseScrolled(mouseX, amount, x, LIST_W);
+            return log.mouseScrolled(mouseX, amount, x, LOG_LIST_W);
         }
-        if (mouseX < x + LIST_W) {
-            listScroll -= (int) Math.signum(amount);
+        if (mouseX < x + treeWidth()) {
+            followCurrent = false;
+            treeScroll -= (int) Math.signum(amount);
         } else {
-            stepScroll -= (int) Math.signum(amount);
+            detailScroll -= (int) Math.signum(amount);
         }
         return true;
+    }
+
+    @Override
+    public void onShow() {
+        followCurrent = true;
     }
 }

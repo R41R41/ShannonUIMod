@@ -24,6 +24,11 @@ public final class TaskView {
         public boolean failed() {
             return "error".equals(task.status) || "failed".equals(task.status);
         }
+
+        /** One move of the act running now, which the body shows under the plan's current node; not part of the plan. */
+        public boolean move() {
+            return task.id != null && task.id.contains("/act-");
+        }
     }
 
     /** Every step, depth first, in the order the bot plans them. */
@@ -49,11 +54,14 @@ public final class TaskView {
         }
     }
 
-    /** {done, total} over all steps; total is 0 when the task has no steps. */
+    /** {done, total} over all steps but the running act's moves; total is 0 when the task has no steps. */
     public static int[] progress(TaskTreeState tree) {
         int done = 0;
         int total = 0;
         for (Step step : steps(tree)) {
+            if (step.move()) {
+                continue;
+            }
             total++;
             if (step.done()) {
                 done++;

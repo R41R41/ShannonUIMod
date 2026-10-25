@@ -72,7 +72,7 @@ public final class ServerActions {
     public static void register() {
         on(Actions.GIVE_ITEM, ServerActions::giveItem);
         on(Actions.TOGGLE_SKILL, (server, player, request) -> BackendClient.postJson(
-                ModConfig.ENDPOINT_SKILL_SWITCH, new SkillSwitchRequest(request.skillName, request.enabled)));
+                ModConfig.ENDPOINT_SKILL_SWITCH, new SkillSwitchRequest(request.skillName, request.enabled, player.getName().getString())));
         on(Actions.CHAT, ServerActions::chat);
         on(Actions.TASK, ServerActions::taskAction);
         on(Actions.COMMAND, (server, player, request) -> {
@@ -136,7 +136,7 @@ public final class ServerActions {
             return;
         }
         int count = Math.max(1, Math.min(request.count, MAX_GIVE_COUNT));
-        BackendClient.post(ModConfig.ENDPOINT_THROW_ITEM, new ThrowItemRequest(request.item, count))
+        BackendClient.post(ModConfig.ENDPOINT_THROW_ITEM, new ThrowItemRequest(request.item, count, player.getName().getString()))
                 .thenAccept(response -> {
                     if (!response.ok()) {
                         server.execute(() -> notifyFailure(player));
@@ -179,7 +179,7 @@ public final class ServerActions {
             default -> null;
         };
         if (endpoint != null) {
-            BackendClient.post(endpoint, Map.of("taskId", request.taskId)).thenAccept(response -> {
+            BackendClient.post(endpoint, Map.of("taskId", request.taskId, "sender", player.getName().getString())).thenAccept(response -> {
                 if (!response.ok()) {
                     server.execute(() -> notifyFailure(player));
                 }
