@@ -173,19 +173,20 @@ public final class Icons {
             "..####......",
             "..##........");
 
-    public static final PixelIcon CMD_CANCEL = PixelIcon.of(new Object[]{'#', 0xFFC8C8C8},
-            "##........##",
-            "##........##",
-            "..##....##..",
-            "..##....##..",
+    /** A bin, not a cross: a cross reads as "close this menu", and pressing it to close cancelled the task. */
+    public static final PixelIcon CMD_CANCEL = PixelIcon.of(new Object[]{'#', 0xFFD86A6A},
             "....####....",
-            "....####....",
-            "....####....",
-            "....####....",
-            "..##....##..",
-            "..##....##..",
-            "##........##",
-            "##........##");
+            "..########..",
+            "............",
+            "..########..",
+            "..#.#..#.#..",
+            "..#.#..#.#..",
+            "..#.#..#.#..",
+            "..#.#..#.#..",
+            "..#.#..#.#..",
+            "..#.#..#.#..",
+            "..########..",
+            "............");
 
     public static final PixelIcon CMD_BAG = PixelIcon.of(
             new Object[]{'b', 0xFF9C6B30, 'd', 0xFF5A3A16, 'l', 0xFFD8D8D8},

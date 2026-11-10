@@ -37,13 +37,28 @@ public class CommandScreen extends OverlayScreen {
     /** A press held at least this long makes releasing the key confirm the selection. */
     private static final long HOLD_MS = 250;
 
-    /** One order: what it is called, what it does, and the action that sends it. */
-    private record Option(Text label, Text description, PixelIcon icon, Runnable action) {
+    /** How long a first press of an order that cannot be undone waits for the second. */
+    private static final long CONFIRM_MS = 4000;
+
+    /**
+     * One order: what it is called, what it does, and the action that sends it. {@code confirmTwice} marks an
+     * order that cannot be undone (cancelling the task): it needs a second press, and never fires on releasing
+     * the key, so a press meant to close the menu cannot throw away the bot's work.
+     */
+    private record Option(String key, Text label, Text description, PixelIcon icon, Runnable action, boolean confirmTwice) {
         static Option of(String key, PixelIcon icon, Runnable action) {
-            return new Option(Text.translatable("shannonuimod.command." + key),
-                    Text.translatable("shannonuimod.command." + key + ".desc"), icon, action);
+            return new Option(key, Text.translatable("shannonuimod.command." + key),
+                    Text.translatable("shannonuimod.command." + key + ".desc"), icon, action, false);
+        }
+
+        static Option twice(String key, PixelIcon icon, Runnable action) {
+            Option option = of(key, icon, action);
+            return new Option(key, option.label(), option.description(), icon, action, true);
         }
     }
+
+    /** When the selected undoable order was first pressed, or 0 when none is waiting for its second press. */
+    private long armedAt;
 
     private final KeyBinding trigger;
     private final long openedAt = System.currentTimeMillis();
@@ -67,8 +82,9 @@ public class CommandScreen extends OverlayScreen {
                 Option.of("follow", Icons.CMD_FOLLOW, () -> ClientActions.command(BotCommand.FOLLOW)),
                 Option.of("come", Icons.CMD_COME, () -> ClientActions.command(BotCommand.COME)),
                 Option.of("resume", Icons.CMD_RESUME, () -> ClientActions.command(BotCommand.RESUME)),
-                Option.of("cancel", Icons.CMD_CANCEL, () -> ClientActions.command(BotCommand.CANCEL)),
-                Option.of("bag", Icons.CMD_BAG, () -> client.setScreen(new ShannonScreen(InventoryTab.class))));
+                Option.of("bag", Icons.CMD_BAG, () -> client.setScreen(new ShannonScreen(InventoryTab.class))),
+                // Last and apart from "resume", so it is never what a quick press lands on.
+                Option.twice("cancel", Icons.CMD_CANCEL, () -> ClientActions.command(BotCommand.CANCEL)));
         BotStatus status = ShannonClient.get().store().status();
         this.selected = status == BotStatus.WAITING || status == BotStatus.ERROR ? 3 : 1;
     }
@@ -108,8 +124,18 @@ public class CommandScreen extends OverlayScreen {
         return -1;
     }
 
+    private boolean armed() {
+        return armedAt != 0 && System.currentTimeMillis() - armedAt <= CONFIRM_MS;
+    }
+
     private void confirm() {
-        options.get(selected).action().run();
+        Option option = options.get(selected);
+        if (option.confirmTwice() && !armed()) {
+            armedAt = System.currentTimeMillis();
+            return;
+        }
+        armedAt = 0;
+        option.action().run();
         // An order that opens another screen has already replaced this one.
         if (client.currentScreen == this) {
             close();
@@ -133,8 +159,13 @@ public class CommandScreen extends OverlayScreen {
             }
         }
         Option option = options.get(selected);
-        Text label = option.label();
-        Text description = option.description();
+        if (!option.confirmTwice() || !armed()) {
+            armedAt = 0;
+        }
+        boolean waitingSecond = option.confirmTwice() && armed();
+        Text label = waitingSecond ? Text.translatable("shannonuimod.command." + option.key() + ".confirm") : option.label();
+        Text description = waitingSecond ? Text.translatable("shannonuimod.command." + option.key() + ".confirm.desc")
+                : option.description();
         Text about = target == null ? null : Text.translatable("shannonuimod.point.about",
                 target.name(), target.coordinates());
         int centerX = width / 2;
@@ -161,13 +192,13 @@ public class CommandScreen extends OverlayScreen {
             }
             Gui.text(context, about, aboutX, rowY() - 42, Palette.AQUA);
         }
-        Gui.text(context, label, centerX - Gui.width(label) / 2, rowY() - 28, Palette.WHITE);
+        Gui.text(context, label, centerX - Gui.width(label) / 2, rowY() - 28, waitingSecond ? Palette.RED : Palette.WHITE);
         Gui.text(context, description, centerX - Gui.width(description) / 2, rowY() - 17, Palette.GRAY);
         for (int i = 0; i < options.size(); i++) {
             int x = rowX() + i * SPACING;
             int y = rowY();
             context.fill(x, y, x + SLOT, y + SLOT, 0x73000000);
-            Gui.outline(context, x, y, SLOT, SLOT, i == selected ? Palette.WHITE : 0xFF6B6B6B);
+            Gui.outline(context, x, y, SLOT, SLOT, i == selected ? (waitingSecond ? Palette.RED : Palette.WHITE) : 0xFF6B6B6B);
             if (i == selected) {
                 context.fill(x + 1, y + 1, x + SLOT - 1, y + SLOT - 1, 0x1FFFFFFF);
             }
@@ -224,7 +255,9 @@ public class CommandScreen extends OverlayScreen {
             confirm();
             return true;
         }
-        return super.mouseClicked(click, doubled);
+        // A click beside the orders closes the menu, the way one would expect a click outside to.
+        close();
+        return true;
     }
 
     @Override
@@ -261,7 +294,8 @@ public class CommandScreen extends OverlayScreen {
     public boolean keyReleased(KeyInput input) {
         if (input.key() == KeyBindings.keyCode(trigger) && !triggerReleased) {
             triggerReleased = true;
-            if (System.currentTimeMillis() - openedAt >= HOLD_MS) {
+            // Letting go never cancels the task: an undoable order waits in the open menu for a deliberate press.
+            if (System.currentTimeMillis() - openedAt >= HOLD_MS && !options.get(selected).confirmTwice()) {
                 confirm();
             }
             return true;

@@ -296,5 +296,8 @@
   "shannonuimod.journey.how.the_end": "When she arrives in the End",
   "shannonuimod.journey.how.dragon": "When she earns \"Free the End\"",
   "shannonuimod.card.journey": "Way %s/%s · next: %s",
-  "shannonuimod.card.journey.done": "All %s milestones reached"
+  "shannonuimod.card.journey.done": "All %s milestones reached",
+  "shannonuimod.command.cancel.confirm": "Press again to cancel the current task",
+  "shannonuimod.command.cancel.confirm.desc": "This cannot be undone. To close, press Esc or click outside",
+  "shannonuimod.tasks.cancel.confirm": "Really cancel?"
 }

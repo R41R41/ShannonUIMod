@@ -311,5 +311,8 @@
   "shannonuimod.journey.how.the_end": "ジ・エンドに着いたとき",
   "shannonuimod.journey.how.dragon": "進捗「エンドの解放」を取ったとき",
   "shannonuimod.card.journey": "道のり %s/%s · 次: %s",
-  "shannonuimod.card.journey.done": "道のり %s 個すべて達成"
+  "shannonuimod.card.journey.done": "道のり %s 個すべて達成",
+  "shannonuimod.command.cancel.confirm": "もう一度押すと、今の作業をやめます",
+  "shannonuimod.command.cancel.confirm.desc": "やめると元に戻せません。閉じるなら Esc か、枠の外をクリック",
+  "shannonuimod.tasks.cancel.confirm": "本当にやめる？"
 }

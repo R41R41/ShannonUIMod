@@ -46,6 +46,9 @@ public class TasksTab extends ShannonTab {
 
     private ButtonWidget resume;
     private ButtonWidget cancel;
+    /** When "やめる" was first pressed; a second press within {@link #CONFIRM_MS} cancels the task. 0: not armed. */
+    private long cancelArmedAt;
+    private static final long CONFIRM_MS = 4000;
     private ButtonWidget again;
     private HistoryView log;
     private int treeScroll;
@@ -97,25 +100,44 @@ public class TasksTab extends ShannonTab {
                             screen.close();
                         }
                     })
-                    .dimensions(right - againW, buttonY, againW, 20)
+                    .dimensions(right - buttonW - 4 - againW, buttonY, againW, 20)
                     .tooltip(Tooltip.of(Text.translatable("shannonuimod.history.again.tip")))
+                    .build());
+            add(ButtonWidget.builder(Text.translatable("shannonuimod.screen.close"), button -> screen.close())
+                    .dimensions(right - buttonW, buttonY, buttonW, 20)
                     .build());
             tick();
             return;
         }
-        cancel = add(ButtonWidget.builder(Text.translatable("shannonuimod.tasks.cancel"), button -> {
-                    String id = currentTaskId();
-                    if (id != null) {
-                        ClientActions.task(Actions.TaskAction.DELETE, id);
-                    }
-                })
+        // Bottom-right is where Minecraft's screens put "Done", so a plain close button goes there. "やめる"
+        // used to sit there, and a press meant to close the screen cancelled the task; it now sits furthest
+        // from that corner and needs a second press.
+        add(ButtonWidget.builder(Text.translatable("shannonuimod.screen.close"), button -> screen.close())
                 .dimensions(right - buttonW, buttonY, buttonW, 20)
-                .tooltip(Tooltip.of(Text.translatable("shannonuimod.tasks.cancel.tip")))
                 .build());
         resume = add(ButtonWidget.builder(Text.translatable("shannonuimod.tasks.resume"),
                         button -> ClientActions.command(BotCommand.RESUME))
                 .dimensions(right - buttonW * 2 - 4, buttonY, buttonW, 20)
                 .tooltip(Tooltip.of(Text.translatable("shannonuimod.tasks.resume.tip")))
+                .build());
+        int cancelW = 76;
+        cancelArmedAt = 0;
+        cancel = add(ButtonWidget.builder(Text.translatable("shannonuimod.tasks.cancel"), button -> {
+                    long pressedAt = System.currentTimeMillis();
+                    if (cancelArmedAt == 0 || pressedAt - cancelArmedAt > CONFIRM_MS) {
+                        cancelArmedAt = pressedAt;
+                        button.setMessage(Text.translatable("shannonuimod.tasks.cancel.confirm").formatted(Formatting.RED));
+                        return;
+                    }
+                    cancelArmedAt = 0;
+                    button.setMessage(Text.translatable("shannonuimod.tasks.cancel"));
+                    String id = currentTaskId();
+                    if (id != null) {
+                        ClientActions.task(Actions.TaskAction.DELETE, id);
+                    }
+                })
+                .dimensions(right - buttonW * 2 - 8 - cancelW, buttonY, cancelW, 20)
+                .tooltip(Tooltip.of(Text.translatable("shannonuimod.tasks.cancel.tip")))
                 .build());
         tick();
     }
@@ -134,6 +156,10 @@ public class TasksTab extends ShannonTab {
         BotStatus status = shannon.store().status();
         resume.active = status == BotStatus.WAITING || status == BotStatus.ERROR;
         cancel.active = currentTaskId() != null;
+        if (cancelArmedAt != 0 && System.currentTimeMillis() - cancelArmedAt > CONFIRM_MS) {
+            cancelArmedAt = 0;
+            cancel.setMessage(Text.translatable("shannonuimod.tasks.cancel"));
+        }
     }
 
     private String currentTaskId() {
