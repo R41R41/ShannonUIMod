@@ -85,6 +85,10 @@ public final class ShannonHud {
         if (!visible(shannon) || !config.showCard) {
             return;
         }
+        // The command menu sits mid-screen over a translucent card; its own title says what each choice does.
+        if (client.currentScreen instanceof com.shannon.ui.screen.CommandScreen) {
+            return;
+        }
         StatusCard.Card card = StatusCard.prepare(shannon);
         int screenWidth = context.getScaledWindowWidth();
         boolean left = config.cardCorner == ClientConfig.Corner.TOP_LEFT;

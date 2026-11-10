@@ -105,6 +105,33 @@ public final class TaskView {
         return null;
     }
 
+    /**
+     * What the bot is waiting on an answer to: its latest question not yet answered by a player, else its
+     * latest line. A remark made after the question ("うわっ、溶岩！") must not replace the question itself.
+     */
+    public static ChatState.Message pendingQuestion(ChatState chat) {
+        if (chat == null || chat.messages == null) {
+            return null;
+        }
+        for (int i = chat.messages.size() - 1; i >= 0; i--) {
+            ChatState.Message message = chat.messages.get(i);
+            if (message.kind() != ChatState.Kind.CHAT) {
+                continue;
+            }
+            if (!message.fromBot()) {
+                break; // A player spoke since: anything older has been answered.
+            }
+            if (isQuestion(message.message)) {
+                return message;
+            }
+        }
+        return lastBotMessage(chat);
+    }
+
+    static boolean isQuestion(String text) {
+        return text != null && (text.indexOf('?') >= 0 || text.indexOf('？') >= 0);
+    }
+
     public static String blankToNull(String text) {
         return text == null || text.isBlank() ? null : text.strip();
     }

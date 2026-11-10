@@ -176,7 +176,7 @@ public final class TaskHistory {
         Record running = current();
         if (running != null && status == BotStatus.WAITING && lastStatus != BotStatus.WAITING) {
             // The question usually arrives just before the task says it waits.
-            ChatState.Message asked = TaskView.lastBotMessage(store.get(StateChannels.CHAT));
+            ChatState.Message asked = TaskView.pendingQuestion(store.get(StateChannels.CHAT));
             if (asked != null) {
                 addQuestion(running, asked.message, now);
             }

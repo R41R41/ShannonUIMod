@@ -273,7 +273,7 @@ public final class StatusCard {
                     rows.add(line(Text.literal(goal), Palette.GRAY));
                 }
                 rows.add(divider());
-                ChatState.Message question = TaskView.lastBotMessage(store.get(StateChannels.CHAT));
+                ChatState.Message question = TaskView.pendingQuestion(store.get(StateChannels.CHAT));
                 Text ask = question != null
                         ? Text.literal(question.message)
                         : Text.translatable("shannonuimod.card.waiting");

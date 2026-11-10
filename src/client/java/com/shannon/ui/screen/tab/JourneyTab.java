@@ -177,16 +177,22 @@ public class JourneyTab extends ShannonTab {
     }
 
     private static int row(DrawContext context, int x, int width, int y, Text label, Text value, int color) {
-        Gui.text(context, label, x, y, Palette.GRAY);
+        Gui.label(context, label, x, y);
         int room = width - Gui.width(label) - 6;
         Text fitted = Gui.width(value) <= room ? value : Gui.fit(value.getString(), room);
-        Gui.text(context, fitted, x + width - Gui.width(fitted), y, color);
+        if (color == Palette.GRAY) {
+            Gui.label(context, fitted, x + width - Gui.width(fitted), y);
+        } else {
+            Gui.text(context, fitted, x + width - Gui.width(fitted), y, color);
+        }
         return y + 12;
     }
 
     /** Each milestone reached, in the order she reached them: the time from the start and the time since the one before. */
     private void renderSplits(DrawContext context, JourneyState journey, int left, int top, int width, int height) {
-        Gui.text(context, Text.translatable("shannonuimod.journey.splits"), left, top, Palette.GRAY);
+        // Secondary text on the slot-grey wells is vanilla's dark label colour without a shadow: light grey with a
+        // shadow there leaves mostly the shadow visible, and "+0:00" read as "+9:99".
+        Gui.label(context, Text.translatable("shannonuimod.journey.splits"), left, top);
         List<JourneyState.Mark> marks = new ArrayList<>(journey.marks);
         marks.sort(Comparator.comparingLong(mark -> mark.tick));
         int listTop = top + 12;
@@ -211,7 +217,7 @@ public class JourneyTab extends ShannonTab {
             int deltaW = Gui.width(delta);
             Text name = milestoneName(mark.id);
             Gui.text(context, Gui.fit(name.getString(), width - 40 - deltaW - 4), nameX, rowY, Palette.WHITE);
-            Gui.text(context, delta, left + width - deltaW, rowY, Palette.GRAY);
+            Gui.label(context, delta, left + width - deltaW, rowY);
         }
     }
 

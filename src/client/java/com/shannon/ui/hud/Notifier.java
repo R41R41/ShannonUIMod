@@ -1,5 +1,10 @@
 package com.shannon.ui.hud;
 
+import com.shannon.ui.screen.CommandScreen;
+import com.shannon.ui.screen.QuickChatScreen;
+import com.shannon.ui.screen.ShannonScreen;
+import net.minecraft.client.gui.screen.Screen;
+
 import com.shannon.sync.StateChannels;
 import com.shannon.ui.ShannonClient;
 import com.shannon.ui.input.KeyBindings;
@@ -13,6 +18,10 @@ import net.minecraft.text.Text;
  * and low on health. Nothing else makes a toast, so toasts keep meaning "look now".
  *
  * <p>Uses vanilla's toast queue, so it stacks with advancement toasts and other mods' toasts.
+ *
+ * <p>No toast while the status card is in view: the card already grows to show the question, the trouble or
+ * the danger with the same key hints, and a toast repeating it only covers the top-right corner. Nor while the
+ * mod's own screen is open, which shows the status itself. The toast is for when the card cannot be seen.
  */
 public final class Notifier {
     /** Danger toasts come at most this often, however long a fight goes on. */
@@ -30,7 +39,7 @@ public final class Notifier {
             }
             long now = System.currentTimeMillis();
             if (shannon.danger().recentlyHurt() && shannon.danger().lowHealth()
-                    && now - lastDangerToast > DANGER_GAP_MS) {
+                    && now - lastDangerToast > DANGER_GAP_MS && !statusInView(shannon)) {
                 lastDangerToast = now;
                 SystemToast.show(MinecraftClient.getInstance().getToastManager(),
                         SystemToast.Type.PERIODIC_NOTIFICATION,
@@ -45,7 +54,7 @@ public final class Notifier {
             BotStatus now = shannon.store().status();
             BotStatus before = last[0];
             last[0] = now;
-            if (now == before || !shannon.config().showToasts) {
+            if (now == before || !shannon.config().showToasts || statusInView(shannon)) {
                 return;
             }
             MinecraftClient client = MinecraftClient.getInstance();
@@ -61,5 +70,17 @@ public final class Notifier {
                                 KeyBindings.keyName(shannon.keys().commands())));
             }
         });
+    }
+
+    /** Whether the player can already see the bot's status: the HUD card, or the mod's own screen. */
+    static boolean statusInView(ShannonClient shannon) {
+        MinecraftClient client = MinecraftClient.getInstance();
+        Screen screen = client.currentScreen;
+        if (screen instanceof ShannonScreen) {
+            return true;
+        }
+        boolean hudShown = client.player != null && !client.options.hudHidden
+                && !client.getDebugHud().shouldShowDebugHud() && shannon.config().showCard;
+        return hudShown && (screen == null || screen instanceof QuickChatScreen || screen instanceof CommandScreen);
     }
 }
